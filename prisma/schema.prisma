@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SurgicalSide {
+  LEFT
+  RIGHT
+  BILATERAL
+}
+
+enum PatientStatus {
+  ACTIVE
+  OBSERVATION
+  DISCHARGED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DeviceSource {
+  SMART_BRACE
+  MANUAL
+  DEMO
+}
+
+enum AlertType {
+  ROM_LOW
+  ACTIVITY_LOW
+  DURATION_LOW
+  PAIN_HIGH
+  DEVICE_OFFLINE
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum NursingAction {
+  REMOTE_GUIDANCE
+  PHONE_CALL
+  HOME_VISIT
+  REHAB_ADJUSTMENT
+  MEDICATION_REMINDER
+}
+
+enum UserRole {
+  patient
+  nurse
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+model Profile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique @map("user_id")
+  role                UserRole
+  name                String
+  age                 Int?
+  gender              Gender?
+  tkaSurgeryDate      DateTime? @map("tka_surgery_date")
+  affectedKnee        SurgicalSide? @map("affected_knee")
+  phone               String?
+  emergencyContact    String?  @map("emergency_contact")
+  sensorDeviceId      String?  @map("sensor_device_id")
+  department          String?
+  title               String?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([role])
+  @@map("profiles")
+}
+
+model AiAnalysis {
+  id                String   @id @default(cuid())
+  patientId         String   @map("patient_id")
+  patientName       String   @map("patient_name")
+  flexionAngle      Float    @map("flexion_angle")
+  activityFrequency Int      @map("activity_frequency")
+  activityDuration  Int      @map("activity_duration")
+  painScore         Int      @default(0) @map("pain_score")
+  provider          String
+  report            String
+  recommendation    String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([patientId, createdAt])
+  @@map("ai_analyses")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  patientName     String            @map("patient_name")
+  patientPhone    String?           @map("patient_phone")
+  expectedTime    DateTime          @map("expected_time")
+  description     String
+  status          AppointmentStatus @default(PENDING)
+  nurseName       String?           @map("nurse_name")
+  scheduledTime   DateTime?         @map("scheduled_time")
+  responseNote    String?           @map("response_note")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@index([status, expectedTime])
+  @@map("appointments")
+}
+
+model Patient {
+  id               String           @id @default(cuid())
+  medicalRecordNo  String           @unique @map("medical_record_no")
+  name             String
+  age              Int
+  roomNumber       String?          @map("room_number")
+  phone            String?
+  emergencyContact String?          @map("emergency_contact")
+  surgeryDate      DateTime         @map("surgery_date")
+  surgicalSide     SurgicalSide     @default(RIGHT) @map("surgical_side")
+  diagnosis        String           @default("TKA 术后康复")
+  targetFlexion    Float            @default(110) @map("target_flexion")
+  status           PatientStatus    @default(ACTIVE)
+  riskLevel        RiskLevel        @default(MEDIUM) @map("risk_level")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  kneeDataRecords  KneeDataRecord[]
+  nursingRecords   NursingRecord[]
+  alertLogs        AlertLog[]
+
+  @@index([status, riskLevel])
+  @@map("patients")
+}
+
+model KneeDataRecord {
+  id                String       @id @default(cuid())
+  patientId         String       @map("patient_id")
+  flexionAngle      Float        @map("flexion_angle")
+  extensionAngle    Float        @default(0) @map("extension_angle")
+  activityFrequency Int          @map("activity_frequency")
+  activityDuration  Int          @map("activity_duration")
+  painScore         Int          @default(0) @map("pain_score")
+  batteryLevel      Int          @default(92) @map("battery_level")
+  signalStrength    Int          @default(96) @map("signal_strength")
+  source            DeviceSource @default(SMART_BRACE)
+  recordedAt        DateTime     @default(now()) @map("recorded_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  patient           Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, recordedAt])
+  @@map("knee_data_records")
+}
+
+model NursingRecord {
+  id           String        @id @default(cuid())
+  patientId    String        @map("patient_id")
+  nurseName    String        @map("nurse_name")
+  actionType   NursingAction @default(REMOTE_GUIDANCE) @map("action_type")
+  guidance     String
+  notes        String?
+  nextFollowUp DateTime?     @map("next_follow_up")
+  readAt       DateTime?     @map("read_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, createdAt])
+  @@map("nursing_records")
+}
+
+model AlertLog {
+  id          String        @id @default(cuid())
+  patientId   String        @map("patient_id")
+  type        AlertType
+  severity    AlertSeverity @default(MEDIUM)
+  status      AlertStatus   @default(OPEN)
+  title       String
+  message     String
+  metric      String?
+  value       Float?
+  threshold   Float?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  resolvedAt  DateTime?     @map("resolved_at")
+  patient     Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, status, severity])
+  @@index([createdAt])
+  @@map("alert_logs")
+}

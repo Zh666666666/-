@@ -1,0 +1,31 @@
+alter publication supabase_realtime add table public.profiles;
+alter publication supabase_realtime add table public.ai_analyses;
+alter publication supabase_realtime add table public.appointments;
+alter publication supabase_realtime add table public.patients;
+alter publication supabase_realtime add table public.knee_data_records;
+alter publication supabase_realtime add table public.nursing_records;
+alter publication supabase_realtime add table public.alert_logs;
+
+alter table public.profiles enable row level security;
+alter table public.ai_analyses enable row level security;
+alter table public.appointments enable row level security;
+alter table public.patients enable row level security;
+alter table public.knee_data_records enable row level security;
+alter table public.nursing_records enable row level security;
+alter table public.alert_logs enable row level security;
+
+create policy "anon read profiles" on public.profiles for select using (true);
+create policy "anon insert profiles" on public.profiles for insert with check (true);
+create policy "anon update profiles" on public.profiles for update using (true) with check (true);
+create policy "anon read ai analyses" on public.ai_analyses for select using (true);
+create policy "anon insert ai analyses" on public.ai_analyses for insert with check (true);
+create policy "anon read appointments" on public.appointments for select using (true);
+create policy "anon insert appointments" on public.appointments for insert with check (true);
+create policy "anon update appointments" on public.appointments for update using (true) with check (true);
+create policy "anon read patients" on public.patients for select using (true);
+create policy "anon read knee data" on public.knee_data_records for select using (true);
+create policy "anon insert knee data" on public.knee_data_records for insert with check (true);
+create policy "anon read nursing records" on public.nursing_records for select using (true);
+create policy "anon insert nursing records" on public.nursing_records for insert with check (true);
+create policy "anon read alerts" on public.alert_logs for select using (true);
+create policy "anon update alerts" on public.alert_logs for update using (true) with check (true);
