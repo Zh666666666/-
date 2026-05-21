@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "TKA 术后膝关节康复监测管理平台",
-  description: "面向老人、护士与康复团队的智能护膝实时监测平台",
+  description: "面向家属、护士与康复团队的智能护膝实时监测平台",
 };
 
 export default function RootLayout({

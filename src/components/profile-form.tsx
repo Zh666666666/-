@@ -21,7 +21,7 @@ type ProfileFormProps = {
 type ProfileDraft = Omit<ProfileItem, "id" | "userId" | "createdAt" | "updatedAt">;
 
 const blankPatient: ProfileDraft = {
-  role: "patient",
+  role: "family",
   name: "",
   age: null,
   gender: "FEMALE",
@@ -53,7 +53,7 @@ function toDateInput(value: string | null) {
 }
 
 export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
-  const [profile, setProfile] = useState<ProfileDraft>(role === "patient" ? blankPatient : blankNurse);
+  const [profile, setProfile] = useState<ProfileDraft>(role === "family" ? blankPatient : blankNurse);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -153,10 +153,10 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
           <div>
             <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
               <UserRound className="size-4" />
-              {role === "patient" ? "患者档案" : "护士档案"}
+              {role === "family" ? "家属档案" : "护士档案"}
             </Badge>
             <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">{title}</h1>
-            <p className="mt-3 text-base leading-7 text-slate-600">支持查看与编辑，保存后写入数据库；未配置 Supabase 实时通道时使用 Demo 轮询。</p>
+            <p className="mt-3 text-base leading-7 text-slate-600">支持查看与编辑，保存后写入数据库；未配置 Supabase 实时通道时使用 Demo 轮询。家属可以代为填写和维护患者资料，方便护士端持续跟进。</p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
             <Button asChild variant="outline">
@@ -179,7 +179,7 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
             <Field label="姓名" value={profile.name} disabled={!editing} onChange={(value) => update("name", value)} />
             <Field label="联系电话" value={profile.phone ?? ""} disabled={!editing} onChange={(value) => update("phone", value)} />
 
-            {role === "patient" ? (
+            {role === "family" ? (
               <>
                 <Field label="年龄" type="number" value={profile.age?.toString() ?? ""} disabled={!editing} onChange={(value) => update("age", value ? Number(value) : null)} />
                 <SelectField label="性别" value={profile.gender ?? ""} disabled={!editing} onChange={(value) => update("gender", value as ProfileDraft["gender"])} options={["MALE", "FEMALE", "OTHER"]} labels={{ MALE: "男", FEMALE: "女", OTHER: "其他" }} />

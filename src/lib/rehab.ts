@@ -1,4 +1,4 @@
-export type UserRole = "patient" | "nurse";
+export type UserRole = "family" | "nurse";
 export type Gender = "MALE" | "FEMALE" | "OTHER";
 
 export type AiAnalysisItem = {

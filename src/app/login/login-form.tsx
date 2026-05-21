@@ -14,15 +14,15 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const roleOptions: Array<{ role: UserRole; title: string; description: string; icon: typeof UserRound }> = [
-  { role: "patient", title: "患者 / 老人端", description: "查看护膝数据、指导建议和预约护理。", icon: HeartPulse },
-  { role: "nurse", title: "护士端", description: "实时监测患者、处理预警和远程指导。", icon: ShieldCheck },
+  { role: "family", title: "家属端", description: "查看家人康复数据、指导建议和预约护理。", icon: HeartPulse },
+  { role: "nurse", title: "护士端", description: "实时监测家人康复、处理预警和远程指导。", icon: ShieldCheck },
 ];
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [role, setRole] = useState<UserRole>("patient");
-  const [email, setEmail] = useState("patient@demo.cn");
+  const [role, setRole] = useState<UserRole>("family");
+  const [email, setEmail] = useState("family@demo.cn");
   const [password, setPassword] = useState("demo123456");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,13 +79,13 @@ export function LoginForm() {
             <div>
               <Badge className="bg-emerald-400 text-emerald-950">Supabase Auth</Badge>
               <h1 className="mt-8 font-display text-6xl font-bold leading-tight">TKA 康复监测管理平台</h1>
-              <p className="mt-6 max-w-xl text-xl leading-9 text-slate-300">统一登录入口会根据角色进入患者端或护士端，并由中间件保护不同角色的访问边界。</p>
+              <p className="mt-6 max-w-xl text-xl leading-9 text-slate-300">统一登录入口会根据角色进入家属端或护士端，并由中间件保护不同角色的访问边界。</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
                 <HeartPulse className="size-8 text-emerald-300" />
-                <p className="mt-4 text-lg font-bold">患者端</p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">零操作采集、指导建议、预约护理。</p>
+                <p className="mt-4 text-lg font-bold">家属端</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">零操作采集、温暖提醒、预约护理。</p>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
                 <ShieldCheck className="size-8 text-sky-300" />
@@ -124,7 +124,7 @@ export function LoginForm() {
                       )}
                       onClick={() => {
                         setRole(option.role);
-                        setEmail(option.role === "patient" ? "patient@demo.cn" : "nurse@demo.cn");
+                        setEmail(option.role === "family" ? "family@demo.cn" : "nurse@demo.cn");
                       }}
                     >
                       <span className={cn("flex size-11 items-center justify-center rounded-2xl", selected ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600")}>

@@ -6,7 +6,7 @@ import { authRoleCookie, defaultPathForRole, roleFromAuthUser } from "@/lib/auth
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const switchSchema = z.object({
-  role: z.enum(["patient", "nurse"]),
+  role: z.enum(["family", "nurse"]),
 });
 
 export async function POST(request: Request) {

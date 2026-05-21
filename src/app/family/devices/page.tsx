@@ -19,8 +19,8 @@ type DeviceDraft = {
 };
 
 const defaultProfile = {
-  role: "patient" as const,
-  name: "演示患者",
+  role: "family" as const,
+  name: "演示家属",
   age: null,
   gender: "FEMALE" as const,
   tkaSurgeryDate: null,
@@ -44,7 +44,7 @@ function parseDevice(value: string | null): DeviceDraft {
   };
 }
 
-export default function ElderDevicesPage() {
+export default function FamilyDevicesPage() {
   const [profile, setProfile] = useState<ProfileItem | null>(null);
   const [draft, setDraft] = useState<DeviceDraft>({ deviceName: "智能康复护膝", serialNo: "" });
   const [saving, setSaving] = useState(false);
@@ -57,7 +57,7 @@ export default function ElderDevicesPage() {
     let cancelled = false;
 
     async function loadProfile() {
-      const response = await fetch("/api/profile?role=patient", { cache: "no-store" });
+      const response = await fetch("/api/profile?role=family", { cache: "no-store" });
       const data = (await response.json()) as ProfileItem | null;
 
       if (!cancelled && data) {
@@ -76,7 +76,7 @@ export default function ElderDevicesPage() {
       };
     }
 
-    const channel = subscribeToSharedTables("elder-devices", loadProfile, ["profiles", "knee_data_records"]);
+    const channel = subscribeToSharedTables("family-devices", loadProfile, ["profiles", "knee_data_records"]);
 
     return () => {
       cancelled = true;
@@ -87,7 +87,7 @@ export default function ElderDevicesPage() {
   async function saveDevice(sensorDeviceId: string | null) {
     const payload = {
       ...(profile ?? defaultProfile),
-      role: "patient" as const,
+      role: "family" as const,
       name: profile?.name || defaultProfile.name,
       sensorDeviceId,
     };
@@ -163,10 +163,10 @@ export default function ElderDevicesPage() {
                 传感器设备绑定
               </Badge>
               <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">添加智能护膝设备</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">输入设备名称和设备 ID/序列号后绑定到患者档案，后续模拟上传会继续沿用当前患者身份。</p>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">输入设备名称和设备 ID/序列号后即可绑定到家属代管的康复档案，后续模拟上传会继续沿用当前照护对象。</p>
             </div>
             <Button asChild size="lg" variant="outline">
-              <Link href="/elder">返回老人端</Link>
+              <Link href="/family">返回家属端</Link>
             </Button>
           </div>
         </header>
@@ -209,7 +209,7 @@ export default function ElderDevicesPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
-                <p className="text-sm text-emerald-100">患者</p>
+                <p className="text-sm text-emerald-100">家人</p>
                 <p className="mt-2 text-3xl font-black tracking-tight">{profile?.name ?? "正在读取"}</p>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
@@ -226,7 +226,7 @@ export default function ElderDevicesPage() {
                 {checking ? "正在自检" : "设备连接自检"}
               </Button>
               {checkResult ? <div className="[&_p]:border-white/10 [&_p]:bg-white/10 [&_p]:text-emerald-50"><StatusNotice tone="info">{checkResult}</StatusNotice></div> : null}
-              <p className="rounded-2xl bg-white/10 p-4 text-sm leading-6 text-emerald-50">绑定结果会同步写入 profiles 表的 sensorDeviceId 字段，护士端查看患者资料时可追踪当前设备。</p>
+              <p className="rounded-2xl bg-white/10 p-4 text-sm leading-6 text-emerald-50">绑定结果会同步写入 profiles 表的 sensorDeviceId 字段，护士端查看家人资料时可追踪当前设备。</p>
             </CardContent>
           </Card>
         </div>

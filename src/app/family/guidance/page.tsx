@@ -32,7 +32,7 @@ function SoapBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ElderGuidancePage() {
+export default function FamilyGuidancePage() {
   const [records, setRecords] = useState<NursingRecordItem[]>([]);
   const [filter, setFilter] = useState("ALL");
   const [syncMode, setSyncMode] = useState<"realtime" | "polling" | "connecting">("connecting");
@@ -52,7 +52,7 @@ export default function ElderGuidancePage() {
       return () => window.clearInterval(timer);
     }
 
-    const channel = subscribeToSharedTables("elder-guidance", refreshRecords, ["profiles", "nursing_records", "alert_logs"], (status) => setSyncMode(status === "SUBSCRIBED" ? "realtime" : "connecting"));
+    const channel = subscribeToSharedTables("family-guidance", refreshRecords, ["profiles", "nursing_records", "alert_logs"], (status) => setSyncMode(status === "SUBSCRIBED" ? "realtime" : "connecting"));
     const fallbackTimer = window.setInterval(refreshRecords, 12000);
 
     return () => {
@@ -97,10 +97,10 @@ export default function ElderGuidancePage() {
               {syncMode === "realtime" ? "指导建议实时同步" : syncMode === "polling" ? "Demo 轮询同步" : "正在连接同步通道"}
             </Badge>
             <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">远程指导建议</h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">护士端发送康复建议后会立即同步到这里，患者可查看历史记录并标记已读。</p>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">护士端发送康复建议后会立即同步到这里，家属可查看历史记录并为家人代读、代记和代沟通。</p>
           </div>
           <Button asChild size="lg" variant="outline">
-            <Link href="/elder">返回老人端</Link>
+            <Link href="/family">返回家属端</Link>
           </Button>
         </header>
 
@@ -153,7 +153,7 @@ export default function ElderGuidancePage() {
                       <SoapBlock label="P 护理计划" value={record.soap.plan} />
                     </div>
                   ) : null}
-                  {record.notes ? <p className="rounded-2xl bg-slate-50 px-4 py-3 text-slate-600">护理备注：{record.notes}</p> : null}
+                  {record.notes ? <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 whitespace-pre-line text-slate-600">护理备注：{record.notes}</p> : null}
                   <Separator />
                   <div className="flex justify-end">
                     <Button variant={record.readAt ? "secondary" : "elder"} disabled={Boolean(record.readAt)} onClick={() => markRead(record.id)}>

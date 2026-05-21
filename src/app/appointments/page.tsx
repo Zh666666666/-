@@ -62,7 +62,7 @@ function AppointmentManageDialog({ appointment, onSubmit }: { appointment: Appoi
 }
 
 export default function AppointmentsPage() {
-  const [role, setRole] = useState<UserRole>("patient");
+  const [role, setRole] = useState<UserRole>("family");
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [syncMode, setSyncMode] = useState<"realtime" | "polling" | "connecting">("connecting");
   const [patientName, setPatientName] = useState("王桂兰");
@@ -80,7 +80,7 @@ export default function AppointmentsPage() {
     async function loadRole() {
       const response = await fetch("/api/auth/role", { cache: "no-store" });
       const data = (await response.json()) as { role: UserRole | null };
-      setRole(data.role ?? "patient");
+      setRole(data.role ?? "family");
     }
 
     loadRole();
@@ -111,7 +111,7 @@ export default function AppointmentsPage() {
     if (response.ok) {
       await loadAppointments();
       setDescription("");
-      setNotice({ tone: "success", message: "预约已提交，护士端会实时收到。" });
+      setNotice({ tone: "success", message: "预约已提交，护士端会实时收到，我们会一起陪伴家人恢复。" });
     } else {
       setNotice({ tone: "error", message: "预约提交失败，请稍后重试。" });
     }
@@ -147,26 +147,27 @@ export default function AppointmentsPage() {
               {syncMode === "realtime" ? "预约实时同步" : syncMode === "polling" ? "Demo 轮询同步" : "正在连接同步通道"}
             </Badge>
             <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">预约上门护理</h1>
-            <p className="mt-3 text-base leading-7 text-slate-600 md:text-lg md:leading-8">患者提交上门护理需求，护士端可确认、拒绝或安排具体时间。</p>
+            <p className="mt-3 text-base leading-7 text-slate-600 md:text-lg md:leading-8">家属可代为提交上门护理需求，护士端可确认、拒绝或安排具体时间。</p>
+            <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-900">我们关心您家人的每一步康复，提交后护士会尽快联系并同步最新安排。</p>
           </div>
           <Button asChild size="lg" variant="outline">
-            <Link href={role === "nurse" ? "/nurse" : "/elder"}>返回工作台</Link>
+            <Link href={role === "nurse" ? "/nurse" : "/family"}>返回工作台</Link>
           </Button>
         </header>
 
         {notice ? <StatusNotice tone={notice.tone}>{notice.message}</StatusNotice> : null}
 
-        {role === "patient" ? (
+        {role === "family" ? (
           <Card className="bg-white/90">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-2xl"><CalendarClock className="size-7 text-emerald-700" />提交预约</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
-              <Input value={patientName} onChange={(event) => setPatientName(event.target.value)} placeholder="患者姓名" />
-              <Input value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} placeholder="联系电话" />
+              <Input value={patientName} onChange={(event) => setPatientName(event.target.value)} placeholder="家人姓名" />
+              <Input value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} placeholder="家属联系电话" />
               <Input type="datetime-local" value={expectedTime} onChange={(event) => setExpectedTime(event.target.value)} />
               <div className="md:col-span-2">
-                <Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="请描述护理需求" />
+                <Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="请描述家人的护理需求" />
               </div>
               <Button className="md:col-span-2" size="lg" variant="elder" onClick={submitAppointment}>提交预约</Button>
             </CardContent>

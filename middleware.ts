@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { authRoleCookie, defaultPathForRole, resolveAuthRole, type UserRole } from "@/lib/auth";
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase-config";
 
-const protectedPrefixes = ["/elder", "/nurse"];
+const protectedPrefixes = ["/family", "/nurse"];
 
 function redirectTo(request: NextRequest, pathname: string) {
   const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host;
@@ -76,17 +76,17 @@ export async function middleware(request: NextRequest) {
     return unauthorizedRedirect(request, pathname);
   }
 
-  if (pathname.startsWith("/elder") && role !== "patient") {
+  if (pathname.startsWith("/family") && role !== "family") {
     return redirectTo(request, "/nurse");
   }
 
   if (pathname.startsWith("/nurse") && role !== "nurse") {
-    return redirectTo(request, "/elder");
+    return redirectTo(request, "/family");
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/login", "/elder/:path*", "/nurse/:path*"],
+  matcher: ["/login", "/family/:path*", "/nurse/:path*"],
 };

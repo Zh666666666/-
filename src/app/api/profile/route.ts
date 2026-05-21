@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import type { ProfileItem, UserRole } from "@/lib/rehab";
 
 const profileSchema = z.object({
-  role: z.enum(["patient", "nurse"]),
+  role: z.enum(["family", "nurse"]),
   name: z.string().min(1),
   age: z.coerce.number().int().min(0).max(120).optional().nullable(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
@@ -22,16 +22,24 @@ const profileSchema = z.object({
   title: z.string().optional().nullable(),
 });
 
+function toDatabaseRole(role: UserRole) {
+  return role === "family" ? "patient" : "nurse";
+}
+
+function toAppRole(role: "patient" | "nurse") {
+  return role === "patient" ? "family" : "nurse";
+}
+
 async function currentRole(): Promise<UserRole> {
   const cookieStore = await cookies();
   const role = cookieStore.get(authRoleCookie)?.value;
-  return isUserRole(role) ? role : "patient";
+  return isUserRole(role) ? role : "family";
 }
 
 function serializeProfile(profile: {
   id: string;
   userId: string;
-  role: UserRole;
+  role: "patient" | "nurse";
   name: string;
   age: number | null;
   gender: ProfileItem["gender"];
@@ -47,6 +55,7 @@ function serializeProfile(profile: {
 }): ProfileItem {
   return {
     ...profile,
+    role: toAppRole(profile.role),
     tkaSurgeryDate: profile.tkaSurgeryDate ? new Date(profile.tkaSurgeryDate).toISOString() : null,
     createdAt: new Date(profile.createdAt).toISOString(),
     updatedAt: new Date(profile.updatedAt).toISOString(),
@@ -57,12 +66,13 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const roleParam = url.searchParams.get("role");
   const role = isUserRole(roleParam) ? roleParam : await currentRole();
+  const dbRole = toDatabaseRole(role);
 
   if (!hasUsableDatabaseUrl()) {
     return NextResponse.json(getDemoProfile(role));
   }
 
-  const profile = await prisma.profile.findFirst({ where: { role } });
+  const profile = await prisma.profile.findFirst({ where: { role: dbRole } });
   return NextResponse.json(profile ? serializeProfile(profile) : null);
 }
 
@@ -79,11 +89,12 @@ export async function PUT(request: Request) {
     return NextResponse.json(upsertDemoProfile(body));
   }
 
-  const userId = `${body.role}-default-profile`;
+  const dbRole = toDatabaseRole(body.role);
+  const userId = `${dbRole}-default-profile`;
   const profile = await prisma.profile.upsert({
     where: { userId },
     update: {
-      role: body.role,
+      role: dbRole,
       name: body.name,
       age: body.age ?? null,
       gender: body.gender ?? null,
@@ -97,7 +108,7 @@ export async function PUT(request: Request) {
     },
     create: {
       userId,
-      role: body.role,
+      role: dbRole,
       name: body.name,
       age: body.age ?? null,
       gender: body.gender ?? null,

@@ -84,10 +84,26 @@ export default function TcmKnowledgePage() {
               <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 md:text-lg md:leading-9">内容用于康复宣教和日常调护参考，具体治疗方案需结合医嘱、切口恢复情况和个人体质。</p>
             </div>
             <Button asChild size="lg" variant="outline">
-              <Link href="/elder">返回老人端</Link>
+              <Link href="/family">返回家属端</Link>
             </Button>
           </div>
         </header>
+
+        <Card className="overflow-hidden border-amber-100 bg-gradient-to-br from-amber-50 via-white to-emerald-50">
+          <CardContent className="grid gap-4 p-5 md:grid-cols-[auto_1fr_auto] md:items-center md:p-6">
+            <div className="flex size-14 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-700">
+              <HeartHandshake className="size-7" />
+            </div>
+            <div>
+              <Badge variant="warning" className="w-fit">护理师寄语</Badge>
+              <p className="mt-3 text-lg leading-8 text-slate-700">今天慢一点没有关系，恢复本来就是一段需要耐心的路。每一次主动屈膝、每一次坚持打卡，都是在帮家人更稳地走向康复。</p>
+              <p className="mt-2 text-sm font-semibold text-emerald-800">虚拟护士 · 小暖</p>
+            </div>
+            <div className="rounded-3xl bg-white/80 px-4 py-3 text-sm leading-7 text-slate-600 shadow-sm">
+              我们会陪您一起守护家人的每一次进步。
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-emerald-100 bg-white/90">
           <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">

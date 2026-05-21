@@ -110,9 +110,9 @@ function initialState(): DemoState {
   return {
     profiles: [
       {
-        id: "demo-profile-patient",
-        userId: "demo-patient-user",
-        role: "patient",
+        id: "demo-profile-family",
+        userId: "demo-family-user",
+        role: "family",
         name: seedPatients[0].name,
         age: seedPatients[0].age,
         gender: "FEMALE",
@@ -192,18 +192,18 @@ function getState() {
 export function getDemoDashboardData(): DashboardData {
   const state = getState();
 
-  const patientProfile = state.profiles.find((profile) => profile.role === "patient");
+  const familyProfile = state.profiles.find((profile) => profile.role === "family");
   const patients = state.patients.map((patient, index) => {
-    if (index !== 0 || !patientProfile) {
+    if (index !== 0 || !familyProfile) {
       return patient;
     }
 
     return {
       ...patient,
-      name: patientProfile.name,
-      age: patientProfile.age ?? patient.age,
-      surgeryDate: patientProfile.tkaSurgeryDate ?? patient.surgeryDate,
-      surgicalSide: patientProfile.affectedKnee ?? patient.surgicalSide,
+      name: familyProfile.name,
+      age: familyProfile.age ?? patient.age,
+      surgeryDate: familyProfile.tkaSurgeryDate ?? patient.surgeryDate,
+      surgicalSide: familyProfile.affectedKnee ?? patient.surgicalSide,
     };
   });
 
@@ -247,7 +247,7 @@ export function upsertDemoProfile(input: ProfileInput) {
     id: createId("profile"),
     userId: input.userId ?? `demo-${input.role}-user`,
     role: input.role,
-    name: input.name ?? (input.role === "patient" ? "演示患者" : "演示护士"),
+    name: input.name ?? (input.role === "family" ? "演示家属" : "演示护士"),
     age: input.age ?? null,
     gender: input.gender ?? null,
     tkaSurgeryDate: input.tkaSurgeryDate ?? null,

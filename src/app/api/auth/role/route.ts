@@ -6,7 +6,7 @@ import { authRoleCookie, defaultPathForRole, resolveAuthRole, roleFromAuthUser }
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const roleSchema = z.object({
-  role: z.enum(["patient", "nurse"]),
+  role: z.enum(["family", "nurse"]),
 });
 
 export async function GET() {

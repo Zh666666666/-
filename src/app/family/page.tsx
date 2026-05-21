@@ -25,7 +25,7 @@ async function fetchDashboard() {
   return (await response.json()) as DashboardData;
 }
 
-export default function ElderPage() {
+export default function FamilyPage() {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
   const [latestRecord, setLatestRecord] = useState<KneeDataPoint | null>(null);
   const [recentRecords, setRecentRecords] = useState<KneeDataPoint[]>([]);
@@ -33,6 +33,7 @@ export default function ElderPage() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [nursingRecords, setNursingRecords] = useState<NursingRecordItem[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [dailyCheckIn, setDailyCheckIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function ElderPage() {
       return () => window.clearInterval(timer);
     }
 
-    const channel = subscribeToSharedTables("elder-shared-data", refreshSharedData);
+    const channel = subscribeToSharedTables("family-shared-data", refreshSharedData);
 
     return () => {
       removeRealtimeChannel(channel);
@@ -155,6 +156,10 @@ export default function ElderPage() {
   const latestAnalysis = aiAnalyses[0] ?? null;
   const latestAlert = alerts[0] ?? null;
   const latestGuidance = nursingRecords[0] ?? null;
+  const honorific = (patient?.age ?? 0) >= 70 ? "爷爷/奶奶" : "家人";
+  const encouragement = latestRecord
+    ? `今天${honorific}的膝关节活动度在稳步进步，继续加油！我们和您一起守护家人健康。`
+    : "我们会陪着您一起记录每一次康复变化，慢慢来，恢复会越来越好。";
 
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
@@ -166,25 +171,25 @@ export default function ElderPage() {
               智能护膝已连接
             </Badge>
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight md:text-6xl">老人端自动监测</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-xl md:leading-9">无需点击、无需输入，智能护膝每 5 秒自动上传屈曲角度、活动频次和训练时长。</p>
+              <h1 className="font-display text-3xl font-bold tracking-tight md:text-6xl">家属端康复守护</h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-xl md:leading-9">家属可以随时了解家人的恢复进度，智能护膝每 5 秒自动上传屈曲角度、活动频次和训练时长，护士端也会及时给出专业支持。</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:justify-end">
             <Button asChild size="lg" variant="outline" className="hidden lg:inline-flex">
-              <Link href="/elder/profile">个人资料</Link>
+              <Link href="/family/profile">个人资料</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="hidden lg:inline-flex">
-              <Link href="/elder/guidance">指导建议</Link>
+              <Link href="/family/guidance">指导建议</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="hidden lg:inline-flex">
-              <Link href="/elder/devices">设备绑定</Link>
+              <Link href="/family/devices">设备绑定</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="hidden lg:inline-flex">
               <Link href="/appointments">预约护理</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="hidden lg:inline-flex">
-              <Link href="/elder/tcm-knowledge">中医康复</Link>
+              <Link href="/family/tcm-knowledge">中医康复</Link>
             </Button>
           </div>
         </header>
@@ -208,7 +213,7 @@ export default function ElderPage() {
                     <span className="sync-dot size-5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50" />
                     <p className="text-3xl font-black tracking-tight md:text-4xl">{stateLabel}</p>
                   </div>
-                  <p className="mt-4 leading-7 text-slate-300">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取患者信息"}</p>
+                  <p className="mt-4 leading-7 text-slate-300">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
                 </div>
 
                 <MetricEducationDialog metric="flexion">
@@ -228,6 +233,28 @@ export default function ElderPage() {
                 <MetricCard icon={HeartPulse} metric="frequency" label="活动频次" value={`${frequency} 次`} tone="text-sky-700" />
                 <MetricCard icon={CheckCircle2} metric="duration" label="训练时长" value={`${duration} 分钟`} tone="text-amber-700" />
                 <MetricCard icon={BatteryCharging} metric="battery" label="护膝电量" value={`${battery}%`} tone="text-emerald-700" />
+              </div>
+
+              <div className="rounded-3xl border border-emerald-100 bg-white/90 p-5 shadow-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-700">每日康复打卡</p>
+                    <p className="mt-2 text-base leading-7 text-slate-700">{encouragement}</p>
+                  </div>
+                  <Button size="lg" variant="elder" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
+                    <CheckCircle2 className="size-5" />
+                    {dailyCheckIn ? "今日已打卡" : "完成打卡"}
+                  </Button>
+                </div>
+                {dailyCheckIn ? (
+                  <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-4 text-emerald-900">
+                    <div className="flex items-center gap-3">
+                      <Sparkles className="size-6 animate-bounce text-emerald-600" />
+                      <p className="font-bold">打卡完成，今天已经为康复迈出稳稳的一步。</p>
+                    </div>
+                    <p className="mt-2 leading-7">我们和您一起守护家人健康，记得多鼓励、多陪伴，训练后留意休息和补水。</p>
+                  </div>
+                ) : null}
               </div>
 
               {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-base font-semibold text-red-700">{error}</p> : null}
@@ -298,7 +325,7 @@ export default function ElderPage() {
               {!latestAlert && !latestGuidance ? (
                 <div className="rounded-3xl border border-dashed border-sky-200 bg-white/80 p-5 text-slate-600">
                   <p className="text-lg font-bold text-slate-800">暂无新的护士处理动态</p>
-                  <p className="mt-2 leading-7">护士端处理预警后，远程指导、个性化建议和上门护理安排会自动同步到这里。</p>
+                  <p className="mt-2 leading-7">护士端处理预警后，远程指导、个性化建议和上门护理安排会自动同步到这里，我们会一直陪伴家人恢复。</p>
                 </div>
               ) : null}
             </CardContent>
@@ -332,6 +359,36 @@ export default function ElderPage() {
               )}
             </CardContent>
           </Card>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card className="border-emerald-100 bg-white/90">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <HeartPulse className="size-7 text-emerald-700" />
+                  家属须知
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-base leading-8 text-slate-700">
+                <p>1. 每次训练前后留意切口、肿胀和疼痛变化，若有明显加重请及时联系护士。</p>
+                <p>2. 您的陪伴和鼓励会直接影响康复依从性，建议把每次进步都记录下来。</p>
+                <p>3. 若家人暂时不方便操作，家属可以代为查看数据、确认预约和阅读指导。</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-100 bg-white/90">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <Sparkles className="size-7 text-amber-600" />
+                  护理小贴士
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-base leading-8 text-slate-700">
+                <p>• 训练后可以帮家人轻轻按摩小腿和大腿前侧，放松肌肉，不要按压切口。</p>
+                <p>• 饮食宜清淡、均衡、易消化，注意补充蛋白质和水分。</p>
+                <p>• 夜间起身时请先坐稳、缓慢站立，避免急转和跌倒。</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
     </main>

@@ -1,6 +1,6 @@
 # TKA 术后膝关节康复监测管理平台
 
-Next.js 15 App Router 全栈项目，面向 TKA 术后老人端智能护膝自动上传、护士端实时康复监测、AI 异常预警和护理记录闭环。
+Next.js 15 App Router 全栈项目，面向 TKA 术后家属端智能护膝自动上传、护士端实时康复监测、AI 异常预警和护理记录闭环。
 
 ## 技术栈
 
@@ -13,13 +13,13 @@ Next.js 15 App Router 全栈项目，面向 TKA 术后老人端智能护膝自�
 ## 核心页面
 
 - `/`：平台首页
-- `/login`：邮箱/密码登录与 patient / nurse 角色选择，登录后自动跳转对应端
-- `/elder`：老人端，模拟智能护膝每 5 秒自动上传屈曲角度、活动频次、训练时长、疼痛评分等数据，并显示护士端 AI 分析
-- `/elder/profile`：患者个人信息维护，保存到 `profiles`
-- `/elder/guidance`：患者查看护士远程指导历史，支持已读状态和 Realtime 同步
-- `/elder/devices`：患者手动绑定智能护膝设备，更新当前传感器设备 ID
-- `/elder/tcm-knowledge`：TKA 术后中医康复知识卡片专区
-- `/appointments`：双端预约上门护理，患者提交预约，护士确认/拒绝/安排时间
+- `/login`：邮箱/密码登录与 family / nurse 角色选择，登录后自动跳转对应端
+- `/family`：家属端，模拟智能护膝每 5 秒自动上传屈曲角度、活动频次、训练时长、疼痛评分等数据，并显示护士端 AI 分析
+- `/family/profile`：家属信息维护，保存到 `profiles`
+- `/family/guidance`：家属查看护士远程指导历史，支持已读状态和 Realtime 同步
+- `/family/devices`：家属手动绑定智能护膝设备，更新当前传感器设备 ID
+- `/family/tcm-knowledge`：TKA 术后中医康复知识卡片专区
+- `/appointments`：双端预约上门护理，家属提交预约，护士确认/拒绝/安排时间
 - `/nurse`：护士端实时仪表盘，包含患者列表、趋势图、红色异常预警、一键远程指导、AI 智能分析和护理记录
 - `/nurse/profile`：护士个人信息维护，保存到 `profiles`
 
@@ -34,7 +34,7 @@ npm run dev
 
 打开：
 
-- `http://localhost:3000/elder`
+- `http://localhost:3000/family`
 - `http://localhost:3000/nurse`
 
 如果没有配置真实 Supabase 数据库，项目会自动使用内存 Demo 数据，方便先演示页面和接口。
@@ -86,10 +86,10 @@ psql "$DIRECT_URL" -f supabase/realtime.sql
 ## 本次迭代主要改进点
 
 - 修复多端数据同步：统一订阅 `profiles`、`patients`、`knee_data_records`、`alert_logs`、`nursing_records`、`ai_analyses`、`appointments`，Demo 模式保留轮询兜底。
-- 指标卡片增加康复科普弹窗：老人端和护士端可查看屈曲、伸直、频次、时长、疼痛、电量等指标说明和中医康复建议。
+- 指标卡片增加康复科普弹窗：家属端和护士端可查看屈曲、伸直、频次、时长、疼痛、电量等指标说明和中医康复建议。
 - AI 异常预警形成处理闭环：护士端“处理”弹窗支持远程指导、个性化建议、预约上门护理、填写处理记录，并自动关闭预警。
-- 护理记录升级为 SOAP：支持 S/O/A/P 结构化记录、筛选、详情查看、倒序追踪，患者端指导页同步展示结构化内容。
-- 深化关键交互：患者详情弹窗、指导历史筛选、预约处理弹窗、设备绑定/解绑/自检、中医知识收藏和已学习状态。
+- 护理记录升级为 SOAP：支持 S/O/A/P 结构化记录、筛选、详情查看、倒序追踪，家属端指导页同步展示结构化内容。
+- 深化关键交互：家属资料弹窗、指导历史筛选、预约处理弹窗、设备绑定/解绑/自检、中医知识收藏和已学习状态。
 - 优化反馈与视觉：增加统一状态提示组件，整体背景与变量调整为医疗蓝白科技风格，关键页面保留成功/错误/同步状态提示。
 
 ## 数据库模型
@@ -187,4 +187,4 @@ systemctl reload nginx
 certbot --nginx -d your-domain.com
 ```
 
-部署完成后访问 `https://your-domain.com/login`，选择 patient 进入老人端，选择 nurse 进入护士端。Supabase Auth 需要提前在 Supabase 控制台创建测试邮箱/密码账号；未配置 Supabase 时可直接使用 Demo 模式验证页面、接口和移动端布局。
+部署完成后访问 `https://your-domain.com/login`，选择 patient 进入家属端，选择 nurse 进入护士端。Supabase Auth 需要提前在 Supabase 控制台创建测试邮箱/密码账号；未配置 Supabase 时可直接使用 Demo 模式验证页面、接口和移动端布局。

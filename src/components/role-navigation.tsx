@@ -13,12 +13,12 @@ type RoleResponse = {
   role: UserRole | null;
 };
 
-const patientLinks = [
-  { href: "/elder", label: "监测", icon: Home },
-  { href: "/elder/guidance", label: "指导", icon: Activity },
-  { href: "/elder/devices", label: "设备", icon: Activity },
+const familyLinks = [
+  { href: "/family", label: "监测", icon: Home },
+  { href: "/family/guidance", label: "指导", icon: Activity },
+  { href: "/family/devices", label: "设备", icon: Activity },
   { href: "/appointments", label: "预约", icon: CalendarClock },
-  { href: "/elder/profile", label: "资料", icon: UserRound },
+  { href: "/family/profile", label: "资料", icon: UserRound },
 ];
 
 const nurseLinks = [
@@ -28,7 +28,7 @@ const nurseLinks = [
 ];
 
 function isActive(pathname: string, href: string) {
-  if (href === "/elder" || href === "/nurse" || href === "/appointments") {
+  if (href === "/family" || href === "/nurse" || href === "/appointments") {
     return pathname === href;
   }
 
@@ -67,12 +67,12 @@ export function RoleNavigation() {
     return null;
   }
 
-  const links = role === "patient" ? patientLinks : nurseLinks;
+  const links = role === "family" ? familyLinks : nurseLinks;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/70 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 shadow-[0_-18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl md:inset-x-auto md:bottom-5 md:right-5 md:max-w-[calc(100vw-2.5rem)] md:rounded-3xl md:border md:px-3 md:pb-2">
       <div className="mx-auto flex max-w-lg flex-col gap-2 md:max-w-none md:flex-row md:items-center md:justify-start md:gap-2 md:overflow-x-auto">
-        <div className={cn("order-2 grid w-full gap-1 md:order-none md:flex md:w-auto md:items-center md:gap-2", role === "patient" ? "grid-cols-5" : "grid-cols-3")}>
+        <div className={cn("order-2 grid w-full gap-1 md:order-none md:flex md:w-auto md:items-center md:gap-2", role === "family" ? "grid-cols-5" : "grid-cols-3")}>
           {links.map((item) => {
             const Icon = item.icon;
             const active = isActive(pathname, item.href);

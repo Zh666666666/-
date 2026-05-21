@@ -42,7 +42,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   await ensureDemoPatients();
 
-  const [patients, records, alerts, nursingRecords, aiAnalyses, patientProfile] = await Promise.all([
+  const [patients, records, alerts, nursingRecords, aiAnalyses, familyProfile] = await Promise.all([
     prisma.patient.findMany({
       orderBy: [
         { riskLevel: "desc" },
@@ -117,10 +117,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   return {
     patients: patients.map((patient, index) => ({
       ...patient,
-      name: index === 0 && patientProfile ? patientProfile.name : patient.name,
-      age: index === 0 && patientProfile && patientProfile.age ? patientProfile.age : patient.age,
-      surgeryDate: index === 0 && patientProfile?.tkaSurgeryDate ? patientProfile.tkaSurgeryDate.toISOString() : patient.surgeryDate.toISOString(),
-      surgicalSide: index === 0 && patientProfile?.affectedKnee ? patientProfile.affectedKnee : patient.surgicalSide,
+      name: index === 0 && familyProfile ? familyProfile.name : patient.name,
+      age: index === 0 && familyProfile && familyProfile.age ? familyProfile.age : patient.age,
+      surgeryDate: index === 0 && familyProfile?.tkaSurgeryDate ? familyProfile.tkaSurgeryDate.toISOString() : patient.surgeryDate.toISOString(),
+      surgicalSide: index === 0 && familyProfile?.affectedKnee ? familyProfile.affectedKnee : patient.surgicalSide,
       createdAt: undefined,
       updatedAt: undefined,
     })) as DashboardData["patients"],

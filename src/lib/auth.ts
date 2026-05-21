@@ -1,4 +1,4 @@
-export type UserRole = "patient" | "nurse";
+export type UserRole = "family" | "nurse";
 
 export const authRoleCookie = "tka-role";
 
@@ -10,7 +10,7 @@ type AuthUserLike = {
 } | null | undefined;
 
 export function isUserRole(value: unknown): value is UserRole {
-  return value === "patient" || value === "nurse";
+  return value === "family" || value === "nurse";
 }
 
 export function roleFromAuthUser(user: AuthUserLike): UserRole | null {
@@ -29,5 +29,5 @@ export function resolveAuthRole(user: AuthUserLike, cookieRole: unknown): UserRo
 }
 
 export function defaultPathForRole(role: UserRole) {
-  return role === "patient" ? "/elder" : "/nurse";
+  return role === "family" ? "/family" : "/nurse";
 }

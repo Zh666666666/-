@@ -62,14 +62,24 @@ type AiState = {
 
 type AlertHandlingAction = "REMOTE_GUIDANCE" | "PERSONALIZED_ADVICE" | "HOME_VISIT" | "RESOLVE_ONLY";
 
+type NursingAssessmentDraft = {
+  subjective: string;
+  objective: string;
+  diagnosis: string;
+  measures: string;
+  evaluation: string;
+};
+
 type AlertHandlingPayload = {
   action: AlertHandlingAction;
   guidance: string;
   notes: string;
   expectedTime: string;
+  assessment: NursingAssessmentDraft;
 };
 
 type SoapDraft = NursingSoapFields & {
+  diagnosis: string;
   guidance: string;
   notes: string;
   actionType: string;
@@ -115,6 +125,71 @@ function defaultExpectedTime() {
   return datetimeLocalValue(new Date(Date.now() + 24 * 60 * 60_000));
 }
 
+const commonNursingDiagnoses = [
+  "术后疼痛",
+  "关节活动受限",
+  "肿胀风险",
+  "跌倒风险",
+  "自我照护不足",
+  "家属照护配合需加强",
+] as const;
+
+function defaultAlertAssessment(action: AlertHandlingAction, alert: AlertItem, patient: PatientSummary | null): NursingAssessmentDraft {
+  const name = patient?.name ?? "家人";
+
+  if (action === "REMOTE_GUIDANCE") {
+    return {
+      subjective: `${name} 反馈 ${alert.title} 后膝部酸胀，疼痛约 4 分，可耐受。`,
+      objective: "智能护膝在线，屈曲角度和训练频次可继续追踪，局部肿胀轻度。",
+      diagnosis: "术后疼痛与活动受限，需要家属继续协助观察。",
+      measures: "暂停高强度训练，指导低强度屈伸和踝泵练习，必要时冷敷抬高并复核护具佩戴。",
+      evaluation: "本次远程指导后状态平稳，后续继续观察疼痛、肿胀与活动度变化。",
+    };
+  }
+
+  if (action === "PERSONALIZED_ADVICE") {
+    return {
+      subjective: `${name} 当前适合短时多组训练，家属愿意协助记录变化。`,
+      objective: "近 24 小时训练频次存在波动，疼痛评分和活动耐量需继续追踪。",
+      diagnosis: "康复依从性波动，活动耐量有待逐步提升。",
+      measures: "将训练拆分为 2-3 小时 1 组，每组 5-8 分钟，训练后观察疼痛和肿胀。",
+      evaluation: "若按计划执行，可继续维持当前康复节奏并复查。",
+    };
+  }
+
+  if (action === "HOME_VISIT") {
+    return {
+      subjective: `${name} 因 ${alert.title} 需要上门评估，家属希望进一步查看恢复情况。`,
+      objective: "需现场复核关节肿胀、屈伸角度、步态代偿及设备佩戴情况。",
+      diagnosis: "存在上门评估需求，术后恢复需护士现场复核。",
+      measures: "安排上门护理，现场完成评估、指导和家庭环境安全检查。",
+      evaluation: "确认预约后继续跟进，必要时同步调整训练方案。",
+    };
+  }
+
+  return {
+    subjective: "预警已由家属和护士共同复核。",
+    objective: "当前记录未见新增异常，相关指标已完成核对。",
+    diagnosis: "当前风险已得到处理，继续常规随访。",
+    measures: "保持现有训练计划，若症状反复及时联系护理团队。",
+    evaluation: "本次处置完成，后续继续观察即可。",
+  };
+}
+
+function formatAlertAssessment(assessment: NursingAssessmentDraft) {
+  return [
+    `S 主观资料：${assessment.subjective}`,
+    `O 客观资料：${assessment.objective}`,
+    `A 护理诊断：${assessment.diagnosis}`,
+    `M 护理措施：${assessment.measures}`,
+    `E 效果评价：${assessment.evaluation}`,
+  ].join("\n");
+}
+
+function composeSoapAssessment(diagnosis: string, assessment: string) {
+  return diagnosis ? `护理诊断：${diagnosis}\n${assessment}` : assessment;
+}
+
 function actionLabel(action: AlertHandlingAction) {
   if (action === "REMOTE_GUIDANCE") {
     return "立即远程指导";
@@ -132,7 +207,7 @@ function actionLabel(action: AlertHandlingAction) {
 }
 
 function defaultAlertGuidance(action: AlertHandlingAction, alert: AlertItem, patient: PatientSummary | null) {
-  const name = patient?.name ?? "患者";
+  const name = patient?.name ?? "家人";
 
   if (action === "REMOTE_GUIDANCE") {
     return `${name}出现“${alert.title}”。建议立即进行视频/文字远程指导：先暂停高强度训练，复核疼痛、肿胀和护膝佩戴位置，再完成 1 组低强度坐位屈伸训练。`;
@@ -151,7 +226,7 @@ function defaultAlertGuidance(action: AlertHandlingAction, alert: AlertItem, pat
 
 function defaultAlertNotes(action: AlertHandlingAction, alert: AlertItem) {
   if (action === "REMOTE_GUIDANCE") {
-    return `预警来源：${alert.message} 已同步指导内容到患者端。`;
+    return `预警来源：${alert.message} 已同步指导内容到家属端。`;
   }
 
   if (action === "PERSONALIZED_ADVICE") {
@@ -159,7 +234,7 @@ function defaultAlertNotes(action: AlertHandlingAction, alert: AlertItem) {
   }
 
   if (action === "HOME_VISIT") {
-    return `预警来源：${alert.message} 已创建上门护理预约并同步患者端。`;
+    return `预警来源：${alert.message} 已创建上门护理预约并同步家属端。`;
   }
 
   return `预警来源：${alert.message} 已标记处理完成。`;
@@ -180,11 +255,12 @@ function actionTypeLabel(actionType: string) {
 function emptySoapDraft(): SoapDraft {
   return {
     actionType: "REMOTE_GUIDANCE",
+    diagnosis: "术后疼痛",
     guidance: "",
     notes: "",
-    subjective: "患者诉膝部酸胀，训练后疼痛可耐受。",
+    subjective: "家属反馈膝部酸胀，训练后疼痛可耐受。",
     objective: "智能护膝数据已复核，观察屈曲角度、训练频次、疼痛评分和设备连接状态。",
-    assessment: "TKA 术后康复进展需持续观察，当前以活动度恢复和疼痛控制为重点。",
+    assessment: "TKA 术后康复进展需持续观察，当前以活动度恢复、疼痛控制和家属配合为重点。",
     plan: "继续短时多组训练，异常疼痛或肿胀时暂停并联系护士。",
     nextFollowUp: "",
   };
@@ -286,6 +362,7 @@ export default function NursePage() {
   }
 
   async function handleAlertAction(alert: AlertItem, patient: PatientSummary | null, payload: AlertHandlingPayload) {
+    const assessmentNotes = formatAlertAssessment(payload.assessment);
     const nursingResponse = await fetch("/api/nursing-records", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -294,7 +371,7 @@ export default function NursePage() {
         nurseName: "刘护士",
         actionType: payload.action === "HOME_VISIT" ? "HOME_VISIT" : payload.action === "REMOTE_GUIDANCE" ? "REMOTE_GUIDANCE" : "REHAB_ADJUSTMENT",
         guidance: payload.guidance,
-        notes: `【${actionLabel(payload.action)}】${payload.notes}`,
+        notes: `【${actionLabel(payload.action)}】${payload.notes}\n\n结构化护理评估\n${assessmentNotes}`,
         nextFollowUp: payload.action === "HOME_VISIT" ? new Date(payload.expectedTime).toISOString() : null,
       }),
     });
@@ -351,7 +428,7 @@ export default function NursePage() {
           soap: {
             subjective: soapDraft.subjective,
             objective: soapDraft.objective,
-            assessment: soapDraft.assessment,
+            assessment: composeSoapAssessment(soapDraft.diagnosis, soapDraft.assessment),
             plan: soapDraft.plan,
           },
           nextFollowUp: soapDraft.nextFollowUp ? new Date(soapDraft.nextFollowUp).toISOString() : null,
@@ -557,7 +634,7 @@ export default function NursePage() {
                     <Sparkles className="size-7 text-amber-600" />
                     AI 智能关节分析
                   </CardTitle>
-                  <p className="mt-2 text-sm text-slate-500">读取当前患者最新膝关节数据，生成报告并同步给老人端。</p>
+                  <p className="mt-2 text-sm text-slate-500">读取当前患者最新膝关节数据，生成报告并同步给家属端。</p>
                 </div>
                 <Button size="lg" variant="elder" onClick={createAiAnalysis} disabled={!selectedPatient || !selectedLatest || aiState.running}>
                   <Sparkles className="size-5" />
@@ -567,7 +644,7 @@ export default function NursePage() {
               <CardContent className="space-y-3">
                 {aiState.error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{aiState.error}</p> : null}
                 {selectedAnalyses.length === 0 ? (
-                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无 AI 分析，点击按钮后会保存并推送给患者端。</p>
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无 AI 分析，点击按钮后会保存并推送给家属端。</p>
                 ) : (
                   selectedAnalyses.slice(0, 2).map((analysis) => (
                     <div key={analysis.id} className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4">
@@ -796,7 +873,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
         <DialogHeader>
           <Badge className="w-fit bg-sky-600 text-white">{selectedPatient?.name ?? "未选择患者"}</Badge>
           <DialogTitle>结构化 SOAP 护理记录</DialogTitle>
-          <DialogDescription>按 Subjective、Objective、Assessment、Plan 完整记录护理评估，并实时同步到患者端。</DialogDescription>
+          <DialogDescription>按 Subjective、Objective、Assessment、Plan 完整记录护理评估，并实时同步到家属端。</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
@@ -818,8 +895,20 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
           </div>
 
           <label className="grid gap-2 text-sm font-bold text-slate-700">
+            常见护理诊断
+            <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" value={draft.diagnosis} onChange={(event) => update("diagnosis", event.target.value)}>
+              {commonNursingDiagnoses.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs font-medium text-slate-500">A 项会自动带入护理诊断，便于统一书写。</span>
+          </label>
+
+          <label className="grid gap-2 text-sm font-bold text-slate-700">
             护理指导摘要
-            <Textarea value={draft.guidance} onChange={(event) => update("guidance", event.target.value)} placeholder="写给患者端可直接阅读的指导摘要" />
+            <Textarea value={draft.guidance} onChange={(event) => update("guidance", event.target.value)} placeholder="写给家属端可直接阅读的指导摘要" />
           </label>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -854,11 +943,21 @@ function SoapField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
+function AssessmentField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-slate-700">
+      {label}
+      <Textarea className="min-h-24" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    </label>
+  );
+}
+
 function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; patient: PatientSummary | null; onSubmit: (alert: AlertItem, patient: PatientSummary | null, payload: AlertHandlingPayload) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<AlertHandlingAction>("REMOTE_GUIDANCE");
   const [guidance, setGuidance] = useState(() => defaultAlertGuidance("REMOTE_GUIDANCE", alert, patient));
   const [notes, setNotes] = useState(() => defaultAlertNotes("REMOTE_GUIDANCE", alert));
+  const [assessment, setAssessment] = useState(() => defaultAlertAssessment("REMOTE_GUIDANCE", alert, patient));
   const [expectedTime, setExpectedTime] = useState(defaultExpectedTime);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -867,12 +966,19 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
     setAction(nextAction);
     setGuidance(defaultAlertGuidance(nextAction, alert, patient));
     setNotes(defaultAlertNotes(nextAction, alert));
+    setAssessment(defaultAlertAssessment(nextAction, alert, patient));
+    setExpectedTime(defaultExpectedTime());
     setError(null);
   }
 
   async function submit() {
     if (!guidance.trim() || !notes.trim()) {
       setError("请填写处理内容和处理记录。");
+      return;
+    }
+
+    if (!Object.values(assessment).every((value) => value.trim().length > 0)) {
+      setError("请完善结构化护理评估的五个项目。");
       return;
     }
 
@@ -885,7 +991,7 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
     setError(null);
 
     try {
-      await onSubmit(alert, patient, { action, guidance, notes, expectedTime });
+      await onSubmit(alert, patient, { action, guidance, notes, expectedTime, assessment });
       setOpen(false);
     } catch {
       setError("处理失败，请检查网络或稍后重试。");
@@ -896,7 +1002,7 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
 
   const actions: { value: AlertHandlingAction; label: string; helper: string; icon: typeof Video }[] = [
     { value: "REMOTE_GUIDANCE", label: "立即远程指导", helper: "生成视频/文字指导护理记录", icon: Video },
-    { value: "PERSONALIZED_ADVICE", label: "发送康复建议", helper: "把个性化建议同步到患者端", icon: MessageSquareText },
+    { value: "PERSONALIZED_ADVICE", label: "发送康复建议", helper: "把个性化建议同步到家属端", icon: MessageSquareText },
     { value: "HOME_VISIT", label: "预约上门护理", helper: "创建护理预约并标记预警", icon: Home },
     { value: "RESOLVE_ONLY", label: "填写处理记录", helper: "记录处置说明并关闭预警", icon: ClipboardCheck },
   ];
@@ -944,6 +1050,21 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
             <div>
               <p className="mb-2 text-sm font-bold text-slate-700">处理记录</p>
               <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold text-slate-700">结构化护理评估</p>
+                <span className="text-xs font-semibold text-slate-500">S / O / A / M / E</span>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <AssessmentField label="S 主观资料" value={assessment.subjective} onChange={(value) => setAssessment((current) => ({ ...current, subjective: value }))} placeholder="家属反馈、疼痛感受、主观变化" />
+                <AssessmentField label="O 客观资料" value={assessment.objective} onChange={(value) => setAssessment((current) => ({ ...current, objective: value }))} placeholder="体征、训练数据、设备状态" />
+                <AssessmentField label="A 护理诊断" value={assessment.diagnosis} onChange={(value) => setAssessment((current) => ({ ...current, diagnosis: value }))} placeholder="如：术后疼痛、活动受限" />
+                <AssessmentField label="M 护理措施" value={assessment.measures} onChange={(value) => setAssessment((current) => ({ ...current, measures: value }))} placeholder="本次指导、干预和护理措施" />
+                <div className="md:col-span-2">
+                  <AssessmentField label="E 效果评价" value={assessment.evaluation} onChange={(value) => setAssessment((current) => ({ ...current, evaluation: value }))} placeholder="本次处理后的反应、下一步观察重点" />
+                </div>
+              </div>
             </div>
             {action === "HOME_VISIT" ? (
               <div>
@@ -995,7 +1116,7 @@ function NursingRecordCard({ record, patients }: { record: NursingRecordItem; pa
         </div>
         <Separator className="my-3 bg-white/10" />
         <p className="text-sm leading-6 text-slate-200">{record.guidance}</p>
-        {record.notes ? <p className="mt-2 rounded-2xl bg-white/10 px-3 py-2 text-xs text-slate-300">{record.notes}</p> : null}
+        {record.notes ? <p className="mt-2 rounded-2xl bg-white/10 px-3 py-2 text-xs leading-6 whitespace-pre-line text-slate-300">{record.notes}</p> : null}
       </div>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
@@ -1005,7 +1126,7 @@ function NursingRecordCard({ record, patients }: { record: NursingRecordItem; pa
         </DialogHeader>
         <div className="grid gap-4">
           <section className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-bold text-slate-500">患者端指导摘要</p>
+            <p className="text-sm font-bold text-slate-500">家属端指导摘要</p>
             <p className="mt-2 text-base leading-7 text-slate-800">{record.guidance}</p>
           </section>
           {record.soap ? (
@@ -1016,7 +1137,7 @@ function NursingRecordCard({ record, patients }: { record: NursingRecordItem; pa
               <SoapDetail label="P 护理计划" value={record.soap.plan} />
             </section>
           ) : null}
-          {record.notes ? <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">交接备注：{record.notes}</p> : null}
+          {record.notes ? <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm leading-6 whitespace-pre-line text-sky-900">交接备注：{record.notes}</p> : null}
           {record.nextFollowUp ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">下次随访：{new Date(record.nextFollowUp).toLocaleString("zh-CN")}</p> : null}
         </div>
       </DialogContent>
