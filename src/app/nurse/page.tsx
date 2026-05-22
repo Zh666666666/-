@@ -48,6 +48,9 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type SyncState = "connecting" | "realtime" | "polling";
+type NurseWorkspace = "overview" | "alerts" | "guidance" | "records" | "quality";
+type GuidanceTemplateKey = "pain" | "lowActivity" | "familyAnxiety" | "homeSafety";
+type SoapTemplateKey = "postOpPain" | "fallRisk" | "familyStress";
 
 type GuidanceState = {
   guidance: string;
@@ -177,6 +180,101 @@ const nurseQualityActions = [
   "交接班复盘：按 SOAP 和预警处理记录查看已处理、待随访、需上门的患者。",
   "质控追踪：用活动度、训练依从性、预警关闭率和家属已读情况评估护理质量。",
 ];
+
+const nurseWorkspaces: Array<{ value: NurseWorkspace; label: string; helper: string; icon: typeof Activity }> = [
+  { value: "overview", label: "总览", helper: "患者与趋势", icon: Stethoscope },
+  { value: "alerts", label: "预警", helper: "优先处置", icon: AlertTriangle },
+  { value: "guidance", label: "指导", helper: "发起并记录", icon: Video },
+  { value: "records", label: "记录", helper: "SOAP 质控", icon: FileText },
+  { value: "quality", label: "模式", helper: "医院可复制", icon: ClipboardCheck },
+];
+
+const guidanceTemplateOptions: Array<{ key: GuidanceTemplateKey; label: string; helper: string }> = [
+  { key: "pain", label: "疼痛升高", helper: "先停强训练，复核疼痛和肿胀" },
+  { key: "lowActivity", label: "活动不足", helper: "拆成短时多组，提高依从性" },
+  { key: "familyAnxiety", label: "家属焦虑", helper: "先安抚，再解释数据含义" },
+  { key: "homeSafety", label: "居家安全", helper: "防跌倒与夜间起身提醒" },
+];
+
+const soapTemplateOptions: Array<{ key: SoapTemplateKey; label: string; helper: string }> = [
+  { key: "postOpPain", label: "术后疼痛 SOAP", helper: "疼痛、活动度、训练计划" },
+  { key: "fallRisk", label: "跌倒风险 SOAP", helper: "步态、环境、扶行教育" },
+  { key: "familyStress", label: "家属压力 SOAP", helper: "照护焦虑与沟通支持" },
+];
+
+function guidanceTemplateFor(key: GuidanceTemplateKey, patient: PatientSummary | null): Pick<GuidanceState, "guidance" | "notes"> {
+  const name = patient?.name ?? "家人";
+
+  if (key === "pain") {
+    return {
+      guidance: `${name}今天先暂停高强度屈膝训练，完成 1 组低强度踝泵和坐位轻柔屈伸即可。家属先确认疼痛位置、肿胀变化和护具佩戴，疼痛超过 6 分或持续加重时停止训练并联系护士。`,
+      notes: "已套用疼痛升高模板：先安抚，复核疼痛、肿胀、护具位置，再给出停止条件。",
+    };
+  }
+
+  if (key === "lowActivity") {
+    return {
+      guidance: `${name}今天不追求一次练很多，改为每 2-3 小时 1 组，每组 5-8 分钟。家属负责提醒、陪数节奏和记录完成情况，出现明显疲劳或肿胀时减少一组。`,
+      notes: "已套用活动不足模板：把训练拆小，降低挫败感，提高家属陪练可执行性。",
+    };
+  }
+
+  if (key === "familyAnxiety") {
+    return {
+      guidance: `${name}的这条数据需要护士复核，但不代表恢复一定变差。家属今天先按原计划少量训练，重点观察疼痛、肿胀、睡眠和情绪变化；有担心可以继续记录给护士判断。`,
+      notes: "已套用家属焦虑模板：先解释预警含义，再给观察重点，避免盲目加练或过度紧张。",
+    };
+  }
+
+  return {
+    guidance: `${name}夜间起身先开灯、坐稳 30 秒再站立，家属在患侧旁边保护；地面保持干燥，常用物品放在伸手可及处，今天避免急转、快走和无人陪伴上下楼。`,
+    notes: "已套用居家安全模板：强调防跌倒、夜间起身、动线整理和家属扶行位置。",
+  };
+}
+
+function soapTemplateFor(key: SoapTemplateKey, patient: PatientSummary | null): SoapDraft {
+  const name = patient?.name ?? "家人";
+
+  if (key === "fallRisk") {
+    return {
+      actionType: "REHAB_ADJUSTMENT",
+      diagnosis: "跌倒风险",
+      guidance: `${name}今日重点预防跌倒：夜间起身先坐稳再站立，家属在旁保护，避免急转和无人陪伴上下楼。`,
+      notes: "质控模板：跌倒风险评估、环境改造、扶行教育已同步。",
+      subjective: "家属反馈夜间起身和步行时不放心，担心患者跌倒。",
+      objective: "需结合步态稳定性、疼痛评分、膝关节活动度、居家动线和照明情况综合评估。",
+      assessment: "患者存在术后步态代偿和夜间起身跌倒风险，需加强家庭环境安全和扶行指导。",
+      plan: "完成防跌倒宣教，调整常用物品摆放，夜间预留照明，家属陪同起身和上下楼。",
+      nextFollowUp: defaultExpectedTime(),
+    };
+  }
+
+  if (key === "familyStress") {
+    return {
+      actionType: "PHONE_CALL",
+      diagnosis: "家庭照护压力",
+      guidance: `${name}的家属今天先不用追求训练量，重点记录疼痛、肿胀和最担心的问题。护士会根据记录一起调整计划。`,
+      notes: "质控模板：家属照护压力已纳入护理评估，需电话随访确认理解程度。",
+      subjective: "家属表达照护压力，担心训练不到位或训练过量影响恢复。",
+      objective: "患者训练数据存在波动，家属对疼痛、肿胀和停止条件理解不充分。",
+      assessment: "家庭照护压力影响康复执行一致性，需护士提供可执行的陪练和观察清单。",
+      plan: "电话随访家属，明确今日训练目标、停止条件、异常上报方式和下一次复盘时间。",
+      nextFollowUp: defaultExpectedTime(),
+    };
+  }
+
+  return {
+    actionType: "REMOTE_GUIDANCE",
+    diagnosis: "术后疼痛",
+    guidance: `${name}今日以低强度屈伸和踝泵为主，疼痛超过 6 分、肿胀明显或动作质量下降时暂停，家属记录变化后同步护士。`,
+    notes: "质控模板：术后疼痛评估、训练强度调整和家属观察重点已同步。",
+    subjective: "患者诉训练后膝部酸胀，疼痛可耐受，家属担心是否需要减少训练。",
+    objective: "结合智能护膝屈曲角度、训练频次、训练时长、疼痛评分和肿胀反馈综合判断。",
+    assessment: "术后疼痛与活动受限相关，当前需控制训练强度并继续观察疼痛和肿胀趋势。",
+    plan: "维持短时多组训练，训练前后评估疼痛和肿胀；家属陪练时先问感受再协助动作。",
+    nextFollowUp: defaultExpectedTime(),
+  };
+}
 
 function defaultAlertAssessment(action: AlertHandlingAction, alert: AlertItem, patient: PatientSummary | null): NursingAssessmentDraft {
   const name = patient?.name ?? "家人";
@@ -323,6 +421,7 @@ export default function NursePage() {
   const [chartReady, setChartReady] = useState(false);
   const [recordFilter, setRecordFilter] = useState("ALL");
   const [soapDraft, setSoapDraft] = useState<SoapDraft>(() => emptySoapDraft());
+  const [activeWorkspace, setActiveWorkspace] = useState<NurseWorkspace>("overview");
   const [soapSaving, setSoapSaving] = useState(false);
   const [soapMessage, setSoapMessage] = useState<string | null>(null);
 
@@ -520,6 +619,19 @@ export default function NursePage() {
     setAiState({ running: false, error: null });
   }
 
+  function applyGuidanceTemplate(key: GuidanceTemplateKey) {
+    setGuidance((current) => ({ ...current, ...guidanceTemplateFor(key, selectedPatient) }));
+    setActiveWorkspace("guidance");
+  }
+
+  function applySoapTemplate(key: SoapTemplateKey) {
+    const template = soapTemplateFor(key, selectedPatient);
+    const label = soapTemplateOptions.find((item) => item.key === key)?.label ?? "SOAP 模板";
+    setSoapDraft(template);
+    setSoapMessage(`已套用${label}，打开“新建 SOAP 护理记录”即可继续编辑并保存。`);
+    setActiveWorkspace("records");
+  }
+
   const patients = dashboard?.patients ?? [];
   const records = dashboard?.records ?? [];
   const alerts = dashboard?.alerts.filter((alert) => alert.status !== "RESOLVED").sort((a, b) => severityScore(b.severity) - severityScore(a.severity)) ?? [];
@@ -575,53 +687,121 @@ export default function NursePage() {
           </div>
         </header>
 
-        <Card className="border-white/10 bg-gradient-to-br from-white/[0.12] via-white/[0.06] to-emerald-500/10 text-white shadow-xl shadow-black/10">
-          <CardHeader className="space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge className="bg-emerald-300 text-emerald-950">全国医院可复制模式</Badge>
-              <Badge className="bg-white/10 text-white">打开即用 · 易培训 · 可质控</Badge>
-            </div>
-            <CardTitle className="text-2xl md:text-3xl">护士如何用这个工具提升护理质量</CardTitle>
-            <p className="max-w-4xl text-sm leading-7 text-slate-300 md:text-base">把 TKA 术后护理从“个人经验驱动”变成“数据预警 + 标准处置 + 家属同步 + 质量复盘”的通用流程，各医院可直接套用到骨科康复护理小组、病区延续护理和居家随访场景。</p>
-          </CardHeader>
-          <CardContent className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="grid gap-3 md:grid-cols-4">
-              {hospitalQualityModel.map((item) => (
-                <div key={item.title} className="rounded-3xl border border-white/10 bg-white/[0.08] p-4">
-                  <p className="font-black text-emerald-100">{item.title}</p>
+        <Card className="border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/10">
+          <CardContent className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-5">
+            {nurseWorkspaces.map((item) => {
+              const Icon = item.icon;
+              const active = activeWorkspace === item.value;
+
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={cn(
+                    "rounded-2xl border p-4 text-left transition-all",
+                    active ? "border-emerald-300 bg-emerald-300/15 shadow-lg shadow-emerald-950/20" : "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]",
+                  )}
+                  onClick={() => setActiveWorkspace(item.value)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Icon className={cn("size-5", active ? "text-emerald-200" : "text-slate-300")} />
+                    {active ? <Badge className="bg-emerald-300 text-emerald-950">当前</Badge> : null}
+                  </div>
+                  <p className="mt-3 text-lg font-black">{item.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{item.helper}</p>
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {activeWorkspace === "quality" ? (
+          <div className="grid gap-5">
+            <Card className="border-white/10 bg-gradient-to-br from-white/[0.12] via-white/[0.06] to-emerald-500/10 text-white shadow-xl shadow-black/10">
+              <CardHeader className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge className="bg-emerald-300 text-emerald-950">全国医院可复制模式</Badge>
+                  <Badge className="bg-white/10 text-white">打开即用 · 易培训 · 可质控</Badge>
+                </div>
+                <CardTitle className="text-2xl md:text-3xl">护士如何用这个工具提升护理质量</CardTitle>
+                <p className="max-w-4xl text-sm leading-7 text-slate-300 md:text-base">把 TKA 术后护理从“个人经验驱动”变成“数据预警 + 标准处置 + 家属同步 + 质量复盘”的通用流程，各医院可直接套用到骨科康复护理小组、病区延续护理和居家随访场景。</p>
+              </CardHeader>
+              <CardContent className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                <div className="grid gap-3 md:grid-cols-4">
+                  {hospitalQualityModel.map((item) => (
+                    <div key={item.title} className="rounded-3xl border border-white/10 bg-white/[0.08] p-4">
+                      <p className="font-black text-emerald-100">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                  <p className="font-black text-emerald-100">护士日常使用路径</p>
+                  <div className="mt-3 grid gap-2">
+                    {nurseQualityActions.map((item) => (
+                      <p key={item} className="rounded-2xl bg-slate-950/45 px-3 py-2 text-sm leading-6 text-slate-200">{item}</p>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {nursingCarePrinciples.map((item) => (
+                <div key={item.title} className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 text-white shadow-xl shadow-black/10">
+                  <p className="text-lg font-black text-rose-100">{item.title}</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
                 </div>
               ))}
             </div>
-            <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-              <p className="font-black text-emerald-100">护士日常使用路径</p>
-              <div className="mt-3 grid gap-2">
-                {nurseQualityActions.map((item) => (
-                  <p key={item} className="rounded-2xl bg-slate-950/45 px-3 py-2 text-sm leading-6 text-slate-200">{item}</p>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          {nursingCarePrinciples.map((item) => (
-            <div key={item.title} className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 text-white shadow-xl shadow-black/10">
-              <p className="text-lg font-black text-rose-100">{item.title}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
-            </div>
-          ))}
-        </div>
+            <Card className="border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/10">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <ClipboardCheck className="size-7 text-emerald-300" />
+                  直接套用到当前患者
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                  <p className="font-black text-emerald-100">远程指导模板</p>
+                  <div className="mt-3 grid gap-2">
+                    {guidanceTemplateOptions.map((item) => (
+                      <button key={item.key} type="button" className="rounded-2xl bg-slate-950/45 px-3 py-3 text-left hover:bg-slate-950/70" onClick={() => applyGuidanceTemplate(item.key)}>
+                        <span className="block text-sm font-black text-white">{item.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-slate-300">{item.helper}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                  <p className="font-black text-sky-100">SOAP 质控模板</p>
+                  <div className="mt-3 grid gap-2">
+                    {soapTemplateOptions.map((item) => (
+                      <button key={item.key} type="button" className="rounded-2xl bg-slate-950/45 px-3 py-3 text-left hover:bg-slate-950/70" onClick={() => applySoapTemplate(item.key)}>
+                        <span className="block text-sm font-black text-white">{item.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-slate-300">{item.helper}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
-        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
-          <StatCard icon={UsersRound} metric="rom" label="监测患者" value={`${patients.length}`} helper="术后康复中" />
-          <StatCard icon={Activity} metric="flexion" label="平均屈曲" value={`${averageFlexion.toFixed(0)}°`} helper="最新采集均值" />
-          <StatCard icon={Stethoscope} metric="extension" label="平均伸直" value={`${averageExtension.toFixed(0)}°`} helper="越接近 0° 越理想" />
-          <StatCard icon={Clock3} metric="duration" label="平均训练" value={`${averageDuration.toFixed(0)} 分`} helper="今日累计时长" />
-          <StatCard icon={BellRing} metric="pain" label="高危预警" value={`${highAlerts.length}`} helper="需优先处理" danger={highAlerts.length > 0} />
-        </div>
+        {activeWorkspace === "overview" ? (
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+            <StatCard icon={UsersRound} metric="rom" label="监测患者" value={`${patients.length}`} helper="术后康复中" />
+            <StatCard icon={Activity} metric="flexion" label="平均屈曲" value={`${averageFlexion.toFixed(0)}°`} helper="最新采集均值" />
+            <StatCard icon={Stethoscope} metric="extension" label="平均伸直" value={`${averageExtension.toFixed(0)}°`} helper="越接近 0° 越理想" />
+            <StatCard icon={Clock3} metric="duration" label="平均训练" value={`${averageDuration.toFixed(0)} 分`} helper="今日累计时长" />
+            <StatCard icon={BellRing} metric="pain" label="高危预警" value={`${highAlerts.length}`} helper="需优先处理" danger={highAlerts.length > 0} />
+          </div>
+        ) : null}
 
-        <div className="grid min-w-0 gap-5 xl:grid-cols-[360px_minmax(0,1fr)_420px]">
+        {activeWorkspace !== "quality" ? (
+          <div className="grid min-w-0 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
           <Card className="border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/10">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl">
@@ -666,8 +846,10 @@ export default function NursePage() {
             </CardContent>
           </Card>
 
-          <div className="min-w-0 space-y-5">
-            <Card className="border-white/10 bg-white text-slate-950 shadow-xl shadow-black/10">
+          {activeWorkspace === "overview" || activeWorkspace === "guidance" ? (
+            <div className="min-w-0 space-y-5">
+              {activeWorkspace === "overview" ? (
+                <Card className="border-white/10 bg-white text-slate-950 shadow-xl shadow-black/10">
               <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-3 text-2xl">
@@ -707,10 +889,12 @@ export default function NursePage() {
                   ) : null}
                 </div>
               </CardContent>
-            </Card>
+                </Card>
+              ) : null}
 
-            <Card className="border-white/10 bg-white text-slate-950 shadow-xl shadow-black/10">
-              <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              {activeWorkspace === "overview" ? (
+                <Card className="border-white/10 bg-white text-slate-950 shadow-xl shadow-black/10">
+                  <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-3 text-2xl">
                     <Sparkles className="size-7 text-amber-600" />
@@ -740,34 +924,50 @@ export default function NursePage() {
                   ))
                 )}
               </CardContent>
-            </Card>
+                </Card>
+              ) : null}
 
-            <Card className="border-white/10 bg-white text-slate-950 shadow-xl shadow-black/10">
-              <CardHeader>
+              {activeWorkspace === "guidance" ? (
+                <Card className="border-white/10 bg-white text-slate-950 shadow-xl shadow-black/10">
+                  <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-2xl">
                   <Video className="size-7 text-sky-700" />
                   一键远程指导
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-[1fr_220px]">
-                <div className="space-y-3">
-                  <Textarea value={guidance.guidance} onChange={(event) => setGuidance((current) => ({ ...current, guidance: event.target.value }))} />
-                  <Input value={guidance.notes} onChange={(event) => setGuidance((current) => ({ ...current, notes: event.target.value }))} placeholder="护理记录备注" />
+              <CardContent className="space-y-4">
+                <div className="grid gap-2 md:grid-cols-4">
+                  {guidanceTemplateOptions.map((item) => (
+                    <button key={item.key} type="button" className="rounded-2xl border border-sky-100 bg-sky-50 px-3 py-3 text-left transition-all hover:border-sky-300 hover:bg-sky-100" onClick={() => applyGuidanceTemplate(item.key)}>
+                      <span className="block text-sm font-black text-sky-950">{item.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-sky-700">{item.helper}</span>
+                    </button>
+                  ))}
                 </div>
-                <div className="flex flex-col gap-3">
-                  <Button size="lg" variant="elder" onClick={createGuidanceRecord} disabled={!selectedPatient || guidance.saving}>
-                    <Video className="size-5" />
-                    {guidance.saving ? "正在记录" : "发起指导并记录"}
-                  </Button>
-                  <p className="rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">系统会把远程指导内容写入护理记录，并同步给家属端，便于交接班追踪和护理质量复盘。</p>
-                  <p className="rounded-2xl bg-rose-50 p-4 text-sm leading-6 text-rose-900">沟通顺序建议：先安抚担心，再解释数据，最后给出今天能完成的小目标。</p>
+                <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+                  <div className="space-y-3">
+                    <Textarea value={guidance.guidance} onChange={(event) => setGuidance((current) => ({ ...current, guidance: event.target.value }))} />
+                    <Input value={guidance.notes} onChange={(event) => setGuidance((current) => ({ ...current, notes: event.target.value }))} placeholder="护理记录备注" />
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <Button size="lg" variant="elder" onClick={createGuidanceRecord} disabled={!selectedPatient || guidance.saving}>
+                      <Video className="size-5" />
+                      {guidance.saving ? "正在记录" : "发起指导并记录"}
+                    </Button>
+                    <p className="rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">系统会把远程指导内容写入护理记录，并同步给家属端，便于交接班追踪和护理质量复盘。</p>
+                    <p className="rounded-2xl bg-rose-50 p-4 text-sm leading-6 text-rose-900">沟通顺序建议：先安抚担心，再解释数据，最后给出今天能完成的小目标。</p>
+                  </div>
                 </div>
               </CardContent>
-            </Card>
-          </div>
+                </Card>
+              ) : null}
+            </div>
+          ) : null}
 
-          <div className="space-y-5">
-            <Card className="border-red-400/30 bg-red-950/45 text-white shadow-xl shadow-red-950/20">
+          {activeWorkspace === "alerts" || activeWorkspace === "records" ? (
+            <div className="min-w-0 space-y-5">
+              {activeWorkspace === "alerts" ? (
+                <Card className="border-red-400/30 bg-red-950/45 text-white shadow-xl shadow-red-950/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-xl">
                   <AlertTriangle className="size-6 text-red-300" />
@@ -799,10 +999,12 @@ export default function NursePage() {
                   })
                 )}
               </CardContent>
-            </Card>
+                </Card>
+              ) : null}
 
-            <Card className="border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/10">
-              <CardHeader className="space-y-4">
+              {activeWorkspace === "records" ? (
+                <Card className="border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/10">
+                  <CardHeader className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle className="flex items-center gap-3 text-xl">
                     <FileText className="size-6 text-sky-300" />
@@ -823,6 +1025,14 @@ export default function NursePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="grid gap-2 md:grid-cols-3">
+                  {soapTemplateOptions.map((item) => (
+                    <button key={item.key} type="button" className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-3 text-left transition-all hover:bg-white/[0.14]" onClick={() => applySoapTemplate(item.key)}>
+                      <span className="block text-sm font-black text-white">{item.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-300">{item.helper}</span>
+                    </button>
+                  ))}
+                </div>
                 <SoapRecordDialog selectedPatient={selectedPatient} draft={soapDraft} setDraft={setSoapDraft} saving={soapSaving} message={soapMessage} onSubmit={createSoapRecord} />
                 {filteredNursingRecords.length === 0 ? (
                   <p className="rounded-2xl bg-white/10 p-4 text-slate-300">暂无匹配护理记录。</p>
@@ -830,9 +1040,12 @@ export default function NursePage() {
                   filteredNursingRecords.slice(0, 8).map((record) => <NursingRecordCard key={record.id} record={record} patients={patients} />)
                 )}
               </CardContent>
-            </Card>
+                </Card>
+              ) : null}
+            </div>
+          ) : null}
           </div>
-        </div>
+        ) : null}
       </section>
     </main>
   );
