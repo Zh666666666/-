@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CheckCheck, Clock3, FileText, Radio, UserRound } from "lucide-react";
+import { CheckCheck, Clock3, FileText, HeartHandshake, Radio, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,12 @@ function SoapBlock({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+const readingCareCards = [
+  "读建议前，先告诉家人：护士看过数据了，我们不是自己瞎猜。",
+  "做训练时，把目标拆小一点：先试一组，舒服再继续，不舒服就停下来。",
+  "读完建议后，记下家人最担心的一句话，下次远程指导时直接告诉护士。",
+];
 
 export default function FamilyGuidancePage() {
   const [records, setRecords] = useState<NursingRecordItem[]>([]);
@@ -97,12 +103,29 @@ export default function FamilyGuidancePage() {
               {syncMode === "realtime" ? "指导建议实时同步" : syncMode === "polling" ? "Demo 轮询同步" : "正在连接同步通道"}
             </Badge>
             <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">远程指导建议</h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">护士端发送康复建议后会立即同步到这里，家属可查看历史记录并为家人代读、代记和代沟通。</p>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">护士端发送康复建议后会立即同步到这里。家属可以把它当成一张“安心照护单”：知道今天怎么练、什么时候停、哪些担心需要再问护士。</p>
           </div>
           <Button asChild size="lg" variant="outline">
             <Link href="/family">返回家属端</Link>
           </Button>
         </header>
+
+        <Card className="border-rose-100 bg-gradient-to-br from-rose-50 via-white to-sky-50">
+          <CardContent className="grid gap-4 p-5 md:grid-cols-[auto_1fr] md:p-6">
+            <div className="flex size-14 items-center justify-center rounded-3xl bg-rose-100 text-rose-700">
+              <HeartHandshake className="size-7" />
+            </div>
+            <div>
+              <Badge variant="warning" className="w-fit">读给家人的照护话术</Badge>
+              <p className="mt-3 text-lg font-black text-slate-900">护士建议不只是任务清单，也是一种安抚和陪伴。</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {readingCareCards.map((item) => (
+                  <p key={item} className="rounded-2xl bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm">{item}</p>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-sky-100 bg-white/90">
           <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
@@ -125,7 +148,7 @@ export default function FamilyGuidancePage() {
         <div className="grid gap-4">
           {filteredRecords.length === 0 ? (
             <Card className="bg-white/90">
-              <CardContent className="p-8 text-center text-slate-500">暂无远程指导建议。</CardContent>
+              <CardContent className="p-8 text-center text-slate-500">暂无远程指导建议。当前可以先按日常训练节奏陪伴家人，若疼痛、肿胀或情绪焦虑明显，请提交预约护理让护士一起评估。</CardContent>
             </Card>
           ) : (
             filteredRecords.map((record) => (
@@ -145,6 +168,10 @@ export default function FamilyGuidancePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="rounded-3xl bg-emerald-50 p-5 text-lg leading-9 text-emerald-950">{record.guidance}</p>
+                  <div className="rounded-3xl border border-rose-100 bg-rose-50/80 p-4 text-sm leading-7 text-rose-950">
+                    <p className="font-black">家属陪伴提醒</p>
+                    <p className="mt-1">如果家人听到训练建议后紧张，可以先说：“我们按护士说的慢慢来，疼了就停，不舒服马上告诉我。”</p>
+                  </div>
                   {record.soap ? (
                     <div className="grid gap-3 md:grid-cols-2">
                       <SoapBlock label="S 主观资料" value={record.soap.subjective} />

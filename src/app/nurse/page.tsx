@@ -130,49 +130,93 @@ const commonNursingDiagnoses = [
   "关节活动受限",
   "肿胀风险",
   "跌倒风险",
+  "康复焦虑",
+  "睡眠受疼痛影响",
+  "家庭照护压力",
   "自我照护不足",
   "家属照护配合需加强",
 ] as const;
+
+const nursingCarePrinciples = [
+  {
+    title: "先安抚，再判断",
+    description: "预警出现时先回应患者和家属的担心，再解释数据含义，避免让家属只看到风险。",
+  },
+  {
+    title: "把家属纳入护理计划",
+    description: "每条指导都写清楚家属能做什么、什么时候该停、什么情况需要再联系护士。",
+  },
+  {
+    title: "尊严与安全同等重要",
+    description: "提醒家属帮助前先询问、训练时不催促，用可执行的小目标维护患者信心。",
+  },
+];
+
+const hospitalQualityModel = [
+  {
+    title: "1. 数据自动采集",
+    description: "智能护膝持续上传活动度、频次、时长和疼痛趋势，减少护士手工抄录和漏记。",
+  },
+  {
+    title: "2. 风险自动分层",
+    description: "系统把低角度、低频次、高疼痛等风险前置，护士优先处理真正需要干预的人。",
+  },
+  {
+    title: "3. 护理处置模板",
+    description: "远程指导、个性化建议、上门护理、SOAP 记录按同一结构书写，新护士也能快速上手。",
+  },
+  {
+    title: "4. 家属同步闭环",
+    description: "护士处理后自动同步到家属端，让患者、家属、护士围绕同一份计划执行。",
+  },
+];
+
+const nurseQualityActions = [
+  "晨间巡屏：先看高危预警和疼痛升高患者，确定当天优先随访对象。",
+  "床旁或远程指导：用模板快速生成家属能读懂的指导，减少口头交代遗漏。",
+  "交接班复盘：按 SOAP 和预警处理记录查看已处理、待随访、需上门的患者。",
+  "质控追踪：用活动度、训练依从性、预警关闭率和家属已读情况评估护理质量。",
+];
 
 function defaultAlertAssessment(action: AlertHandlingAction, alert: AlertItem, patient: PatientSummary | null): NursingAssessmentDraft {
   const name = patient?.name ?? "家人";
 
   if (action === "REMOTE_GUIDANCE") {
     return {
-      subjective: `${name} 反馈 ${alert.title} 后膝部酸胀，疼痛约 4 分，可耐受。`,
-      objective: "智能护膝在线，屈曲角度和训练频次可继续追踪，局部肿胀轻度。",
-      diagnosis: "术后疼痛与活动受限，需要家属继续协助观察。",
-      measures: "暂停高强度训练，指导低强度屈伸和踝泵练习，必要时冷敷抬高并复核护具佩戴。",
-      evaluation: "本次远程指导后状态平稳，后续继续观察疼痛、肿胀与活动度变化。",
+      subjective: `${name} 反馈 ${alert.title} 后有些担心，膝部酸胀，疼痛约 4 分，可耐受。家属希望确认是否还能继续训练。`,
+      objective: "智能护膝在线，屈曲角度和训练频次可继续追踪，局部肿胀轻度，当前未见需立即停训的危险信号。",
+      diagnosis: "术后疼痛与活动受限，伴康复焦虑，需要护士解释风险并指导家属陪练。",
+      measures: "先安抚家属和患者，暂停高强度训练，指导低强度屈伸和踝泵练习，必要时冷敷抬高并复核护具佩戴。",
+      evaluation: "本次远程指导后情绪较前稳定，家属明确观察重点，后续继续关注疼痛、肿胀与活动度变化。",
     };
   }
 
   if (action === "PERSONALIZED_ADVICE") {
     return {
-      subjective: `${name} 当前适合短时多组训练，家属愿意协助记录变化。`,
+      subjective: `${name} 当前适合短时多组训练，家属愿意协助记录变化，但担心训练过量会伤到膝盖。`,
       objective: "近 24 小时训练频次存在波动，疼痛评分和活动耐量需继续追踪。",
-      diagnosis: "康复依从性波动，活动耐量有待逐步提升。",
-      measures: "将训练拆分为 2-3 小时 1 组，每组 5-8 分钟，训练后观察疼痛和肿胀。",
-      evaluation: "若按计划执行，可继续维持当前康复节奏并复查。",
+      diagnosis: "康复依从性波动，伴家庭照护压力，活动耐量有待逐步提升。",
+      measures: "将训练拆分为 2-3 小时 1 组，每组 5-8 分钟；指导家属用鼓励代替催促，训练后观察疼痛和肿胀。",
+      evaluation: "家属理解短时多组原则后，照护压力可下降；若按计划执行，可继续维持当前康复节奏并复查。",
     };
   }
 
   if (action === "HOME_VISIT") {
     return {
-      subjective: `${name} 因 ${alert.title} 需要上门评估，家属希望进一步查看恢复情况。`,
-      objective: "需现场复核关节肿胀、屈伸角度、步态代偿及设备佩戴情况。",
-      diagnosis: "存在上门评估需求，术后恢复需护士现场复核。",
-      measures: "安排上门护理，现场完成评估、指导和家庭环境安全检查。",
-      evaluation: "确认预约后继续跟进，必要时同步调整训练方案。",
+      subjective: `${name} 因 ${alert.title} 需要上门评估，家属表达担心并希望护士现场确认恢复情况。`,
+      objective: "需现场复核关节肿胀、屈伸角度、步态代偿、居家动线及设备佩戴情况。",
+      diagnosis: "存在上门评估需求，伴家属照护不确定感，术后恢复需护士现场复核。",
+      measures: "安排上门护理，现场完成评估、指导、家庭环境安全检查，并示范家属如何陪练和扶行。",
+      evaluation: "确认预约后继续跟进，家属明确上门前观察重点，必要时同步调整训练方案。",
     };
   }
 
   return {
-    subjective: "预警已由家属和护士共同复核。",
+    subjective: "预警已由家属和护士共同复核，家属已知晓当前无需过度紧张。",
     objective: "当前记录未见新增异常，相关指标已完成核对。",
-    diagnosis: "当前风险已得到处理，继续常规随访。",
-    measures: "保持现有训练计划，若症状反复及时联系护理团队。",
-    evaluation: "本次处置完成，后续继续观察即可。",
+    diagnosis: "当前风险已得到处理，继续常规随访并关注家属照护信心。",
+    measures: "保持现有训练计划，向家属说明观察重点，若症状反复及时联系护理团队。",
+    evaluation: "本次处置完成，家属理解后续观察方式，继续陪伴即可。",
   };
 }
 
@@ -210,18 +254,18 @@ function defaultAlertGuidance(action: AlertHandlingAction, alert: AlertItem, pat
   const name = patient?.name ?? "家人";
 
   if (action === "REMOTE_GUIDANCE") {
-    return `${name}出现“${alert.title}”。建议立即进行视频/文字远程指导：先暂停高强度训练，复核疼痛、肿胀和护膝佩戴位置，再完成 1 组低强度坐位屈伸训练。`;
+    return `${name}出现“${alert.title}”。建议立即进行视频/文字远程指导：先安抚家属和患者，说明这条预警代表需要复核而不是一定恶化；再暂停高强度训练，复核疼痛、肿胀和护膝佩戴位置，完成 1 组低强度坐位屈伸训练。`;
   }
 
   if (action === "PERSONALIZED_ADVICE") {
-    return `${name}今日按短时多组方案训练：每 2-3 小时 1 组，每组 5-8 分钟；疼痛超过 6 分或膝部明显肿胀时停止训练并冷敷。`;
+    return `${name}今日按短时多组方案训练：每 2-3 小时 1 组，每组 5-8 分钟；家属陪练时先问感受、再看动作，疼痛超过 6 分或膝部明显肿胀时停止训练并冷敷。`;
   }
 
   if (action === "HOME_VISIT") {
-    return `${name}因“${alert.title}”需要上门护理评估，重点查看膝关节肿胀、屈伸角度、步态代偿和智能护膝佩戴情况。`;
+    return `${name}因“${alert.title}”需要上门护理评估，重点查看膝关节肿胀、屈伸角度、步态代偿、居家防跌倒环境和智能护膝佩戴情况，同时指导家属如何安全陪练。`;
   }
 
-  return `已复核“${alert.title}”：${alert.message} 已完成护理处理并记录。`;
+  return `已复核“${alert.title}”：${alert.message} 已完成护理处理并记录。已向家属说明当前观察重点，避免过度焦虑或盲目加练。`;
 }
 
 function defaultAlertNotes(action: AlertHandlingAction, alert: AlertItem) {
@@ -258,10 +302,10 @@ function emptySoapDraft(): SoapDraft {
     diagnosis: "术后疼痛",
     guidance: "",
     notes: "",
-    subjective: "家属反馈膝部酸胀，训练后疼痛可耐受。",
-    objective: "智能护膝数据已复核，观察屈曲角度、训练频次、疼痛评分和设备连接状态。",
-    assessment: "TKA 术后康复进展需持续观察，当前以活动度恢复、疼痛控制和家属配合为重点。",
-    plan: "继续短时多组训练，异常疼痛或肿胀时暂停并联系护士。",
+    subjective: "家属反馈膝部酸胀，训练后疼痛可耐受，同时担心训练动作是否过量。",
+    objective: "智能护膝数据已复核，观察屈曲角度、训练频次、疼痛评分、睡眠反馈和设备连接状态。",
+    assessment: "TKA 术后康复进展需持续观察，当前以活动度恢复、疼痛控制、情绪安抚和家属配合为重点。",
+    plan: "继续短时多组训练，家属陪练时先问感受再协助动作；异常疼痛或肿胀时暂停并联系护士。",
     nextFollowUp: "",
   };
 }
@@ -271,8 +315,8 @@ export default function NursePage() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>("connecting");
   const [guidance, setGuidance] = useState<GuidanceState>({
-    guidance: "今日以坐位主动屈膝为主，每 2 小时 1 组，每组 8-10 次，疼痛明显时停止并冷敷。",
-    notes: "已远程提醒患者家属协助观察步态和肿胀情况。",
+    guidance: "今天先以坐位主动屈膝为主，每 2 小时 1 组，每组 8-10 次。家属陪练时先询问疼痛和紧张程度，疼痛明显时停止、冷敷并记录变化。",
+    notes: "已远程安抚患者和家属，提醒家属协助观察步态、肿胀、疼痛和夜间起身安全。",
     saving: false,
   });
   const [aiState, setAiState] = useState<AiState>({ running: false, error: null });
@@ -513,8 +557,8 @@ export default function NursePage() {
                 </Badge>
                 <Badge className="bg-white/10 text-white">TKA 康复护士工作台</Badge>
               </div>
-              <h1 className="mt-5 font-display text-3xl font-bold tracking-tight md:text-6xl">实时监测仪表盘</h1>
-              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300 md:text-lg md:leading-8">集中查看术后患者膝关节角度、训练频次、训练时长与 AI 异常预警，支持一键远程指导形成护理记录。</p>
+              <h1 className="mt-5 font-display text-3xl font-bold tracking-tight md:text-6xl">实时护理质量工作台</h1>
+              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300 md:text-lg md:leading-8">集中查看术后患者膝关节角度、训练频次、训练时长与 AI 异常预警，并把评估、指导、家属沟通和质控追踪沉淀成一套可复制的护理闭环。</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/20 hover:text-white lg:inline-flex">
@@ -530,6 +574,44 @@ export default function NursePage() {
             </div>
           </div>
         </header>
+
+        <Card className="border-white/10 bg-gradient-to-br from-white/[0.12] via-white/[0.06] to-emerald-500/10 text-white shadow-xl shadow-black/10">
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="bg-emerald-300 text-emerald-950">全国医院可复制模式</Badge>
+              <Badge className="bg-white/10 text-white">打开即用 · 易培训 · 可质控</Badge>
+            </div>
+            <CardTitle className="text-2xl md:text-3xl">护士如何用这个工具提升护理质量</CardTitle>
+            <p className="max-w-4xl text-sm leading-7 text-slate-300 md:text-base">把 TKA 术后护理从“个人经验驱动”变成“数据预警 + 标准处置 + 家属同步 + 质量复盘”的通用流程，各医院可直接套用到骨科康复护理小组、病区延续护理和居家随访场景。</p>
+          </CardHeader>
+          <CardContent className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="grid gap-3 md:grid-cols-4">
+              {hospitalQualityModel.map((item) => (
+                <div key={item.title} className="rounded-3xl border border-white/10 bg-white/[0.08] p-4">
+                  <p className="font-black text-emerald-100">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+              <p className="font-black text-emerald-100">护士日常使用路径</p>
+              <div className="mt-3 grid gap-2">
+                {nurseQualityActions.map((item) => (
+                  <p key={item} className="rounded-2xl bg-slate-950/45 px-3 py-2 text-sm leading-6 text-slate-200">{item}</p>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {nursingCarePrinciples.map((item) => (
+            <div key={item.title} className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 text-white shadow-xl shadow-black/10">
+              <p className="text-lg font-black text-rose-100">{item.title}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
+            </div>
+          ))}
+        </div>
 
         <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
           <StatCard icon={UsersRound} metric="rom" label="监测患者" value={`${patients.length}`} helper="术后康复中" />
@@ -592,7 +674,7 @@ export default function NursePage() {
                     <Stethoscope className="size-7 text-emerald-700" />
                     {selectedPatient?.name ?? "选择患者"} · 膝关节实时趋势
                   </CardTitle>
-                  <p className="mt-2 text-sm text-slate-500">屈曲角度、活动频次与训练时长自动随护膝数据更新。</p>
+                  <p className="mt-2 text-sm text-slate-500">屈曲角度、活动频次与训练时长自动随护膝数据更新，护士结合疼痛、睡眠和家属反馈判断护理重点。</p>
                 </div>
                 {selectedLatest ? (
                   <Badge variant={selectedLatest.flexionAngle < 78 || selectedLatest.painScore >= 7 ? "destructive" : "success"} className="px-3 py-1 text-sm">
@@ -634,7 +716,7 @@ export default function NursePage() {
                     <Sparkles className="size-7 text-amber-600" />
                     AI 智能关节分析
                   </CardTitle>
-                  <p className="mt-2 text-sm text-slate-500">读取当前患者最新膝关节数据，生成报告并同步给家属端。</p>
+                  <p className="mt-2 text-sm text-slate-500">读取当前患者最新膝关节数据，生成报告、护理重点和家属可理解的解释，辅助护士提高评估一致性。</p>
                 </div>
                 <Button size="lg" variant="elder" onClick={createAiAnalysis} disabled={!selectedPatient || !selectedLatest || aiState.running}>
                   <Sparkles className="size-5" />
@@ -644,7 +726,7 @@ export default function NursePage() {
               <CardContent className="space-y-3">
                 {aiState.error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{aiState.error}</p> : null}
                 {selectedAnalyses.length === 0 ? (
-                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无 AI 分析，点击按钮后会保存并推送给家属端。</p>
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无 AI 分析。点击后会沉淀一份可追溯报告，帮助护士统一评估口径并推送给家属端。</p>
                 ) : (
                   selectedAnalyses.slice(0, 2).map((analysis) => (
                     <div key={analysis.id} className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4">
@@ -677,7 +759,8 @@ export default function NursePage() {
                     <Video className="size-5" />
                     {guidance.saving ? "正在记录" : "发起指导并记录"}
                   </Button>
-                  <p className="rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">系统会把远程指导内容写入护理记录，便于交接班追踪。</p>
+                  <p className="rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">系统会把远程指导内容写入护理记录，并同步给家属端，便于交接班追踪和护理质量复盘。</p>
+                  <p className="rounded-2xl bg-rose-50 p-4 text-sm leading-6 text-rose-900">沟通顺序建议：先安抚担心，再解释数据，最后给出今天能完成的小目标。</p>
                 </div>
               </CardContent>
             </Card>
@@ -695,7 +778,7 @@ export default function NursePage() {
                 {alerts.length === 0 ? (
                   <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5 text-emerald-100">
                     <CheckCircle2 className="mb-3 size-7" />
-                    暂无开放预警，患者康复数据稳定。
+                    暂无开放预警，患者康复数据稳定。可继续关注家属已读情况和训练依从性。
                   </div>
                 ) : (
                   alerts.slice(0, 6).map((alert) => {
@@ -873,7 +956,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
         <DialogHeader>
           <Badge className="w-fit bg-sky-600 text-white">{selectedPatient?.name ?? "未选择患者"}</Badge>
           <DialogTitle>结构化 SOAP 护理记录</DialogTitle>
-          <DialogDescription>按 Subjective、Objective、Assessment、Plan 完整记录护理评估，并实时同步到家属端。</DialogDescription>
+          <DialogDescription>按 Subjective、Objective、Assessment、Plan 完整记录护理评估，把患者感受、客观数据、护理诊断、照护计划和家属沟通沉淀为可复制的质控记录。</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
@@ -903,12 +986,12 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
                 </option>
               ))}
             </select>
-            <span className="text-xs font-medium text-slate-500">A 项会自动带入护理诊断，便于统一书写。</span>
+            <span className="text-xs font-medium text-slate-500">A 项会自动带入护理诊断，便于不同医院、不同护士统一书写和质控抽查。</span>
           </label>
 
           <label className="grid gap-2 text-sm font-bold text-slate-700">
             护理指导摘要
-            <Textarea value={draft.guidance} onChange={(event) => update("guidance", event.target.value)} placeholder="写给家属端可直接阅读的指导摘要" />
+            <Textarea value={draft.guidance} onChange={(event) => update("guidance", event.target.value)} placeholder="写给家属端可直接阅读的指导摘要：先安抚，再说明做法和停止条件" />
           </label>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -920,7 +1003,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
 
           <label className="grid gap-2 text-sm font-bold text-slate-700">
             交接备注
-            <Input value={draft.notes} onChange={(event) => update("notes", event.target.value)} placeholder="可选：交接班或家属沟通备注" />
+            <Input value={draft.notes} onChange={(event) => update("notes", event.target.value)} placeholder="可选：交接班、家属沟通、照护压力或情绪观察备注" />
           </label>
 
           {message ? <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800">{message}</p> : null}
@@ -1001,10 +1084,10 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
   }
 
   const actions: { value: AlertHandlingAction; label: string; helper: string; icon: typeof Video }[] = [
-    { value: "REMOTE_GUIDANCE", label: "立即远程指导", helper: "生成视频/文字指导护理记录", icon: Video },
-    { value: "PERSONALIZED_ADVICE", label: "发送康复建议", helper: "把个性化建议同步到家属端", icon: MessageSquareText },
-    { value: "HOME_VISIT", label: "预约上门护理", helper: "创建护理预约并标记预警", icon: Home },
-    { value: "RESOLVE_ONLY", label: "填写处理记录", helper: "记录处置说明并关闭预警", icon: ClipboardCheck },
+    { value: "REMOTE_GUIDANCE", label: "立即远程指导", helper: "先安抚再指导，生成护理记录", icon: Video },
+    { value: "PERSONALIZED_ADVICE", label: "发送康复建议", helper: "把家属能执行的建议同步出去", icon: MessageSquareText },
+    { value: "HOME_VISIT", label: "预约上门护理", helper: "现场评估并指导家庭照护", icon: Home },
+    { value: "RESOLVE_ONLY", label: "填写处理记录", helper: "记录解释、安抚和关闭原因", icon: ClipboardCheck },
   ];
 
   return (
@@ -1080,7 +1163,7 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
           {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
 
           <div className="flex flex-col gap-3 rounded-3xl bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm leading-6 text-slate-600">提交后会写入护理记录，必要时创建预约，并自动把该预警标记为已处理。</p>
+            <p className="text-sm leading-6 text-slate-600">提交后会写入护理记录，必要时创建预约，并自动把该预警标记为已处理；这条记录也可用于交接班和护理质量复盘。</p>
             <Button size="lg" variant="elder" onClick={submit} disabled={saving}>
               {saving ? <Clock3 className="size-5 animate-spin" /> : <SendHorizontal className="size-5" />}
               {saving ? "正在处理" : `提交：${actionLabel(action)}`}

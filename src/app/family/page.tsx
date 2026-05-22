@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, BatteryCharging, CheckCircle2, FileText, HeartPulse, Radio, Smartphone, Sparkles } from "lucide-react";
+import { Activity, AlertTriangle, BatteryCharging, CheckCircle2, FileText, HeartHandshake, HeartPulse, Radio, Smartphone, Sparkles } from "lucide-react";
 
 import { MetricEducationDialog, type MetricEducationKey } from "@/components/metric-education-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,23 @@ async function fetchDashboard() {
 
   return (await response.json()) as DashboardData;
 }
+
+const carePromiseCards = [
+  {
+    title: "先看见人，再看见数值",
+    description: "角度、频次和疼痛分只是提醒，护士会同时关注家人的表情、睡眠、害怕和坚持。",
+  },
+  {
+    title: "把专业话翻译成家常话",
+    description: "每条建议都尽量写成家属能照着做、能讲给家人听的语言，减少照护时的不确定。",
+  },
+  {
+    title: "不让家属独自扛着",
+    description: "异常预警、上门护理和远程指导会形成闭环，家属不是旁观者，而是被支持的照护伙伴。",
+  },
+];
+
+const companionPlan = ["先问一句疼不疼、累不累", "训练前确认地面防滑和护具位置", "训练后看肿胀、补水、夸一句今天的坚持"];
 
 export default function FamilyPage() {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
@@ -158,8 +175,8 @@ export default function FamilyPage() {
   const latestGuidance = nursingRecords[0] ?? null;
   const honorific = (patient?.age ?? 0) >= 70 ? "爷爷/奶奶" : "家人";
   const encouragement = latestRecord
-    ? `今天${honorific}的膝关节活动度在稳步进步，继续加油！我们和您一起守护家人健康。`
-    : "我们会陪着您一起记录每一次康复变化，慢慢来，恢复会越来越好。";
+    ? `今天${honorific}又完成了一次努力。角度在变好很重要，愿意坚持、愿意被陪伴也同样重要。`
+    : "先不用着急追赶数字，我们会陪着您把每一次疼痛、害怕、进步和坚持都认真记录下来。";
 
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
@@ -172,7 +189,7 @@ export default function FamilyPage() {
             </Badge>
             <div>
               <h1 className="font-display text-3xl font-bold tracking-tight md:text-6xl">家属端康复守护</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-xl md:leading-9">家属可以随时了解家人的恢复进度，智能护膝每 5 秒自动上传屈曲角度、活动频次和训练时长，护士端也会及时给出专业支持。</p>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-xl md:leading-9">家属可以随时了解家人的恢复进度，也能把担心、疼痛和照护压力交给护士一起判断。系统记录数据，护士看见人，家属不必独自面对康复里的每一个不确定。</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:justify-end">
@@ -193,6 +210,29 @@ export default function FamilyPage() {
             </Button>
           </div>
         </header>
+
+        <Card className="overflow-hidden border-rose-100 bg-gradient-to-br from-rose-50 via-white to-emerald-50 shadow-sm">
+          <CardContent className="grid gap-5 p-5 md:grid-cols-[1.05fr_1.4fr] md:p-6">
+            <div className="rounded-[1.5rem] bg-slate-950 p-5 text-white shadow-xl shadow-slate-950/10">
+              <Badge className="bg-rose-200 text-rose-950">护理人文关怀</Badge>
+              <div className="mt-5 flex items-start gap-3">
+                <HeartHandshake className="mt-1 size-8 shrink-0 text-rose-200" />
+                <div>
+                  <h2 className="text-2xl font-black leading-tight md:text-3xl">康复不是一张曲线，是一家人一起走的一段路。</h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">这里的每一次提醒，都希望让家属更安心、让家人更有尊严，也让护士的专业照护真正到达家里。</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {carePromiseCards.map((item) => (
+                <div key={item.title} className="rounded-[1.35rem] border border-white/80 bg-white/85 p-4 shadow-sm">
+                  <p className="text-base font-black text-slate-900">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
           <Card className="overflow-hidden border-emerald-100 bg-gradient-to-br from-white via-emerald-50/80 to-sky-50/70">
@@ -238,13 +278,20 @@ export default function FamilyPage() {
               <div className="rounded-3xl border border-emerald-100 bg-white/90 p-5 shadow-sm">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-emerald-700">每日康复打卡</p>
+                    <p className="text-sm font-semibold text-emerald-700">每日康复陪伴打卡</p>
                     <p className="mt-2 text-base leading-7 text-slate-700">{encouragement}</p>
                   </div>
                   <Button size="lg" variant="elder" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
                     <CheckCircle2 className="size-5" />
-                    {dailyCheckIn ? "今日已打卡" : "完成打卡"}
+                    {dailyCheckIn ? "今日已陪伴" : "完成陪伴"}
                   </Button>
+                </div>
+                <div className="mt-4 grid gap-2 md:grid-cols-3">
+                  {companionPlan.map((item, index) => (
+                    <p key={item} className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-900">
+                      {index + 1}. {item}
+                    </p>
+                  ))}
                 </div>
                 {dailyCheckIn ? (
                   <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-4 text-emerald-900">
@@ -252,7 +299,7 @@ export default function FamilyPage() {
                       <Sparkles className="size-6 animate-bounce text-emerald-600" />
                       <p className="font-bold">打卡完成，今天已经为康复迈出稳稳的一步。</p>
                     </div>
-                    <p className="mt-2 leading-7">我们和您一起守护家人健康，记得多鼓励、多陪伴，训练后留意休息和补水。</p>
+                    <p className="mt-2 leading-7">您今天做的不只是点一次打卡，而是在告诉家人：恢复慢一点也没关系，我们一起把这段路走稳。</p>
                   </div>
                 ) : null}
               </div>
@@ -276,12 +323,13 @@ export default function FamilyPage() {
                     <span className="text-sm text-slate-500">{formatTime(latestAnalysis.createdAt)}</span>
                   </div>
                   <p className="mt-4 text-base leading-7 text-slate-700">{latestAnalysis.report}</p>
-                  <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-base font-semibold leading-7 text-emerald-900">{latestAnalysis.recommendation}</p>
+                  <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-900">护士会先确认家人的疼痛、睡眠和情绪，再结合数据判断训练强度，不会只用一个角度评价恢复好坏。</p>
+                  <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-base font-semibold leading-7 text-emerald-900">{latestAnalysis.recommendation}</p>
                 </div>
               ) : (
                 <div className="rounded-3xl border border-dashed border-amber-200 bg-white/80 p-5 text-slate-600">
                   <p className="text-lg font-bold text-slate-800">等待护士端 AI 智能分析</p>
-                  <p className="mt-2 leading-7">护士点击“AI智能分析”后，报告会实时同步到这里。</p>
+                  <p className="mt-2 leading-7">护士完成分析后，系统会把专业判断和适合家属转述的安抚建议同步到这里。</p>
                 </div>
               )}
             </CardContent>
@@ -325,7 +373,7 @@ export default function FamilyPage() {
               {!latestAlert && !latestGuidance ? (
                 <div className="rounded-3xl border border-dashed border-sky-200 bg-white/80 p-5 text-slate-600">
                   <p className="text-lg font-bold text-slate-800">暂无新的护士处理动态</p>
-                  <p className="mt-2 leading-7">护士端处理预警后，远程指导、个性化建议和上门护理安排会自动同步到这里，我们会一直陪伴家人恢复。</p>
+                  <p className="mt-2 leading-7">暂时没有新的处理动态，说明当前不需要额外干预。若家属仍然担心，可以通过预约护理把疑问交给护士一起看。</p>
                 </div>
               ) : null}
             </CardContent>
@@ -369,9 +417,9 @@ export default function FamilyPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-base leading-8 text-slate-700">
-                <p>1. 每次训练前后留意切口、肿胀和疼痛变化，若有明显加重请及时联系护士。</p>
-                <p>2. 您的陪伴和鼓励会直接影响康复依从性，建议把每次进步都记录下来。</p>
-                <p>3. 若家人暂时不方便操作，家属可以代为查看数据、确认预约和阅读指导。</p>
+                <p>1. 训练前先问家人“今天哪里最不舒服”，再看切口、肿胀和疼痛变化。</p>
+                <p>2. 家属的语气会影响康复信心，尽量用“我们一起试一点点”代替“你必须多练”。</p>
+                <p>3. 若家人暂时不方便操作，家属可以代为查看数据、确认预约、阅读指导，并把担心写进预约需求。</p>
               </CardContent>
             </Card>
 
@@ -383,9 +431,9 @@ export default function FamilyPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-base leading-8 text-slate-700">
-                <p>• 训练后可以帮家人轻轻按摩小腿和大腿前侧，放松肌肉，不要按压切口。</p>
-                <p>• 饮食宜清淡、均衡、易消化，注意补充蛋白质和水分。</p>
-                <p>• 夜间起身时请先坐稳、缓慢站立，避免急转和跌倒。</p>
+                <p>• 训练后先让家人坐稳休息，再轻轻放松小腿和大腿前侧，不要按压切口。</p>
+                <p>• 疼痛、焦虑或睡不好时，不要先责备“练得少”，先记录原因，再联系护士调整节奏。</p>
+                <p>• 夜间起身时请先开灯、坐稳、缓慢站立，家属在旁边扶一把，比催促更安全。</p>
               </CardContent>
             </Card>
           </div>

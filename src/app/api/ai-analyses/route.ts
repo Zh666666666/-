@@ -26,8 +26,8 @@ function localAnalysis(patient: PatientSummary, record: KneeDataPoint): Analysis
     provider: "local-rule",
     report: `${patient.name} 当前屈曲 ${record.flexionAngle.toFixed(0)}°，训练 ${record.activityFrequency} 次、累计 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。${riskText}。`,
     recommendation: record.flexionAngle < 78 || record.painScore >= 7
-      ? "建议护士优先远程复核疼痛、肿胀和动作质量，今日训练改为短时多组，必要时安排线下评估。"
-      : "建议维持主动屈膝与股四头肌训练，继续观察角度趋势和训练依从性，疼痛升高时及时暂停。",
+      ? "建议护士优先远程复核疼痛、肿胀、动作质量和家属照护压力；先安抚再解释风险，今日训练改为短时多组，必要时安排线下评估。"
+      : "建议维持主动屈膝与股四头肌训练，继续观察角度趋势、训练依从性和家属陪练反馈；疼痛升高时及时暂停并同步护士。",
   };
 }
 
@@ -73,7 +73,7 @@ async function callOpenAi(patient: PatientSummary, record: KneeDataPoint): Promi
       messages: [
         {
           role: "system",
-          content: "你是骨科 TKA 术后康复护士助手。只返回 JSON，字段为 report 和 recommendation，内容用中文，面向护士和患者都能理解。",
+          content: "你是骨科 TKA 术后康复护士助手。只返回 JSON，字段为 report 和 recommendation，内容用中文，面向护士、患者和家属都能理解。建议必须体现先安抚、再评估、再干预，并说明家属如何安全陪伴。",
         },
         {
           role: "user",
@@ -110,7 +110,7 @@ async function callAnthropic(patient: PatientSummary, record: KneeDataPoint): Pr
       model: "claude-sonnet-4-6",
       max_tokens: 600,
       temperature: 0.3,
-      system: "你是骨科 TKA 术后康复护士助手。只返回 JSON，字段为 report 和 recommendation，内容用中文，面向护士和患者都能理解。",
+      system: "你是骨科 TKA 术后康复护士助手。只返回 JSON，字段为 report 和 recommendation，内容用中文，面向护士、患者和家属都能理解。建议必须体现先安抚、再评估、再干预，并说明家属如何安全陪伴。",
       messages: [
         {
           role: "user",
