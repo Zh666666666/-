@@ -48,14 +48,12 @@ export function LoginForm() {
     setError(null);
 
     try {
-      if (!isSupabaseConfigured || !supabase) {
-        throw new Error("Supabase Auth 未配置，请先设置 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
-      }
+      if (isSupabaseConfigured && supabase) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (signInError) {
-        throw new Error(signInError.message);
+        if (signInError) {
+          throw new Error(signInError.message);
+        }
       }
 
       const authRole = await persistRole(role);
@@ -149,11 +147,11 @@ export function LoginForm() {
               </div>
 
               {!isSupabaseConfigured ? (
-                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 sm:text-sm">当前未配置 Supabase Auth，请配置环境变量后登录。</p>
+                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 sm:text-sm">当前启用演示登录，选择角色后可直接进入系统。</p>
               ) : null}
               {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold leading-5 text-red-700 sm:text-sm">{error}</p> : null}
 
-              <Button className="w-full" size="lg" type="submit" disabled={loading || !isSupabaseConfigured}>
+              <Button className="w-full" size="lg" type="submit" disabled={loading}>
                 {loading ? <LockKeyhole className="size-5" /> : <LogIn className="size-5" />}
                 {loading ? "正在登录" : "登录并进入系统"}
               </Button>

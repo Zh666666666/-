@@ -36,11 +36,37 @@ function roleRedirect(request: NextRequest, role: UserRole) {
   return redirectTo(request, defaultPathForRole(role));
 }
 
+function redirectForMismatchedRole(request: NextRequest, pathname: string, role: UserRole) {
+  if (pathname.startsWith("/family") && role !== "family") {
+    return redirectTo(request, "/nurse");
+  }
+
+  if (pathname.startsWith("/nurse") && role !== "nurse") {
+    return redirectTo(request, "/family");
+  }
+
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!isSupabaseConfigured) {
-    return pathname === "/login" || !isProtectedPath(pathname) ? NextResponse.next() : loginRedirect(request, pathname);
+    const role = resolveAuthRole(null, request.cookies.get(authRoleCookie)?.value);
+
+    if (pathname === "/login" && role) {
+      return roleRedirect(request, role);
+    }
+
+    if (!isProtectedPath(pathname)) {
+      return NextResponse.next();
+    }
+
+    if (!role) {
+      return loginRedirect(request, pathname);
+    }
+
+    return redirectForMismatchedRole(request, pathname, role) ?? NextResponse.next();
   }
 
   let response = NextResponse.next({ request });
@@ -76,15 +102,7 @@ export async function middleware(request: NextRequest) {
     return unauthorizedRedirect(request, pathname);
   }
 
-  if (pathname.startsWith("/family") && role !== "family") {
-    return redirectTo(request, "/nurse");
-  }
-
-  if (pathname.startsWith("/nurse") && role !== "nurse") {
-    return redirectTo(request, "/family");
-  }
-
-  return response;
+  return redirectForMismatchedRole(request, pathname, role) ?? response;
 }
 
 export const config = {

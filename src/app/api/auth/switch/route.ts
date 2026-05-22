@@ -20,7 +20,18 @@ export async function POST(request: Request) {
   const { data } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
+    const cookieStore = await cookies();
+    const role = parsed.data.role;
+
+    cookieStore.set(authRoleCookie, role, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return NextResponse.json({ role, redirectTo: defaultPathForRole(role) });
   }
 
   if (!data.user) {
