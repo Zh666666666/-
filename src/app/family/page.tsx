@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { subscribeToSharedTables, removeRealtimeChannel } from "@/lib/realtime";
 import { createDemoRecord, formatTime, type AiAnalysisItem, type AlertItem, type DashboardData, type KneeDataPoint, type NursingRecordItem, type PatientSummary } from "@/lib/rehab";
 import { supabase } from "@/lib/supabase";
-
+import { cn } from "@/lib/utils";
 
 type UploadState = "idle" | "syncing" | "synced" | "error";
 type FamilyWorkspace = "today" | "data" | "nurse" | "care";
@@ -29,9 +29,9 @@ async function fetchDashboard() {
 
 const familyWorkspaces: Array<{ value: FamilyWorkspace; label: string; helper: string; icon: typeof Activity }> = [
   { value: "today", label: "今日陪伴", helper: "先做最重要的事", icon: HeartHandshake },
-  { value: "data", label: "数据趋势", helper: "看护膝与训练记录", icon: Activity },
-  { value: "nurse", label: "护士建议", helper: "看分析、预警和指导", icon: FileText },
-  { value: "care", label: "照护工具", helper: "预约、资料和学习", icon: Home },
+  { value: "data", label: "数据趋势", helper: "护膝与训练记录", icon: Activity },
+  { value: "nurse", label: "护士建议", helper: "分析、预警、指导", icon: FileText },
+  { value: "care", label: "照护工具", helper: "预约、资料、学习", icon: Home },
 ];
 
 const carePromiseCards = [
@@ -77,6 +77,10 @@ const careToolCards = [
     icon: BookOpenCheck,
   },
 ];
+
+const panelClass = "rounded-[2rem] border border-[#e7dcc8] bg-[#fffaf2]/95 text-[#17251f] shadow-[0_24px_70px_rgba(46,61,50,0.10)] backdrop-blur";
+const quietPanelClass = "rounded-[1.5rem] border border-[#eadfce] bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]";
+const darkPanelClass = "rounded-[1.75rem] bg-[#17251f] text-white shadow-[0_24px_70px_rgba(23,37,31,0.24)]";
 
 export default function FamilyPage() {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
@@ -214,123 +218,152 @@ export default function FamilyPage() {
   const encouragement = latestRecord
     ? `今天${honorific}又完成了一次努力。角度在变好很重要，愿意坚持、愿意被陪伴也同样重要。`
     : "先不用着急追赶数字，我们会陪着您把每一次疼痛、害怕、进步和坚持都认真记录下来。";
-  const nextCareStep = latestAlert?.status !== "RESOLVED"
+  const hasOpenAlert = Boolean(latestAlert && latestAlert.status !== "RESOLVED");
+  const nextCareStep = hasOpenAlert
     ? "先暂停让家人明显不舒服的动作，记录疼痛和肿胀变化，必要时预约护士上门评估。"
     : latestGuidance
       ? "今天优先按护士建议执行，训练前先问感受，训练后把疼痛、肿胀和睡眠变化记下来。"
       : "先完成今日陪伴打卡，再看最新角度和训练时长，不需要一次把所有功能都点一遍。";
 
   return (
-    <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
-      <section className="mx-auto flex max-w-6xl flex-col gap-5 md:gap-6">
-        <header className="overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-white/90 p-5 shadow-sm backdrop-blur md:rounded-[2rem] md:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-3">
-              <Badge variant="success" className="w-fit gap-2 px-3 py-1 text-sm">
-                <span className="sync-dot size-2 rounded-full bg-emerald-500" />
-                智能护膝已连接
+    <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] px-4 pb-40 pt-4 text-[#17251f] md:px-10 md:pb-10 md:pt-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_8%,rgba(91,135,111,0.28),transparent_30rem),radial-gradient(circle_at_86%_4%,rgba(235,181,95,0.22),transparent_26rem)]" />
+      <div className="pointer-events-none absolute -left-24 top-64 h-64 w-64 rounded-full bg-[#dfcaa8]/35 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-20 right-0 h-72 w-72 rounded-full bg-[#9fc4b1]/25 blur-3xl" />
+
+      <section className="relative mx-auto flex max-w-6xl flex-col gap-5 md:gap-6">
+        <header className="family-view-enter relative overflow-hidden rounded-[2.5rem] bg-[#17251f] p-5 text-white shadow-[0_32px_90px_rgba(23,37,31,0.28)] md:p-8">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#d7a75f]/25 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 left-1/3 h-px w-80 bg-gradient-to-r from-transparent via-[#f4d18a]/70 to-transparent" />
+          <div className="relative grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-end">
+            <div>
+              <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-[#f8deb0] shadow-none">
+                家庭照护台 · 智能护膝在线
               </Badge>
-              <div>
-                <h1 className="font-display text-3xl font-bold tracking-tight md:text-6xl">家属端康复守护</h1>
-                <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600 md:text-xl md:leading-9">先告诉家属今天该做什么，再把数据、护士建议和照护工具分开看。康复不是把所有信息塞给家属，而是让家属在需要时找到下一步。</p>
+              <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:text-7xl">
+                把今天的照护，变成一张清楚的路线图。
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-[#d6e4da] md:text-lg md:leading-9">
+                家属先看到当前最该做的一步，再进入数据、护士建议和照护工具。页面不再把所有功能堆在一起，而是按真实照护节奏展开。
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Button asChild size="lg" className="bg-[#f2c36b] text-[#17251f] shadow-[0_18px_42px_rgba(242,195,107,0.24)] hover:bg-[#ffd27d]">
+                  <Link href="/appointments">预约护理</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white">
+                  <Link href="/family/profile">个人资料</Link>
+                </Button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="lg" variant="outline">
-                <Link href="/family/profile">个人资料</Link>
-              </Button>
-              <Button asChild size="lg" variant="elder">
-                <Link href="/appointments">预约护理</Link>
-              </Button>
+
+            <div className="rounded-[2rem] border border-white/12 bg-white/[0.08] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur">
+              <div className="flex items-center justify-between text-sm text-[#c9dfd2]">
+                <span>{patient ? `${patient.name} · ${patient.age} 岁` : "正在读取家人信息"}</span>
+                <span className="flex items-center gap-2 rounded-full bg-emerald-300/15 px-3 py-1 text-emerald-100">
+                  <span className="sync-dot size-2 rounded-full bg-emerald-300" />
+                  {stateLabel}
+                </span>
+              </div>
+              <div className="mt-8 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm text-[#c9dfd2]">最新屈曲角度</p>
+                  <p className="mt-2 text-6xl font-black tracking-[-0.08em] text-[#fff7e8]">{flexion.toFixed(0)}°</p>
+                </div>
+                <div className="rounded-2xl bg-[#fff7e8] px-4 py-3 text-right text-[#17251f]">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6f6a5d]">Target</p>
+                  <p className="mt-1 text-2xl font-black">{patient?.targetFlexion ?? 110}°</p>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
-        <Card className="border-emerald-100 bg-white/90 shadow-sm">
-          <CardContent className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-4">
-            {familyWorkspaces.map((item) => {
-              const Icon = item.icon;
-              const active = activeWorkspace === item.value;
+        <nav className="family-view-enter grid gap-2 rounded-[2rem] border border-[#e1d3bd] bg-[#fffaf2]/82 p-2 shadow-[0_18px_60px_rgba(46,61,50,0.08)] backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
+          {familyWorkspaces.map((item, index) => {
+            const Icon = item.icon;
+            const active = activeWorkspace === item.value;
 
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  className={`rounded-2xl border p-4 text-left transition-all ${active ? "border-emerald-300 bg-emerald-50 shadow-sm" : "border-slate-100 bg-white hover:border-emerald-200 hover:bg-emerald-50/50"}`}
-                  onClick={() => setActiveWorkspace(item.value)}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <Icon className={`size-5 ${active ? "text-emerald-700" : "text-slate-400"}`} />
-                    {active ? <Badge variant="success">当前</Badge> : null}
-                  </div>
-                  <p className="mt-3 text-lg font-black text-slate-950">{item.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.helper}</p>
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
+            return (
+              <button
+                key={item.value}
+                type="button"
+                className={cn(
+                  "group rounded-[1.45rem] p-4 text-left transition-all duration-300",
+                  active ? "bg-[#17251f] text-white shadow-[0_18px_45px_rgba(23,37,31,0.22)]" : "text-[#4c5b50] hover:bg-white/80 hover:text-[#17251f]",
+                )}
+                onClick={() => setActiveWorkspace(item.value)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className={cn("flex size-10 items-center justify-center rounded-2xl transition", active ? "bg-[#f2c36b] text-[#17251f]" : "bg-[#eef1e8] text-[#5b876f] group-hover:bg-[#e2eadf]") }>
+                    <Icon className="size-5" />
+                  </span>
+                  <span className={cn("text-xs font-black tracking-[0.16em]", active ? "text-[#f2c36b]" : "text-[#a28f73]")}>0{index + 1}</span>
+                </div>
+                <p className="mt-4 text-lg font-black">{item.label}</p>
+                <p className={cn("mt-1 text-xs leading-5", active ? "text-[#d6e4da]" : "text-[#718174]")}>{item.helper}</p>
+              </button>
+            );
+          })}
+        </nav>
 
         {activeWorkspace === "today" ? (
-          <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-            <Card className="overflow-hidden border-emerald-100 bg-gradient-to-br from-white via-emerald-50/80 to-sky-50/70">
+          <div className="family-view-enter grid gap-5 lg:grid-cols-[1.18fr_0.82fr]">
+            <Card className={cn(panelClass, "overflow-hidden") }>
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <HeartHandshake className="size-7 text-emerald-700" />
-                  今日先做这几件事
-                </CardTitle>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Today Rhythm</p>
+                <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em] md:text-4xl">今日照护节奏</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5 p-6 pt-2">
+              <CardContent className="space-y-5 p-5 pt-2 md:p-6 md:pt-2">
                 <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-xl shadow-slate-950/15">
-                    <div className="flex items-center justify-between text-sm text-emerald-100">
+                  <div className={cn(darkPanelClass, "p-5") }>
+                    <div className="flex items-center justify-between text-sm text-[#c9dfd2]">
                       <span>同步状态</span>
-                      <Radio className="size-5" />
+                      <Radio className="size-5 text-[#f2c36b]" />
                     </div>
-                    <div className="mt-7 flex items-center gap-4">
-                      <span className="sync-dot size-5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50" />
-                      <p className="text-3xl font-black tracking-tight md:text-4xl">{stateLabel}</p>
+                    <div className="mt-8 flex items-center gap-4">
+                      <span className="sync-dot size-5 rounded-full bg-emerald-300 shadow-lg shadow-emerald-300/50" />
+                      <p className="text-3xl font-black tracking-tight">{stateLabel}</p>
                     </div>
-                    <p className="mt-4 leading-7 text-slate-300">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
+                    <p className="mt-4 leading-7 text-[#c9dfd2]">{patient ? `${patient.name}，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
                   </div>
 
                   <MetricEducationDialog metric="flexion">
-                    <button className="rounded-3xl border border-emerald-100 bg-white/90 p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg">
-                      <div className="flex items-center justify-between text-sm text-slate-500">
+                    <button className={cn(quietPanelClass, "group p-6 text-left transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_55px_rgba(46,61,50,0.12)]") }>
+                      <div className="flex items-center justify-between text-sm text-[#718174]">
                         <span>今天最关键指标</span>
-                        <Activity className="size-5 text-emerald-700" />
+                        <Activity className="size-5 text-[#5b876f]" />
                       </div>
-                      <p className="mt-5 text-5xl font-black tracking-tight text-emerald-700 md:text-6xl">{flexion.toFixed(0)}°</p>
-                      <p className="mt-3 text-lg text-slate-600">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
+                      <p className="mt-5 text-6xl font-black tracking-[-0.08em] text-[#2f6f55] md:text-7xl">{flexion.toFixed(0)}°</p>
+                      <p className="mt-3 text-base leading-7 text-[#5d6c61]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
                 </div>
 
-                <div className="rounded-3xl border border-emerald-100 bg-white/90 p-5 shadow-sm">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className={cn(quietPanelClass, "p-5") }>
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-emerald-700">每日康复陪伴打卡</p>
-                      <p className="mt-2 text-base leading-7 text-slate-700">{encouragement}</p>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b0823d]">Companion Check</p>
+                      <p className="mt-3 max-w-2xl text-base leading-7 text-[#4c5b50]">{encouragement}</p>
                     </div>
-                    <Button size="lg" variant="elder" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
+                    <Button size="lg" className="bg-[#17251f] text-white shadow-[0_18px_40px_rgba(23,37,31,0.18)] hover:bg-[#243d33]" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
                       <CheckCircle2 className="size-5" />
                       {dailyCheckIn ? "今日已陪伴" : "完成陪伴"}
                     </Button>
                   </div>
-                  <div className="mt-4 grid gap-2 md:grid-cols-3">
+                  <div className="mt-5 grid gap-2 md:grid-cols-3">
                     {companionPlan.map((item, index) => (
-                      <p key={item} className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-900">
-                        {index + 1}. {item}
+                      <p key={item} className="rounded-[1.25rem] bg-[#edf2e7] px-4 py-3 text-sm font-bold leading-6 text-[#315242]">
+                        <span className="mr-2 text-[#b0823d]">{index + 1}</span>{item}
                       </p>
                     ))}
                   </div>
                   {dailyCheckIn ? (
-                    <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-4 text-emerald-900">
+                    <div className="mt-5 rounded-[1.25rem] bg-[#17251f] px-4 py-4 text-white">
                       <div className="flex items-center gap-3">
-                        <Sparkles className="size-6 animate-bounce text-emerald-600" />
+                        <Sparkles className="size-6 animate-bounce text-[#f2c36b]" />
                         <p className="font-bold">打卡完成，今天已经为康复迈出稳稳的一步。</p>
                       </div>
-                      <p className="mt-2 leading-7">您今天做的不只是点一次打卡，而是在告诉家人：恢复慢一点也没关系，我们一起把这段路走稳。</p>
+                      <p className="mt-2 leading-7 text-[#d6e4da]">您今天做的不只是点一次打卡，而是在告诉家人：恢复慢一点也没关系，我们一起把这段路走稳。</p>
                     </div>
                   ) : null}
                 </div>
@@ -339,32 +372,30 @@ export default function FamilyPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-rose-100 bg-gradient-to-br from-rose-50 via-white to-emerald-50">
+            <Card className={cn(panelClass, "bg-[#fff6e6]") }>
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <Sparkles className="size-7 text-rose-600" />
-                  下一步提醒
-                </CardTitle>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Care Compass</p>
+                <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em]">下一步提醒</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="rounded-3xl bg-white/85 p-5 text-lg font-bold leading-8 text-slate-800 shadow-sm">{nextCareStep}</p>
+                <p className="rounded-[1.5rem] bg-white/70 p-5 text-xl font-black leading-9 text-[#17251f] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">{nextCareStep}</p>
                 <div className="grid gap-3">
-                  <button type="button" onClick={() => setActiveWorkspace("nurse")} className="flex items-center justify-between rounded-3xl border border-emerald-100 bg-white/90 p-4 text-left shadow-sm transition hover:border-emerald-300">
+                  <button type="button" onClick={() => setActiveWorkspace("nurse")} className="group flex items-center justify-between rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_45px_rgba(46,61,50,0.10)]">
                     <span>
-                      <span className="block font-black text-slate-900">看护士建议</span>
-                      <span className="mt-1 block text-sm leading-6 text-slate-500">把 AI 分析、预警和护理记录放在同一处看。</span>
+                      <span className="block font-black text-[#17251f]">看护士建议</span>
+                      <span className="mt-1 block text-sm leading-6 text-[#718174]">把 AI 分析、预警和护理记录放在同一处看。</span>
                     </span>
-                    <ChevronRight className="size-5 text-emerald-700" />
+                    <ChevronRight className="size-5 text-[#5b876f] transition group-hover:translate-x-1" />
                   </button>
-                  <button type="button" onClick={() => setActiveWorkspace("data")} className="flex items-center justify-between rounded-3xl border border-sky-100 bg-white/90 p-4 text-left shadow-sm transition hover:border-sky-300">
+                  <button type="button" onClick={() => setActiveWorkspace("data")} className="group flex items-center justify-between rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_45px_rgba(46,61,50,0.10)]">
                     <span>
-                      <span className="block font-black text-slate-900">看数据变化</span>
-                      <span className="mt-1 block text-sm leading-6 text-slate-500">只看护膝数据和最近上传，不被其他内容打扰。</span>
+                      <span className="block font-black text-[#17251f]">看数据变化</span>
+                      <span className="mt-1 block text-sm leading-6 text-[#718174]">只看护膝数据和最近上传，不被其他内容打扰。</span>
                     </span>
-                    <ChevronRight className="size-5 text-sky-700" />
+                    <ChevronRight className="size-5 text-[#5b876f] transition group-hover:translate-x-1" />
                   </button>
                 </div>
-                <Button asChild size="lg" variant="outline" className="w-full">
+                <Button asChild size="lg" variant="outline" className="w-full border-[#d8c8ad] bg-white/70 text-[#17251f] hover:bg-white">
                   <Link href="/appointments">拿不准时预约护士</Link>
                 </Button>
               </CardContent>
@@ -373,71 +404,70 @@ export default function FamilyPage() {
         ) : null}
 
         {activeWorkspace === "data" ? (
-          <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <Card className="overflow-hidden border-emerald-100 bg-gradient-to-br from-white via-emerald-50/80 to-sky-50/70">
+          <div className="family-view-enter grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+            <Card className={cn(panelClass, "overflow-hidden") }>
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <Smartphone className="size-7 text-emerald-700" />
-                  数据趋势与设备同步
-                </CardTitle>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Brace Data</p>
+                <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em] md:text-4xl">数据趋势与设备同步</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6 p-6 pt-2">
+              <CardContent className="space-y-6 p-5 pt-2 md:p-6 md:pt-2">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-xl shadow-slate-950/15">
-                    <div className="flex items-center justify-between text-sm text-emerald-100">
+                  <div className={cn(darkPanelClass, "p-5") }>
+                    <div className="flex items-center justify-between text-sm text-[#c9dfd2]">
                       <span>同步状态</span>
-                      <Radio className="size-5" />
+                      <Radio className="size-5 text-[#f2c36b]" />
                     </div>
-                    <div className="mt-7 flex items-center gap-4">
-                      <span className="sync-dot size-5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50" />
-                      <p className="text-3xl font-black tracking-tight md:text-4xl">{stateLabel}</p>
+                    <div className="mt-8 flex items-center gap-4">
+                      <span className="sync-dot size-5 rounded-full bg-emerald-300 shadow-lg shadow-emerald-300/50" />
+                      <p className="text-3xl font-black tracking-tight">{stateLabel}</p>
                     </div>
-                    <p className="mt-4 leading-7 text-slate-300">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
+                    <p className="mt-4 leading-7 text-[#c9dfd2]">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
                   </div>
 
                   <MetricEducationDialog metric="flexion">
-                    <button className="rounded-3xl border border-emerald-100 bg-white/90 p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg">
-                      <div className="flex items-center justify-between text-sm text-slate-500">
+                    <button className={cn(quietPanelClass, "p-6 text-left transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_55px_rgba(46,61,50,0.12)]") }>
+                      <div className="flex items-center justify-between text-sm text-[#718174]">
                         <span>最新屈曲角度</span>
-                        <Activity className="size-5 text-emerald-700" />
+                        <Activity className="size-5 text-[#5b876f]" />
                       </div>
-                      <p className="mt-5 text-5xl font-black tracking-tight text-emerald-700 md:text-6xl">{flexion.toFixed(0)}°</p>
-                      <p className="mt-3 text-lg text-slate-600">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
+                      <p className="mt-5 text-6xl font-black tracking-[-0.08em] text-[#2f6f55] md:text-7xl">{flexion.toFixed(0)}°</p>
+                      <p className="mt-3 text-base leading-7 text-[#5d6c61]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-4">
-                  <MetricCard icon={Activity} metric="extension" label="伸直度" value={`${extension.toFixed(0)}°`} tone="text-blue-700" />
-                  <MetricCard icon={HeartPulse} metric="frequency" label="活动频次" value={`${frequency} 次`} tone="text-sky-700" />
-                  <MetricCard icon={CheckCircle2} metric="duration" label="训练时长" value={`${duration} 分钟`} tone="text-amber-700" />
-                  <MetricCard icon={BatteryCharging} metric="battery" label="护膝电量" value={`${battery}%`} tone="text-emerald-700" />
+                  <MetricCard icon={Activity} metric="extension" label="伸直度" value={`${extension.toFixed(0)}°`} tone="text-[#2f5f8f]" />
+                  <MetricCard icon={HeartPulse} metric="frequency" label="活动频次" value={`${frequency} 次`} tone="text-[#2f6f55]" />
+                  <MetricCard icon={CheckCircle2} metric="duration" label="训练时长" value={`${duration} 分钟`} tone="text-[#b0823d]" />
+                  <MetricCard icon={BatteryCharging} metric="battery" label="护膝电量" value={`${battery}%`} tone="text-[#2f6f55]" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white/85">
+            <Card className={panelClass}>
               <CardHeader>
-                <CardTitle className="text-2xl">最近自动上传</CardTitle>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Upload Log</p>
+                <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em]">最近自动上传</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {recentRecords.length === 0 ? (
-                  <p className="rounded-2xl bg-slate-50 p-5 text-slate-500">等待第一条智能护膝数据。</p>
+                  <p className="rounded-[1.5rem] bg-white/70 p-5 text-[#718174]">等待第一条智能护膝数据。</p>
                 ) : (
                   recentRecords.map((record) => (
-                    <div key={record.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div key={record.id} className="rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-lg font-bold">{formatTime(record.recordedAt)}</p>
-                          <p className="mt-1 text-sm text-slate-500">来源：智能护膝自动采集</p>
+                          <p className="text-lg font-black text-[#17251f]">{formatTime(record.recordedAt)}</p>
+                          <p className="mt-1 text-sm text-[#718174]">来源：智能护膝自动采集</p>
                         </div>
                         <Badge variant={record.flexionAngle < 78 ? "destructive" : "success"}>{record.flexionAngle.toFixed(0)}°</Badge>
                       </div>
-                      <Separator className="my-3" />
+                      <Separator className="my-3 bg-[#eadfce]" />
                       <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                        <span className="rounded-2xl bg-emerald-50 px-2 py-2 text-emerald-800">频次 {record.activityFrequency}</span>
-                        <span className="rounded-2xl bg-sky-50 px-2 py-2 text-sky-800">时长 {record.activityDuration}m</span>
-                        <span className="rounded-2xl bg-amber-50 px-2 py-2 text-amber-800">疼痛 {record.painScore}/10</span>
+                        <span className="rounded-2xl bg-[#edf2e7] px-2 py-2 text-[#315242]">频次 {record.activityFrequency}</span>
+                        <span className="rounded-2xl bg-[#e8eff2] px-2 py-2 text-[#2f5f8f]">时长 {record.activityDuration}m</span>
+                        <span className="rounded-2xl bg-[#fff1cf] px-2 py-2 text-[#8a5b15]">疼痛 {record.painScore}/10</span>
                       </div>
                     </div>
                   ))
@@ -448,47 +478,49 @@ export default function FamilyPage() {
         ) : null}
 
         {activeWorkspace === "nurse" ? (
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Card className="border-amber-100 bg-gradient-to-br from-white via-amber-50/80 to-emerald-50/70">
+          <div className="family-view-enter grid gap-5 lg:grid-cols-2">
+            <Card className={cn(panelClass, "bg-[#fff6e6]") }>
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <Sparkles className="size-7 text-amber-600" />
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Clinical Reading</p>
+                <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
+                  <Sparkles className="size-7 text-[#b0823d]" />
                   AI 分析
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {latestAnalysis ? (
-                  <div className="rounded-3xl border border-amber-100 bg-white/90 p-5 shadow-sm">
+                  <div className="rounded-[1.5rem] border border-[#eadfce] bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge className="bg-amber-600 text-white">护士端已分析</Badge>
-                      <span className="text-sm text-slate-500">{formatTime(latestAnalysis.createdAt)}</span>
+                      <Badge className="bg-[#17251f] text-white">护士端已分析</Badge>
+                      <span className="text-sm text-[#718174]">{formatTime(latestAnalysis.createdAt)}</span>
                     </div>
-                    <p className="mt-4 text-base leading-7 text-slate-700">{latestAnalysis.report}</p>
-                    <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-900">护士会先确认家人的疼痛、睡眠和情绪，再结合数据判断训练强度，不会只用一个角度评价恢复好坏。</p>
-                    <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-base font-semibold leading-7 text-emerald-900">{latestAnalysis.recommendation}</p>
+                    <p className="mt-4 text-base leading-7 text-[#4c5b50]">{latestAnalysis.report}</p>
+                    <p className="mt-4 rounded-[1.25rem] bg-[#fff1cf] px-4 py-3 text-sm leading-7 text-[#7a571b]">护士会先确认家人的疼痛、睡眠和情绪，再结合数据判断训练强度，不会只用一个角度评价恢复好坏。</p>
+                    <p className="mt-3 rounded-[1.25rem] bg-[#edf2e7] px-4 py-3 text-base font-semibold leading-7 text-[#315242]">{latestAnalysis.recommendation}</p>
                   </div>
                 ) : (
-                  <div className="rounded-3xl border border-dashed border-amber-200 bg-white/80 p-5 text-slate-600">
-                    <p className="text-lg font-bold text-slate-800">等待护士端 AI 智能分析</p>
+                  <div className="rounded-[1.5rem] border border-dashed border-[#d8c8ad] bg-white/60 p-5 text-[#718174]">
+                    <p className="text-lg font-bold text-[#17251f]">等待护士端 AI 智能分析</p>
                     <p className="mt-2 leading-7">护士完成分析后，系统会把专业判断和适合家属转述的安抚建议同步到这里。</p>
                   </div>
                 )}
-                <Button asChild size="lg" variant="outline" className="w-full">
+                <Button asChild size="lg" variant="outline" className="w-full border-[#d8c8ad] bg-white/70 text-[#17251f] hover:bg-white">
                   <Link href="/family/guidance">查看全部指导建议</Link>
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-sky-100 bg-gradient-to-br from-white via-sky-50/80 to-emerald-50/70">
+            <Card className={panelClass}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <FileText className="size-7 text-sky-700" />
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Nurse Timeline</p>
+                <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
+                  <FileText className="size-7 text-[#5b876f]" />
                   护士处理动态
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {latestAlert ? (
-                  <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-red-950">
+                  <div className="rounded-[1.5rem] border border-red-200 bg-red-50 p-5 text-red-950">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <Badge variant={latestAlert.status === "RESOLVED" ? "success" : "destructive"}>{latestAlert.status === "RESOLVED" ? "已处理" : "待护士处理"}</Badge>
                       <span className="text-sm text-red-700">{formatTime(latestAlert.createdAt)}</span>
@@ -504,24 +536,24 @@ export default function FamilyPage() {
                 ) : null}
 
                 {latestGuidance ? (
-                  <div className="rounded-3xl border border-emerald-100 bg-white/90 p-5 shadow-sm">
+                  <div className="rounded-[1.5rem] border border-[#d8c8ad] bg-white/70 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <Badge variant="success">护士已同步处理建议</Badge>
-                      <span className="text-sm text-slate-500">{formatTime(latestGuidance.createdAt)}</span>
+                      <span className="text-sm text-[#718174]">{formatTime(latestGuidance.createdAt)}</span>
                     </div>
-                    <p className="mt-4 text-base font-semibold leading-7 text-slate-800">{latestGuidance.guidance}</p>
-                    {latestGuidance.notes ? <p className="mt-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">{latestGuidance.notes}</p> : null}
+                    <p className="mt-4 text-base font-semibold leading-7 text-[#17251f]">{latestGuidance.guidance}</p>
+                    {latestGuidance.notes ? <p className="mt-3 rounded-[1.25rem] bg-[#e8eff2] px-4 py-3 text-sm leading-6 text-[#2f5f8f]">{latestGuidance.notes}</p> : null}
                   </div>
                 ) : null}
 
                 {!latestAlert && !latestGuidance ? (
-                  <div className="rounded-3xl border border-dashed border-sky-200 bg-white/80 p-5 text-slate-600">
-                    <p className="text-lg font-bold text-slate-800">暂无新的护士处理动态</p>
+                  <div className="rounded-[1.5rem] border border-dashed border-[#d8c8ad] bg-white/60 p-5 text-[#718174]">
+                    <p className="text-lg font-bold text-[#17251f]">暂无新的护士处理动态</p>
                     <p className="mt-2 leading-7">暂时没有新的处理动态，说明当前不需要额外干预。若家属仍然担心，可以通过预约护理把疑问交给护士一起看。</p>
                   </div>
                 ) : null}
 
-                <Button asChild size="lg" variant="elder" className="w-full">
+                <Button asChild size="lg" className="w-full bg-[#17251f] text-white shadow-[0_18px_40px_rgba(23,37,31,0.18)] hover:bg-[#243d33]">
                   <Link href="/appointments">预约护士一起判断</Link>
                 </Button>
               </CardContent>
@@ -530,24 +562,24 @@ export default function FamilyPage() {
         ) : null}
 
         {activeWorkspace === "care" ? (
-          <div className="grid gap-5">
-            <Card className="overflow-hidden border-rose-100 bg-gradient-to-br from-rose-50 via-white to-emerald-50 shadow-sm">
+          <div className="family-view-enter grid gap-5">
+            <Card className={cn(panelClass, "overflow-hidden bg-[#fff6e6]") }>
               <CardContent className="grid gap-5 p-5 md:grid-cols-[1.05fr_1.4fr] md:p-6">
-                <div className="rounded-[1.5rem] bg-slate-950 p-5 text-white shadow-xl shadow-slate-950/10">
-                  <Badge className="bg-rose-200 text-rose-950">护理人文关怀</Badge>
+                <div className={cn(darkPanelClass, "p-5") }>
+                  <Badge className="bg-[#f2c36b] text-[#17251f]">护理人文关怀</Badge>
                   <div className="mt-5 flex items-start gap-3">
-                    <HeartHandshake className="mt-1 size-8 shrink-0 text-rose-200" />
+                    <HeartHandshake className="mt-1 size-8 shrink-0 text-[#f2c36b]" />
                     <div>
-                      <h2 className="text-2xl font-black leading-tight md:text-3xl">康复不是一张曲线，是一家人一起走的一段路。</h2>
-                      <p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">这里的每一次提醒，都希望让家属更安心、让家人更有尊严，也让护士的专业照护真正到达家里。</p>
+                      <h2 className="font-display text-3xl font-bold leading-tight tracking-[-0.04em] md:text-4xl">康复不是一张曲线，是一家人一起走的一段路。</h2>
+                      <p className="mt-4 text-sm leading-7 text-[#d6e4da] md:text-base">这里的每一次提醒，都希望让家属更安心、让家人更有尊严，也让护士的专业照护真正到达家里。</p>
                     </div>
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   {carePromiseCards.map((item) => (
-                    <div key={item.title} className="rounded-[1.35rem] border border-white/80 bg-white/85 p-4 shadow-sm">
-                      <p className="text-base font-black text-slate-900">{item.title}</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                    <div key={item.title} className="rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                      <p className="text-base font-black text-[#17251f]">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-[#5d6c61]">{item.description}</p>
                     </div>
                   ))}
                 </div>
@@ -555,28 +587,28 @@ export default function FamilyPage() {
             </Card>
 
             <div className="grid gap-5 lg:grid-cols-2">
-              <Card className="border-emerald-100 bg-white/90">
+              <Card className={panelClass}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-2xl">
-                    <HeartPulse className="size-7 text-emerald-700" />
+                  <CardTitle className="flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
+                    <HeartPulse className="size-7 text-[#5b876f]" />
                     家属须知
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-base leading-8 text-slate-700">
+                <CardContent className="space-y-3 text-base leading-8 text-[#4c5b50]">
                   <p>1. 训练前先问家人“今天哪里最不舒服”，再看切口、肿胀和疼痛变化。</p>
                   <p>2. 家属的语气会影响康复信心，尽量用“我们一起试一点点”代替“你必须多练”。</p>
                   <p>3. 若家人暂时不方便操作，家属可以代为查看数据、确认预约、阅读指导，并把担心写进预约需求。</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-amber-100 bg-white/90">
+              <Card className={panelClass}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-2xl">
-                    <Sparkles className="size-7 text-amber-600" />
+                  <CardTitle className="flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
+                    <Sparkles className="size-7 text-[#b0823d]" />
                     护理小贴士
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-base leading-8 text-slate-700">
+                <CardContent className="space-y-3 text-base leading-8 text-[#4c5b50]">
                   <p>• 训练后先让家人坐稳休息，再轻轻放松小腿和大腿前侧，不要按压切口。</p>
                   <p>• 疼痛、焦虑或睡不好时，不要先责备“练得少”，先记录原因，再联系护士调整节奏。</p>
                   <p>• 夜间起身时请先开灯、坐稳、缓慢站立，家属在旁边扶一把，比催促更安全。</p>
@@ -589,12 +621,12 @@ export default function FamilyPage() {
                 const Icon = item.icon;
 
                 return (
-                  <Link key={item.href} href={item.href} className="group rounded-3xl border border-slate-100 bg-white/90 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg">
-                    <span className="flex size-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white">
+                  <Link key={item.href} href={item.href} className="group rounded-[1.75rem] border border-[#e7dcc8] bg-[#fffaf2]/92 p-5 shadow-[0_18px_55px_rgba(46,61,50,0.08)] transition-all hover:-translate-y-1 hover:border-[#c7b18e] hover:bg-white">
+                    <span className="flex size-12 items-center justify-center rounded-2xl bg-[#17251f] text-[#f2c36b] transition group-hover:scale-105">
                       <Icon className="size-6" />
                     </span>
-                    <p className="mt-4 text-lg font-black text-slate-950">{item.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{item.description}</p>
+                    <p className="mt-4 text-lg font-black text-[#17251f]">{item.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-[#5d6c61]">{item.description}</p>
                   </Link>
                 );
               })}
@@ -609,13 +641,13 @@ export default function FamilyPage() {
 function MetricCard({ icon: Icon, metric, label, value, tone }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; tone: string }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className="rounded-3xl border border-slate-200 bg-white/90 p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg">
-        <div className="flex items-center justify-between text-sm text-slate-500">
+      <button className="rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_45px_rgba(46,61,50,0.10)]">
+        <div className="flex items-center justify-between text-sm text-[#718174]">
           <span>{label}</span>
           <Icon className={`size-5 ${tone}`} />
         </div>
-        <p className={`mt-4 text-3xl font-black tracking-tight md:text-4xl ${tone}`}>{value}</p>
-        <p className="mt-2 text-xs font-semibold text-slate-400">点击查看指标说明</p>
+        <p className={`mt-4 text-3xl font-black tracking-[-0.05em] md:text-4xl ${tone}`}>{value}</p>
+        <p className="mt-2 text-xs font-semibold text-[#9a8a72]">点击查看指标说明</p>
       </button>
     </MetricEducationDialog>
   );

@@ -4,31 +4,31 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f5f9ff;
-  --foreground: #102033;
-  --card: #ffffff;
-  --card-foreground: #102033;
-  --popover: #ffffff;
-  --popover-foreground: #17201b;
-  --primary: #0369a1;
-  --primary-foreground: #ffffff;
-  --secondary: #e8f2fb;
-  --secondary-foreground: #102033;
-  --muted: #edf5fb;
-  --muted-foreground: #5f7185;
-  --accent: #dff3ff;
-  --accent-foreground: #0c4a6e;
+  --background: #f4efe5;
+  --foreground: #17251f;
+  --card: #fffaf2;
+  --card-foreground: #17251f;
+  --popover: #fffaf2;
+  --popover-foreground: #17251f;
+  --primary: #17251f;
+  --primary-foreground: #fff7e8;
+  --secondary: #edf2e7;
+  --secondary-foreground: #315242;
+  --muted: #efe6d6;
+  --muted-foreground: #718174;
+  --accent: #fff1cf;
+  --accent-foreground: #7a571b;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #d7e6f2;
-  --input: #d7e6f2;
-  --ring: #0284c7;
-  --chart-1: #0369a1;
-  --chart-2: #2563eb;
-  --chart-3: #f97316;
+  --border: #e1d3bd;
+  --input: #d8c8ad;
+  --ring: #5b876f;
+  --chart-1: #2f6f55;
+  --chart-2: #2f5f8f;
+  --chart-3: #b0823d;
   --chart-4: #dc2626;
-  --chart-5: #8b5cf6;
-  --radius: 1rem;
+  --chart-5: #6f5a3c;
+  --radius: 1.15rem;
   --font-sans: "Aptos", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --font-display: "Georgia", "Noto Serif SC", "SimSun", serif;
 }
@@ -78,9 +78,9 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.18), transparent 32rem),
-    radial-gradient(circle at 80% 0%, rgba(37, 99, 235, 0.12), transparent 28rem),
-    linear-gradient(135deg, #f8fbff 0%, #edf6ff 45%, #f8fafc 100%);
+    radial-gradient(circle at 15% 10%, rgba(91, 135, 111, 0.18), transparent 32rem),
+    radial-gradient(circle at 82% 0%, rgba(242, 195, 107, 0.14), transparent 28rem),
+    linear-gradient(135deg, #f8f3e9 0%, #f2eadc 45%, #f7f4ec 100%);
   color: var(--foreground);
   font-family: var(--font-sans);
 }
@@ -91,9 +91,10 @@ body {
 
 .rehab-grid {
   background-image:
-    linear-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(rgba(91, 135, 111, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91, 135, 111, 0.07) 1px, transparent 1px),
+    radial-gradient(circle at 20% 10%, rgba(242, 195, 107, 0.16), transparent 28rem);
+  background-size: 34px 34px, 34px 34px, auto;
 }
 
 @keyframes pulse-sync {
@@ -109,4 +110,44 @@ body {
 
 .sync-dot {
   animation: pulse-sync 1.8s ease-in-out infinite;
+}
+
+@keyframes family-view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.family-view-enter {
+  animation: family-view-enter 0.48s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes hello-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+    filter: blur(6px);
+    transform: translateY(10px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.hello-mark {
+  display: inline-block;
+  background: linear-gradient(90deg, #fff7e8 0%, #f2c36b 44%, #d6e4da 100%);
+  background-clip: text;
+  color: transparent;
+  font-family: Georgia, "Noto Serif SC", serif;
+  font-style: italic;
+  letter-spacing: -0.12em;
+  line-height: 0.82;
+  animation: hello-reveal 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
