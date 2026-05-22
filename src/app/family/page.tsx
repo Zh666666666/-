@@ -40,8 +40,8 @@ const carePromiseCards = [
     description: "角度、频次和疼痛分只是提醒，护士会同时关注家人的表情、睡眠、害怕和坚持。",
   },
   {
-    title: "把专业话翻译成家常话",
-    description: "每条建议都尽量写成家属能照着做、能讲给家人听的语言，减少照护时的不确定。",
+    title: "让家属知道怎么做",
+    description: "指导内容会写清楚今天做什么、做到什么程度、什么情况需要暂停并联系护士。",
   },
   {
     title: "不让家属独自扛着",
@@ -223,7 +223,7 @@ export default function FamilyPage() {
     ? "先暂停让家人明显不舒服的动作，记录疼痛和肿胀变化，必要时预约护士上门评估。"
     : latestGuidance
       ? "今天优先按护士建议执行，训练前先问感受，训练后把疼痛、肿胀和睡眠变化记下来。"
-      : "先完成今日陪伴打卡，再看最新角度和训练时长，不需要一次把所有功能都点一遍。";
+      : "先完成今日陪伴打卡，再查看最新角度和训练时长；如有疼痛、肿胀或不放心，及时预约护士。";
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] px-4 pb-40 pt-4 text-[#17251f] md:px-10 md:pb-10 md:pt-6">
@@ -241,10 +241,10 @@ export default function FamilyPage() {
                 家庭照护台 · 智能护膝在线
               </Badge>
               <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:text-7xl">
-                把今天的照护，变成一张清楚的路线图。
+                今日康复照护，一眼看清。
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-8 text-[#d6e4da] md:text-lg md:leading-9">
-                家属先看到当前最该做的一步，再进入数据、护士建议和照护工具。页面不再把所有功能堆在一起，而是按真实照护节奏展开。
+                先看今日陪伴和风险提醒，再查看训练数据、护士建议和上门护理安排，让家属照护更有把握。
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="bg-[#f2c36b] text-[#17251f] shadow-[0_18px_42px_rgba(242,195,107,0.24)] hover:bg-[#ffd27d]">
@@ -383,14 +383,14 @@ export default function FamilyPage() {
                   <button type="button" onClick={() => setActiveWorkspace("nurse")} className="group flex items-center justify-between rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_45px_rgba(46,61,50,0.10)]">
                     <span>
                       <span className="block font-black text-[#17251f]">看护士建议</span>
-                      <span className="mt-1 block text-sm leading-6 text-[#718174]">把 AI 分析、预警和护理记录放在同一处看。</span>
+                      <span className="mt-1 block text-sm leading-6 text-[#718174]">查看护士评估、预警提醒和护理记录。</span>
                     </span>
                     <ChevronRight className="size-5 text-[#5b876f] transition group-hover:translate-x-1" />
                   </button>
                   <button type="button" onClick={() => setActiveWorkspace("data")} className="group flex items-center justify-between rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_45px_rgba(46,61,50,0.10)]">
                     <span>
                       <span className="block font-black text-[#17251f]">看数据变化</span>
-                      <span className="mt-1 block text-sm leading-6 text-[#718174]">只看护膝数据和最近上传，不被其他内容打扰。</span>
+                      <span className="mt-1 block text-sm leading-6 text-[#718174]">查看护膝上传的角度、频次、时长和疼痛记录。</span>
                     </span>
                     <ChevronRight className="size-5 text-[#5b876f] transition group-hover:translate-x-1" />
                   </button>
@@ -484,7 +484,7 @@ export default function FamilyPage() {
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Clinical Reading</p>
                 <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
                   <Sparkles className="size-7 text-[#b0823d]" />
-                  AI 分析
+                  护士评估
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -500,8 +500,8 @@ export default function FamilyPage() {
                   </div>
                 ) : (
                   <div className="rounded-[1.5rem] border border-dashed border-[#d8c8ad] bg-white/60 p-5 text-[#718174]">
-                    <p className="text-lg font-bold text-[#17251f]">等待护士端 AI 智能分析</p>
-                    <p className="mt-2 leading-7">护士完成分析后，系统会把专业判断和适合家属转述的安抚建议同步到这里。</p>
+                    <p className="text-lg font-bold text-[#17251f]">等待护士评估</p>
+                    <p className="mt-2 leading-7">护士评估后，家属可在这里查看康复建议、注意事项和下一步安排。</p>
                   </div>
                 )}
                 <Button asChild size="lg" variant="outline" className="w-full border-[#d8c8ad] bg-white/70 text-[#17251f] hover:bg-white">
@@ -570,8 +570,8 @@ export default function FamilyPage() {
                   <div className="mt-5 flex items-start gap-3">
                     <HeartHandshake className="mt-1 size-8 shrink-0 text-[#f2c36b]" />
                     <div>
-                      <h2 className="font-display text-3xl font-bold leading-tight tracking-[-0.04em] md:text-4xl">康复不是一张曲线，是一家人一起走的一段路。</h2>
-                      <p className="mt-4 text-sm leading-7 text-[#d6e4da] md:text-base">这里的每一次提醒，都希望让家属更安心、让家人更有尊严，也让护士的专业照护真正到达家里。</p>
+                      <h2 className="font-display text-3xl font-bold leading-tight tracking-[-0.04em] md:text-4xl">训练有节奏，照护有回应。</h2>
+                      <p className="mt-4 text-sm leading-7 text-[#d6e4da] md:text-base">疼痛、肿胀、睡眠和情绪变化都可以被记录、被看见，并及时交给护士判断。</p>
                     </div>
                   </div>
                 </div>

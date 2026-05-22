@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 
 const productHighlights = [
   [Activity, "零操作采集", "智能护膝自动上传屈曲角度、活动频次、训练时长和疼痛评分。"],
-  [HeartPulse, "家属照护路线", "家属先看到今天该做什么，再进入数据、建议和预约工具。"],
-  [ShieldCheck, "护士质量闭环", "预警、远程指导、SOAP 记录和质控复盘形成连续护理链路。"],
+  [HeartPulse, "家属今日照护", "家属先看到今天该做什么，再查看数据、建议和预约。"],
+  [ShieldCheck, "护士随访记录", "预警处理、远程指导、SOAP 记录和上门护理连续留痕。"],
 ] as const;
 
 export default function Home() {
@@ -29,10 +29,10 @@ export default function Home() {
               </div>
               <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-[#f8deb0] shadow-none">家庭到病区的护理协同</Badge>
               <h1 className="mt-8 font-display text-5xl font-bold leading-[1.03] tracking-[-0.055em] text-[#fff7e8] md:text-7xl lg:text-8xl">
-                术后康复，不应该只剩一堆数字。
+                术后康复，从病区延伸到家。
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-[#d6e4da] md:text-xl md:leading-9">
-                平台把智能护膝数据、家属照护任务、护士预警处理和护理记录串成一条清晰路径，让患者在家也能获得可解释、可追踪、有人情味的康复支持。
+                智能护膝自动记录训练数据，家属按今日任务陪伴康复，护士及时查看预警、给出指导并留下护理记录。
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="bg-[#f2c36b] text-[#17251f] shadow-[0_18px_42px_rgba(242,195,107,0.24)] hover:bg-[#ffd27d]">

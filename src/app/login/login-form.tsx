@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 const roleOptions: Array<{ role: UserRole; title: string; description: string; icon: typeof UserRound }> = [
   { role: "family", title: "家属端", description: "看今日照护、护士建议和预约护理。", icon: HeartPulse },
-  { role: "nurse", title: "护士端", description: "处理预警、指导和护理质量闭环。", icon: ShieldCheck },
+  { role: "nurse", title: "护士端", description: "处理预警、指导和护理记录。", icon: ShieldCheck },
 ];
 
 export function LoginForm() {
@@ -87,10 +87,10 @@ export function LoginForm() {
             <div className="mt-16 max-w-2xl md:mt-24">
               <p className="text-sm font-black uppercase tracking-[0.28em] text-[#f2c36b]">Unified Portal</p>
               <h1 className="mt-5 font-display text-5xl font-bold leading-[1.05] tracking-[-0.05em] text-[#fff7e8] md:text-7xl">
-                一个入口，分清家属照护和护士工作台。
+                家属和护士，各自进入自己的工作台。
               </h1>
               <p className="mt-6 max-w-xl text-base leading-8 text-[#d6e4da] md:text-lg md:leading-9">
-                登录后按角色进入对应工作台。家属看到今日照护路线，护士处理预警、指导和护理质量闭环。
+                登录后按角色进入对应工作台。家属查看今日照护安排，护士处理预警、指导和护理记录。
               </p>
             </div>
 
