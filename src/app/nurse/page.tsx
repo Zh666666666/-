@@ -15,6 +15,7 @@ import {
   FileText,
   HeartPulse,
   Home,
+  LogOut,
   MessageSquareText,
   Radio,
   SendHorizontal,
@@ -35,6 +36,7 @@ import {
 } from "recharts";
 
 import { MetricEducationDialog, type MetricEducationKey } from "@/components/metric-education-dialog";
+import { RoleSwitchButton } from "@/components/role-switch-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -596,6 +598,11 @@ export default function NursePage() {
     }
   }
 
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.assign("/login");
+  }
+
   async function createAiAnalysis() {
     if (!selectedPatientId) {
       return;
@@ -661,13 +668,13 @@ export default function NursePage() {
   const averageDuration = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.activityDuration, 0) / latestByPatient.length : 0;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] pb-40 text-[#17251f] md:pb-0">
+    <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] pb-32 text-[#17251f] md:pb-0">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_8%,rgba(91,135,111,0.28),transparent_30rem),radial-gradient(circle_at_86%_4%,rgba(235,181,95,0.22),transparent_26rem)]" />
       <div className="pointer-events-none absolute -left-24 top-64 h-64 w-64 rounded-full bg-[#dfcaa8]/35 blur-3xl" />
       <div className="pointer-events-none absolute bottom-20 right-0 h-72 w-72 rounded-full bg-[#9fc4b1]/25 blur-3xl" />
 
-      <section className="relative mx-auto flex max-w-[1500px] flex-col gap-5 px-4 py-4 md:px-8 md:py-5">
-        <header className="family-view-enter relative overflow-hidden rounded-[2.5rem] bg-[#17251f] p-5 text-white shadow-[0_32px_90px_rgba(23,37,31,0.28)] md:p-8">
+      <section className="relative mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 md:gap-5 md:px-8 md:py-5">
+        <header className="family-view-enter relative overflow-hidden rounded-[1.75rem] bg-[#17251f] p-4 text-white shadow-[0_24px_70px_rgba(23,37,31,0.22)] md:rounded-[2.5rem] md:p-8 md:shadow-[0_32px_90px_rgba(23,37,31,0.28)]">
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#d7a75f]/25 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -678,25 +685,32 @@ export default function NursePage() {
                 </Badge>
                 <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-white shadow-none">TKA 康复护士工作台</Badge>
               </div>
-              <h1 className="mt-6 max-w-4xl font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:text-7xl">病区护理，一屏掌握。</h1>
-              <p className="mt-5 max-w-3xl text-base leading-8 text-[#d6e4da] md:text-lg md:leading-9">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
+              <h1 className="mt-4 max-w-4xl font-display text-3xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:mt-6 md:text-7xl">病区护理，一屏掌握。</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-[#d6e4da] md:mt-5 md:text-lg md:leading-9">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white lg:inline-flex">
                 <Link href="/nurse/profile">护士资料</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white lg:inline-flex">
                 <Link href="/appointments">护理预约</Link>
               </Button>
-              <Button size="lg" className="bg-[#f2c36b] text-[#17251f] shadow-[0_18px_42px_rgba(242,195,107,0.24)] hover:bg-[#ffd27d]" onClick={refreshDashboard}>
-                <Radio className="size-5" />
-                刷新数据
+              <RoleSwitchButton role="family" size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm">
+                家属端
+              </RoleSwitchButton>
+              <Button size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm" onClick={logout}>
+                <LogOut className="size-4" />
+                退出
+              </Button>
+              <Button size="sm" className="h-10 rounded-xl bg-[#f2c36b] px-2 text-xs text-[#17251f] shadow-[0_14px_32px_rgba(242,195,107,0.20)] hover:bg-[#ffd27d] md:h-12 md:rounded-2xl md:px-4 md:text-sm md:shadow-[0_18px_42px_rgba(242,195,107,0.24)]" onClick={refreshDashboard}>
+                <Radio className="size-4" />
+                刷新
               </Button>
             </div>
           </div>
         </header>
 
-        <nav className="family-view-enter grid gap-2 rounded-[2rem] border border-[#e1d3bd] bg-[#fffaf2]/82 p-2 shadow-[0_18px_60px_rgba(46,61,50,0.08)] backdrop-blur sm:grid-cols-2 lg:grid-cols-5">
+        <nav className="family-view-enter grid grid-cols-5 gap-1 rounded-[1.25rem] border border-[#e1d3bd] bg-[#fffaf2]/82 p-1 shadow-[0_14px_42px_rgba(46,61,50,0.07)] backdrop-blur md:gap-2 md:rounded-[2rem] md:p-2 md:shadow-[0_18px_60px_rgba(46,61,50,0.08)] lg:grid-cols-5">
           {nurseWorkspaces.map((item, index) => {
             const Icon = item.icon;
             const active = activeWorkspace === item.value;
@@ -706,19 +720,19 @@ export default function NursePage() {
                 key={item.value}
                 type="button"
                 className={cn(
-                  "group rounded-[1.45rem] p-4 text-left transition-all duration-300",
+                  "group rounded-[0.95rem] p-2 text-center transition-all duration-300 md:rounded-[1.45rem] md:p-4 md:text-left",
                   active ? "bg-[#17251f] text-white shadow-[0_18px_45px_rgba(23,37,31,0.22)]" : "text-[#4c5b50] hover:bg-white/80 hover:text-[#17251f]",
                 )}
                 onClick={() => setActiveWorkspace(item.value)}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className={cn("flex size-10 items-center justify-center rounded-2xl transition", active ? "bg-[#f2c36b] text-[#17251f]" : "bg-[#eef1e8] text-[#5b876f] group-hover:bg-[#e2eadf]")}>
-                    <Icon className="size-5" />
+                <div className="flex items-center justify-center gap-2 md:justify-between md:gap-3">
+                  <span className={cn("flex size-8 items-center justify-center rounded-xl transition md:size-10 md:rounded-2xl", active ? "bg-[#f2c36b] text-[#17251f]" : "bg-[#eef1e8] text-[#5b876f] group-hover:bg-[#e2eadf]")}>
+                    <Icon className="size-4 md:size-5" />
                   </span>
-                  <span className={cn("text-xs font-black tracking-[0.16em]", active ? "text-[#f2c36b]" : "text-[#a28f73]")}>0{index + 1}</span>
+                  <span className={cn("hidden text-xs font-black tracking-[0.16em] md:inline", active ? "text-[#f2c36b]" : "text-[#a28f73]")}>0{index + 1}</span>
                 </div>
-                <p className="mt-4 text-lg font-black">{item.label}</p>
-                <p className={cn("mt-1 text-xs leading-5", active ? "text-[#d6e4da]" : "text-[#718174]")}>{item.helper}</p>
+                <p className="mt-1.5 text-sm font-black md:mt-4 md:text-lg">{item.label}</p>
+                <p className={cn("mt-1 hidden text-xs leading-5 md:block", active ? "text-[#d6e4da]" : "text-[#718174]")}>{item.helper}</p>
               </button>
             );
           })}
@@ -800,7 +814,7 @@ export default function NursePage() {
         ) : null}
 
         {activeWorkspace === "overview" ? (
-          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-5">
             <StatCard icon={UsersRound} metric="rom" label="监测患者" value={`${patients.length}`} helper="术后康复中" />
             <StatCard icon={Activity} metric="flexion" label="平均屈曲" value={`${averageFlexion.toFixed(0)}°`} helper="最新采集均值" />
             <StatCard icon={Stethoscope} metric="extension" label="平均伸直" value={`${averageExtension.toFixed(0)}°`} helper="越接近 0° 越理想" />
@@ -812,13 +826,13 @@ export default function NursePage() {
         {activeWorkspace !== "quality" ? (
           <div className="grid min-w-0 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
           <Card className={nursePanelClass}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <UsersRound className="size-6 text-emerald-300" />
+            <CardHeader className="pb-2 md:pb-6">
+              <CardTitle className="flex items-center gap-2 text-lg md:gap-3 md:text-xl">
+                <UsersRound className="size-5 text-emerald-300 md:size-6" />
                 患者列表
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 md:space-y-3">
               {patients.map((patient) => {
                 const latest = latestRecordFor(records, patient.id);
                 const active = selectedPatient?.id === patient.id;
@@ -828,7 +842,7 @@ export default function NursePage() {
                   <div
                     key={patient.id}
                     className={cn(
-                      "rounded-3xl border p-4 transition-all",
+                      "rounded-[1.35rem] border p-3 transition-all md:rounded-3xl md:p-4",
                       active ? "border-[#17251f] bg-[#17251f] text-white shadow-[0_18px_45px_rgba(23,37,31,0.18)]" : "border-[#eadfce] bg-white/72 text-[#17251f] hover:bg-white",
                       alert?.severity === "HIGH" || alert?.severity === "CRITICAL" ? "ring-2 ring-red-500/70" : "",
                     )}
@@ -836,15 +850,15 @@ export default function NursePage() {
                     <button className="w-full text-left" onClick={() => setSelectedPatientId(patient.id)}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-lg font-bold">{patient.name}</p>
-                          <p className={cn("mt-1 text-sm", active ? "text-[#d6e4da]" : "text-[#718174]")}>{patient.roomNumber ?? "居家随访"} · 术后第 {daysAfterSurgery(patient.surgeryDate)} 天</p>
+                          <p className="text-base font-bold md:text-lg">{patient.name}</p>
+                          <p className={cn("mt-0.5 text-xs md:mt-1 md:text-sm", active ? "text-[#d6e4da]" : "text-[#718174]")}>{patient.roomNumber ?? "居家随访"} · 术后第 {daysAfterSurgery(patient.surgeryDate)} 天</p>
                         </div>
                         <Badge variant={riskVariant(patient.riskLevel)}>{patient.riskLevel}</Badge>
                       </div>
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                        <span className={cn("rounded-2xl px-2 py-2", active ? "bg-white/10" : "bg-[#edf2e7] text-[#315242]")}>屈曲 {latest ? `${latest.flexionAngle.toFixed(0)}°` : "--"}</span>
-                        <span className={cn("rounded-2xl px-2 py-2", active ? "bg-white/10" : "bg-[#edf2e7] text-[#315242]")}>频次 {latest?.activityFrequency ?? "--"}</span>
-                        <span className={cn("rounded-2xl px-2 py-2", active ? "bg-white/10" : "bg-[#fff1cf] text-[#8a5b15]")}>疼痛 {latest?.painScore ?? "--"}</span>
+                      <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[11px] md:mt-4 md:gap-2 md:text-xs">
+                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#edf2e7] text-[#315242]")}>屈曲 {latest ? `${latest.flexionAngle.toFixed(0)}°` : "--"}</span>
+                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#edf2e7] text-[#315242]")}>频次 {latest?.activityFrequency ?? "--"}</span>
+                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#fff1cf] text-[#8a5b15]")}>疼痛 {latest?.painScore ?? "--"}</span>
                       </div>
                     </button>
                     {alert ? <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{alert.title}</p> : null}
@@ -1134,13 +1148,13 @@ function DetailList({ title, empty, children }: { title: string; empty: string; 
 function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; helper: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-[2rem] border p-5 text-left shadow-[0_18px_55px_rgba(46,61,50,0.08)] transition-all hover:-translate-y-0.5 hover:bg-white", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[#e1d3bd] bg-[#fffaf2]/90 text-[#17251f]")}>
+      <button className={cn("rounded-[1.35rem] border p-3 text-left shadow-[0_14px_38px_rgba(46,61,50,0.07)] transition-all hover:-translate-y-0.5 hover:bg-white md:rounded-[2rem] md:p-5 md:shadow-[0_18px_55px_rgba(46,61,50,0.08)]", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[#e1d3bd] bg-[#fffaf2]/90 text-[#17251f]")}>
         <div className={cn("flex items-center justify-between", danger ? "text-red-700" : "text-[#718174]")}>
-          <span className="text-sm">{label}</span>
-          <Icon className={cn("size-5", danger ? "text-red-600" : "text-[#5b876f]")} />
+          <span className="text-xs md:text-sm">{label}</span>
+          <Icon className={cn("size-4 md:size-5", danger ? "text-red-600" : "text-[#5b876f]")} />
         </div>
-        <p className="mt-4 text-3xl font-black tracking-tight md:text-4xl">{value}</p>
-        <p className={cn("mt-2 text-sm", danger ? "text-red-700" : "text-[#718174]")}>{helper} · 点击科普</p>
+        <p className="mt-2 text-2xl font-black tracking-tight md:mt-4 md:text-4xl">{value}</p>
+        <p className={cn("mt-1 text-xs md:mt-2 md:text-sm", danger ? "text-red-700" : "text-[#718174]")}>{helper} · 点击科普</p>
       </button>
     </MetricEducationDialog>
   );

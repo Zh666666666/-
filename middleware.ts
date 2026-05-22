@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { authRoleCookie, defaultPathForRole, resolveAuthRole, type UserRole } from "@/lib/auth";
+import { authRoleCookie, resolveAuthRole, type UserRole } from "@/lib/auth";
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase-config";
 
 const protectedPrefixes = ["/family", "/nurse"];
@@ -32,10 +32,6 @@ function unauthorizedRedirect(request: NextRequest, pathname: string) {
   return response;
 }
 
-function roleRedirect(request: NextRequest, role: UserRole) {
-  return redirectTo(request, defaultPathForRole(role));
-}
-
 function redirectForMismatchedRole(request: NextRequest, pathname: string, role: UserRole) {
   if (pathname.startsWith("/family") && role !== "family") {
     return redirectTo(request, "/nurse");
@@ -53,10 +49,6 @@ export async function middleware(request: NextRequest) {
 
   if (!isSupabaseConfigured) {
     const role = resolveAuthRole(null, request.cookies.get(authRoleCookie)?.value);
-
-    if (pathname === "/login" && role) {
-      return roleRedirect(request, role);
-    }
 
     if (!isProtectedPath(pathname)) {
       return NextResponse.next();
@@ -90,10 +82,6 @@ export async function middleware(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const role = resolveAuthRole(data.user, request.cookies.get(authRoleCookie)?.value);
 
-  if (pathname === "/login" && data.user && role) {
-    return roleRedirect(request, role);
-  }
-
   if (!isProtectedPath(pathname)) {
     return response;
   }
@@ -106,5 +94,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/family/:path*", "/nurse/:path*"],
+  matcher: ["/family/:path*", "/nurse/:path*"],
 };
