@@ -80,6 +80,7 @@ and are not committed to the public repository.
 ## Change Rules
 
 - Keep edits scoped. Avoid unrelated visual, schema, or copy rewrites.
+- Read `docs/PROJECT_STATUS.md` before starting any coding task.
 - Preserve the family/nurse role split and route protection behavior.
 - Preserve demo-mode usability unless the task explicitly removes it.
 - Keep API payload validation with `zod`.
@@ -94,6 +95,20 @@ and are not committed to the public repository.
 - Keep the operational UI dense, medical, and task-focused.
 - Keep `.devcontainer`, GitHub Actions, and Linux commands working when changing
   dependencies or development scripts.
+
+## Mandatory Task Closeout
+
+Every agent that changes application code, APIs, database files, runtime
+configuration, scripts, or CI must update `docs/PROJECT_STATUS.md` in the same
+commit or pull request.
+
+- Record completed work as facts, not plans.
+- Update the current verified state and blockers.
+- Reorder the next tasks based on what remains.
+- Append one Agent work-log row with the date and verification evidence.
+- Run `npm run check:status` before finishing.
+- Do not push directly from a cloud task when a pull request is available;
+  include the status update in the same pull request as the code.
 
 ## Skills
 
@@ -117,6 +132,7 @@ two directories synchronized when updating skills.
 ## Validation Checklist
 
 - For app changes, run `cmd /c npm run build`.
+- For code changes, run `cmd /c npm run check:status`.
 - Run `cmd /c npm run lint` when the change touches linted app files; if it
   fails only on PPT helper scripts, report that scope clearly.
 - For auth/role changes, verify `/login`, `/family`, `/nurse`, and role switching.

@@ -16,12 +16,20 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
+
+      - name: Verify project status update
+        env:
+          STATUS_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          STATUS_HEAD_SHA: ${{ github.sha }}
+        run: npm run check:status
 
       - name: Install dependencies
         run: npm ci

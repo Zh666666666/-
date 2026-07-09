@@ -28,6 +28,9 @@ refreshing Codex guidance, or turning project knowledge into reusable workflows.
    - verification checklist
 5. Review for factual accuracy, usability, and safety.
 6. Remove unsupported claims and keep instructions executable.
+7. Keep `docs/PROJECT_STATUS.md` current and require every coding task to append
+   completed work, current state, next tasks, and verification evidence.
+8. Run the status check so CI can reject code changes that omit the handoff.
 
 ## Commands
 
@@ -36,10 +39,14 @@ refreshing Codex guidance, or turning project knowledge into reusable workflows.
 - `rg --files`
 - `cmd /c npm run build`
 - `cmd /c npm run lint`
+- `cmd /c npm run check:status`
 
 ## Files To Inspect
 
 - `AGENTS.md`
+- `docs/PROJECT_STATUS.md`
+- `scripts/check-project-status.mjs`
+- `.github/workflows/ci.yml`
 - `.agents/skills/**/SKILL.md`
 - `README.md`
 - `package.json`
@@ -57,6 +64,8 @@ refreshing Codex guidance, or turning project knowledge into reusable workflows.
 - Writing skills so broad that they always trigger.
 - Putting unverified deployment or business claims into durable guidance.
 - Forgetting to update skills after architecture or command changes.
+- Treating chat history as the source of truth instead of updating the
+  repository status document.
 
 ## Verification Checklist
 
@@ -65,3 +74,5 @@ refreshing Codex guidance, or turning project knowledge into reusable workflows.
 - Instructions reference real files and commands.
 - AGENTS.md and skills agree with each other.
 - Claims are based on current repo inspection.
+- Code changes include a matching `docs/PROJECT_STATUS.md` update.
+- `npm run check:status` passes.
