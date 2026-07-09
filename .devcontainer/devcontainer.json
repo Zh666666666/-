@@ -1,0 +1,24 @@
+{
+  "name": "TKA Rehab Platform",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "TKA Rehab Platform",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postCreateCommand": "npm ci",
+  "postStartCommand": "bash .devcontainer/start-dev.sh",
+  "containerEnv": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "Prisma.prisma"
+      ]
+    }
+  }
+}

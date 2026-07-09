@@ -72,8 +72,61 @@ export type KneeDataPoint = {
   painScore: number;
   batteryLevel: number;
   signalStrength: number;
-  source: "SMART_BRACE" | "MANUAL" | "DEMO";
+  source: "SMART_BRACE" | "HARDWARE" | "MANUAL" | "DEMO";
   recordedAt: string;
+};
+
+export type DeviceStatus = "UNBOUND" | "ONLINE" | "OFFLINE" | "LOW_BATTERY";
+export type DevicePlacement = "THIGH" | "SHANK" | "BRACE" | "UNKNOWN";
+export type SensorSessionStatus = "ACTIVE" | "COMPLETED" | "ABORTED";
+export type CalibrationQuality = "PENDING" | "GOOD" | "FAIR" | "POOR";
+
+export type DeviceItem = {
+  id: string;
+  serialNo: string;
+  name: string;
+  model: string;
+  manufacturer: string;
+  status: DeviceStatus;
+  firmwareVersion: string | null;
+  batteryLevel: number | null;
+  signalStrength: number | null;
+  lastSeenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DeviceBindingItem = {
+  id: string;
+  deviceId: string;
+  patientId: string;
+  placement: DevicePlacement;
+  active: boolean;
+  boundAt: string;
+  unboundAt: string | null;
+  device?: DeviceItem;
+};
+
+export type SensorSessionItem = {
+  id: string;
+  patientId: string;
+  status: SensorSessionStatus;
+  source: KneeDataPoint["source"];
+  startedAt: string;
+  endedAt: string | null;
+  sampleCount: number;
+};
+
+export type CalibrationRecordItem = {
+  id: string;
+  patientId: string;
+  sessionId: string | null;
+  thighDeviceId: string | null;
+  shankDeviceId: string | null;
+  quality: CalibrationQuality;
+  zeroFlexionAngle: number;
+  notes: string | null;
+  createdAt: string;
 };
 
 export type AlertType = "ROM_LOW" | "ACTIVITY_LOW" | "DURATION_LOW" | "PAIN_HIGH" | "DEVICE_OFFLINE";

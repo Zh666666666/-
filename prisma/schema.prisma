@@ -26,8 +26,36 @@ enum RiskLevel {
 
 enum DeviceSource {
   SMART_BRACE
+  HARDWARE
   MANUAL
   DEMO
+}
+
+enum DeviceStatus {
+  UNBOUND
+  ONLINE
+  OFFLINE
+  LOW_BATTERY
+}
+
+enum DevicePlacement {
+  THIGH
+  SHANK
+  BRACE
+  UNKNOWN
+}
+
+enum SensorSessionStatus {
+  ACTIVE
+  COMPLETED
+  ABORTED
+}
+
+enum CalibrationQuality {
+  PENDING
+  GOOD
+  FAIR
+  POOR
 }
 
 enum AlertType {
@@ -150,9 +178,126 @@ model Patient {
   kneeDataRecords  KneeDataRecord[]
   nursingRecords   NursingRecord[]
   alertLogs        AlertLog[]
+  deviceBindings   DeviceBinding[]
+  sensorSessions   SensorSession[]
+  sensorSamples    SensorSample[]
+  calibrationRecords CalibrationRecord[]
 
   @@index([status, riskLevel])
   @@map("patients")
+}
+
+model Device {
+  id             String         @id @default(cuid())
+  serialNo       String         @unique @map("serial_no")
+  name           String
+  model          String         @default("BWT901CL")
+  manufacturer   String         @default("WitMotion")
+  status         DeviceStatus   @default(UNBOUND)
+  deviceToken    String?        @unique @map("device_token")
+  firmwareVersion String?       @map("firmware_version")
+  batteryLevel   Int?           @map("battery_level")
+  signalStrength Int?           @map("signal_strength")
+  lastSeenAt     DateTime?      @map("last_seen_at")
+  metadata       Json?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  bindings       DeviceBinding[]
+  samples        SensorSample[]
+  thighCalibrations CalibrationRecord[] @relation("ThighCalibrationDevice")
+  shankCalibrations CalibrationRecord[] @relation("ShankCalibrationDevice")
+
+  @@index([status, lastSeenAt])
+  @@map("devices")
+}
+
+model DeviceBinding {
+  id          String          @id @default(cuid())
+  deviceId    String          @map("device_id")
+  patientId   String          @map("patient_id")
+  placement   DevicePlacement @default(UNKNOWN)
+  active      Boolean         @default(true)
+  boundAt     DateTime        @default(now()) @map("bound_at")
+  unboundAt   DateTime?       @map("unbound_at")
+  device      Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  patient     Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, active])
+  @@index([deviceId, active])
+  @@map("device_bindings")
+}
+
+model SensorSession {
+  id              String              @id @default(cuid())
+  patientId       String              @map("patient_id")
+  status          SensorSessionStatus @default(ACTIVE)
+  source          DeviceSource        @default(HARDWARE)
+  startedAt       DateTime            @default(now()) @map("started_at")
+  endedAt         DateTime?           @map("ended_at")
+  sampleCount     Int                 @default(0) @map("sample_count")
+  summary         Json?
+  patient         Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  samples         SensorSample[]
+  calibrationRecords CalibrationRecord[]
+
+  @@index([patientId, startedAt])
+  @@index([status])
+  @@map("sensor_sessions")
+}
+
+model SensorSample {
+  id              String          @id @default(cuid())
+  sessionId       String?         @map("session_id")
+  deviceId        String?         @map("device_id")
+  patientId       String          @map("patient_id")
+  placement       DevicePlacement @default(UNKNOWN)
+  recordedAt      DateTime        @default(now()) @map("recorded_at")
+  roll            Float?
+  pitch           Float?
+  yaw             Float?
+  q0              Float?
+  q1              Float?
+  q2              Float?
+  q3              Float?
+  ax              Float?
+  ay              Float?
+  az              Float?
+  gx              Float?
+  gy              Float?
+  gz              Float?
+  flexionAngle    Float?          @map("flexion_angle")
+  extensionAngle  Float?          @map("extension_angle")
+  confidence      Float?
+  raw             Json?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  session         SensorSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  device          Device?         @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, recordedAt])
+  @@index([sessionId, recordedAt])
+  @@index([deviceId, recordedAt])
+  @@map("sensor_samples")
+}
+
+model CalibrationRecord {
+  id              String             @id @default(cuid())
+  patientId       String             @map("patient_id")
+  sessionId       String?            @map("session_id")
+  thighDeviceId   String?            @map("thigh_device_id")
+  shankDeviceId   String?            @map("shank_device_id")
+  quality         CalibrationQuality @default(PENDING)
+  zeroFlexionAngle Float             @default(0) @map("zero_flexion_angle")
+  baseline        Json?
+  notes           String?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  patient         Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  session         SensorSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  thighDevice     Device?            @relation("ThighCalibrationDevice", fields: [thighDeviceId], references: [id], onDelete: SetNull)
+  shankDevice     Device?            @relation("ShankCalibrationDevice", fields: [shankDeviceId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, createdAt])
+  @@map("calibration_records")
 }
 
 model KneeDataRecord {

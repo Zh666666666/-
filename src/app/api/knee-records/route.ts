@@ -15,7 +15,7 @@ const kneeRecordSchema = z.object({
   painScore: z.coerce.number().int().min(0).max(10).optional(),
   batteryLevel: z.coerce.number().int().min(0).max(100).optional(),
   signalStrength: z.coerce.number().int().min(0).max(100).optional(),
-  source: z.enum(["SMART_BRACE", "MANUAL", "DEMO"]).optional(),
+  source: z.enum(["SMART_BRACE", "HARDWARE", "MANUAL", "DEMO"]).optional(),
   recordedAt: z.string().datetime().optional(),
 });
 

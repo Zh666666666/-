@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only support artifacts (the GitHub repository is public)
+/copyright-materials/
+/research/
+/ppt-build*.js
+/ppt-font-test*

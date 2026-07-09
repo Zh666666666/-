@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, CalendarClock, HeartPulse, Home, LogOut, Stethoscope, UserRound } from "lucide-react";
+import { Activity, CalendarClock, HeartPulse, Home, LogOut, Radio, Stethoscope, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/lib/auth";
@@ -17,12 +17,14 @@ const familyLinks = [
   { href: "/family", label: "监测", icon: Home },
   { href: "/family/guidance", label: "指导", icon: Activity },
   { href: "/family/devices", label: "设备", icon: Activity },
+  { href: "/hardware-demo", label: "硬件", icon: Radio },
   { href: "/appointments", label: "预约", icon: CalendarClock },
   { href: "/family/profile", label: "资料", icon: UserRound },
 ];
 
 const nurseLinks = [
   { href: "/nurse", label: "工作台", icon: Stethoscope },
+  { href: "/hardware-demo", label: "硬件", icon: Radio },
   { href: "/appointments", label: "预约", icon: CalendarClock },
   { href: "/nurse/profile", label: "资料", icon: UserRound },
 ];
@@ -94,7 +96,7 @@ export function RoleNavigation() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/70 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-1.5 shadow-[0_-14px_32px_rgba(15,23,42,0.10)] backdrop-blur-xl md:inset-x-auto md:bottom-5 md:right-5 md:max-w-[calc(100vw-2.5rem)] md:rounded-3xl md:border md:px-3 md:pb-2 md:pt-2">
       <div className="mx-auto flex max-w-lg flex-col gap-1.5 md:max-w-none md:flex-row md:items-center md:justify-start md:gap-2 md:overflow-x-auto">
-        <div className={cn("order-2 grid w-full gap-1 md:order-none md:flex md:w-auto md:items-center md:gap-2", role === "family" ? "grid-cols-5" : "grid-cols-3")}>
+        <div className={cn("order-2 grid w-full gap-1 md:order-none md:flex md:w-auto md:items-center md:gap-2", role === "family" ? "grid-cols-6" : "grid-cols-4")}>
           {links.map((item) => {
             const Icon = item.icon;
             const active = isActive(pathname, item.href);

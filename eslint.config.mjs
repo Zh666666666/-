@@ -18,6 +18,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "ppt-build*.js",
+      "ppt-font-test*.js",
     ],
   },
 ];

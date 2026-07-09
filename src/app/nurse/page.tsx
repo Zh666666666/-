@@ -688,12 +688,18 @@ export default function NursePage() {
               <h1 className="mt-4 max-w-4xl font-display text-3xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:mt-6 md:text-7xl">病区护理，一屏掌握。</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-[#d6e4da] md:mt-5 md:text-lg md:leading-9">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white lg:inline-flex">
                 <Link href="/nurse/profile">护士资料</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white lg:inline-flex">
                 <Link href="/appointments">护理预约</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm">
+                <Link href="/hardware-demo">
+                  <Radio className="size-4" />
+                  硬件
+                </Link>
               </Button>
               <RoleSwitchButton role="family" size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm">
                 家属端

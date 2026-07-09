@@ -10,6 +10,11 @@ export const sharedRealtimeTables = [
   "nursing_records",
   "ai_analyses",
   "appointments",
+  "devices",
+  "device_bindings",
+  "sensor_sessions",
+  "sensor_samples",
+  "calibration_records",
 ] as const;
 
 export type SharedRealtimeTable = (typeof sharedRealtimeTables)[number];

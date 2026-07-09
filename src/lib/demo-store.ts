@@ -6,8 +6,13 @@ import {
   type AiAnalysisItem,
   type AppointmentItem,
   type AppointmentStatus,
+  type CalibrationRecordItem,
   type DashboardData,
+  type DeviceBindingItem,
+  type DeviceItem,
+  type DevicePlacement,
   type KneeDataPoint,
+  type SensorSessionItem,
   encodeNursingNotes,
   serializeNursingRecord,
   type NursingRecordItem,
@@ -22,6 +27,10 @@ type DemoState = Omit<DashboardData, "nursingRecords"> & {
   nursingRecords: DemoNursingRecord[];
   profiles: ProfileItem[];
   appointments: AppointmentItem[];
+  devices: DeviceItem[];
+  deviceBindings: DeviceBindingItem[];
+  sensorSessions: SensorSessionItem[];
+  calibrationRecords: CalibrationRecordItem[];
 };
 
 type AiAnalysisInput = Omit<AiAnalysisItem, "id" | "createdAt">;
@@ -66,6 +75,69 @@ type AppointmentUpdateInput = {
   nurseName?: string | null;
   scheduledTime?: string | null;
   responseNote?: string | null;
+};
+
+type DeviceInput = {
+  serialNo: string;
+  name: string;
+  model?: string;
+  manufacturer?: string;
+  firmwareVersion?: string | null;
+};
+
+type DeviceBindingInput = {
+  deviceId: string;
+  patientId: string;
+  placement: DevicePlacement;
+};
+
+type DeviceHeartbeatInput = {
+  deviceId?: string;
+  serialNo?: string;
+  batteryLevel?: number | null;
+  signalStrength?: number | null;
+};
+
+type SensorSessionInput = {
+  patientId: string;
+  source?: KneeDataPoint["source"];
+};
+
+type SensorSampleInput = {
+  sessionId?: string | null;
+  deviceId?: string | null;
+  patientId: string;
+  placement?: DevicePlacement;
+  recordedAt?: string;
+  roll?: number | null;
+  pitch?: number | null;
+  yaw?: number | null;
+  q0?: number | null;
+  q1?: number | null;
+  q2?: number | null;
+  q3?: number | null;
+  ax?: number | null;
+  ay?: number | null;
+  az?: number | null;
+  gx?: number | null;
+  gy?: number | null;
+  gz?: number | null;
+  flexionAngle?: number | null;
+  extensionAngle?: number | null;
+  confidence?: number | null;
+  batteryLevel?: number | null;
+  signalStrength?: number | null;
+  raw?: unknown;
+};
+
+type CalibrationInput = {
+  patientId: string;
+  sessionId?: string | null;
+  thighDeviceId?: string | null;
+  shankDeviceId?: string | null;
+  quality?: CalibrationRecordItem["quality"];
+  zeroFlexionAngle?: number;
+  notes?: string | null;
 };
 
 const globalForDemo = globalThis as unknown as {
@@ -145,6 +217,70 @@ function initialState(): DemoState {
       },
     ],
     aiAnalyses: [],
+    devices: [
+      {
+        id: "demo-device-thigh",
+        serialNo: "BWT901CL-THIGH-001",
+        name: "BWT901CL thigh sensor",
+        model: "BWT901CL",
+        manufacturer: "WitMotion",
+        status: "ONLINE",
+        firmwareVersion: null,
+        batteryLevel: 88,
+        signalStrength: 94,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "demo-device-shank",
+        serialNo: "BWT901CL-SHANK-001",
+        name: "BWT901CL shank sensor",
+        model: "BWT901CL",
+        manufacturer: "WitMotion",
+        status: "ONLINE",
+        firmwareVersion: null,
+        batteryLevel: 90,
+        signalStrength: 95,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    deviceBindings: [
+      {
+        id: "demo-binding-thigh",
+        deviceId: "demo-device-thigh",
+        patientId: seedPatients[0].id,
+        placement: "THIGH",
+        active: true,
+        boundAt: now,
+        unboundAt: null,
+      },
+      {
+        id: "demo-binding-shank",
+        deviceId: "demo-device-shank",
+        patientId: seedPatients[0].id,
+        placement: "SHANK",
+        active: true,
+        boundAt: now,
+        unboundAt: null,
+      },
+    ],
+    sensorSessions: [],
+    calibrationRecords: [
+      {
+        id: "demo-calibration-1",
+        patientId: seedPatients[0].id,
+        sessionId: null,
+        thighDeviceId: "demo-device-thigh",
+        shankDeviceId: "demo-device-shank",
+        quality: "GOOD",
+        zeroFlexionAngle: 0,
+        notes: "Demo zero point for full knee extension.",
+        createdAt: now,
+      },
+    ],
     appointments: [
       {
         id: "demo-appointment-1",
@@ -369,4 +505,199 @@ export function resolveDemoAlert(id: string) {
 
   alert.status = "RESOLVED";
   return alert;
+}
+
+export function getDemoDevices(patientId?: string) {
+  const state = getState();
+
+  if (!patientId) {
+    return state.devices;
+  }
+
+  const boundIds = new Set(state.deviceBindings.filter((binding) => binding.patientId === patientId && binding.active).map((binding) => binding.deviceId));
+  return state.devices.filter((device) => boundIds.has(device.id));
+}
+
+export function addDemoDevice(input: DeviceInput) {
+  const state = getState();
+  const existing = state.devices.find((device) => device.serialNo === input.serialNo);
+  const now = new Date().toISOString();
+
+  if (existing) {
+    Object.assign(existing, {
+      name: input.name,
+      model: input.model ?? existing.model,
+      manufacturer: input.manufacturer ?? existing.manufacturer,
+      firmwareVersion: input.firmwareVersion ?? existing.firmwareVersion,
+      updatedAt: now,
+    });
+    return existing;
+  }
+
+  const device = {
+    id: createId("device"),
+    serialNo: input.serialNo,
+    name: input.name,
+    model: input.model ?? "BWT901CL",
+    manufacturer: input.manufacturer ?? "WitMotion",
+    status: "UNBOUND",
+    firmwareVersion: input.firmwareVersion ?? null,
+    batteryLevel: null,
+    signalStrength: null,
+    lastSeenAt: null,
+    createdAt: now,
+    updatedAt: now,
+  } satisfies DeviceItem;
+
+  state.devices = [device, ...state.devices];
+  return device;
+}
+
+export function addDemoDeviceBinding(input: DeviceBindingInput) {
+  const state = getState();
+  const now = new Date().toISOString();
+  const device = state.devices.find((item) => item.id === input.deviceId);
+
+  if (!device) {
+    return null;
+  }
+
+  for (const binding of state.deviceBindings) {
+    if (binding.patientId === input.patientId && binding.placement === input.placement && binding.active) {
+      binding.active = false;
+      binding.unboundAt = now;
+    }
+  }
+
+  const binding = {
+    id: createId("binding"),
+    deviceId: input.deviceId,
+    patientId: input.patientId,
+    placement: input.placement,
+    active: true,
+    boundAt: now,
+    unboundAt: null,
+    device,
+  } satisfies DeviceBindingItem;
+
+  device.status = "ONLINE";
+  device.lastSeenAt = now;
+  device.updatedAt = now;
+  state.deviceBindings = [binding, ...state.deviceBindings];
+  return binding;
+}
+
+export function getDemoDeviceBindings(patientId?: string) {
+  const state = getState();
+  return state.deviceBindings
+    .filter((binding) => binding.active && (!patientId || binding.patientId === patientId))
+    .map((binding) => ({
+      ...binding,
+      device: state.devices.find((device) => device.id === binding.deviceId),
+    }));
+}
+
+export function updateDemoDeviceHeartbeat(input: DeviceHeartbeatInput) {
+  const state = getState();
+  const device = state.devices.find((item) => item.id === input.deviceId || item.serialNo === input.serialNo);
+
+  if (!device) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  device.batteryLevel = input.batteryLevel ?? device.batteryLevel;
+  device.signalStrength = input.signalStrength ?? device.signalStrength;
+  device.lastSeenAt = now;
+  device.status = typeof device.batteryLevel === "number" && device.batteryLevel <= 20 ? "LOW_BATTERY" : "ONLINE";
+  device.updatedAt = now;
+  return device;
+}
+
+export function addDemoSensorSession(input: SensorSessionInput) {
+  const state = getState();
+  const session = {
+    id: createId("session"),
+    patientId: input.patientId,
+    status: "ACTIVE",
+    source: input.source ?? "HARDWARE",
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    sampleCount: 0,
+  } satisfies SensorSessionItem;
+
+  state.sensorSessions = [session, ...state.sensorSessions];
+  return session;
+}
+
+export function finishDemoSensorSession(id: string, status: "COMPLETED" | "ABORTED" = "COMPLETED") {
+  const state = getState();
+  const session = state.sensorSessions.find((item) => item.id === id);
+
+  if (!session) {
+    return null;
+  }
+
+  session.status = status;
+  session.endedAt = new Date().toISOString();
+  return session;
+}
+
+export function addDemoSensorSample(input: SensorSampleInput) {
+  const state = getState();
+  const session = input.sessionId ? state.sensorSessions.find((item) => item.id === input.sessionId) : null;
+  const device = input.deviceId ? state.devices.find((item) => item.id === input.deviceId) : null;
+  const now = input.recordedAt ?? new Date().toISOString();
+
+  if (session) {
+    session.sampleCount += 1;
+  }
+
+  if (device) {
+    device.batteryLevel = input.batteryLevel ?? device.batteryLevel;
+    device.signalStrength = input.signalStrength ?? device.signalStrength;
+    device.lastSeenAt = now;
+    device.status = typeof device.batteryLevel === "number" && device.batteryLevel <= 20 ? "LOW_BATTERY" : "ONLINE";
+    device.updatedAt = now;
+  }
+
+  if (typeof input.flexionAngle === "number") {
+    return addDemoKneeRecord({
+      patientId: input.patientId,
+      flexionAngle: input.flexionAngle,
+      extensionAngle: input.extensionAngle ?? 0,
+      activityFrequency: 1,
+      activityDuration: 1,
+      painScore: 0,
+      batteryLevel: input.batteryLevel ?? device?.batteryLevel ?? 92,
+      signalStrength: input.signalStrength ?? device?.signalStrength ?? 96,
+      source: "HARDWARE",
+      recordedAt: now,
+    });
+  }
+
+  return { record: null, alert: null };
+}
+
+export function addDemoCalibrationRecord(input: CalibrationInput) {
+  const state = getState();
+  const record = {
+    id: createId("calibration"),
+    patientId: input.patientId,
+    sessionId: input.sessionId ?? null,
+    thighDeviceId: input.thighDeviceId ?? null,
+    shankDeviceId: input.shankDeviceId ?? null,
+    quality: input.quality ?? "GOOD",
+    zeroFlexionAngle: input.zeroFlexionAngle ?? 0,
+    notes: input.notes ?? null,
+    createdAt: new Date().toISOString(),
+  } satisfies CalibrationRecordItem;
+
+  state.calibrationRecords = [record, ...state.calibrationRecords].slice(0, 20);
+  return record;
+}
+
+export function getDemoCalibrationRecords(patientId: string) {
+  const state = getState();
+  return state.calibrationRecords.filter((record) => record.patientId === patientId);
 }
