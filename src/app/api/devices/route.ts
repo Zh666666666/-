@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 const deviceSchema = z.object({
   serialNo: z.string().min(1),
   name: z.string().min(1),
-  model: z.string().optional().default("BWT901CL"),
+  model: z.string().optional().default("WT9011DCL-BT50"),
   manufacturer: z.string().optional().default("WitMotion"),
   firmwareVersion: z.string().optional().nullable(),
 });

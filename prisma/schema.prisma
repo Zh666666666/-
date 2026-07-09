@@ -191,7 +191,7 @@ model Device {
   id             String         @id @default(cuid())
   serialNo       String         @unique @map("serial_no")
   name           String
-  model          String         @default("BWT901CL")
+  model          String         @default("WT9011DCL-BT50")
   manufacturer   String         @default("WitMotion")
   status         DeviceStatus   @default(UNBOUND)
   deviceToken    String?        @unique @map("device_token")

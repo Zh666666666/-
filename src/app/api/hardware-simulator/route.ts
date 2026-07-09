@@ -37,8 +37,8 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
 
   if (!hasUsableDatabaseUrl()) {
-    const thigh = addDemoDevice({ serialNo: "BWT901CL-THIGH-001", name: "BWT901CL thigh sensor" });
-    const shank = addDemoDevice({ serialNo: "BWT901CL-SHANK-001", name: "BWT901CL shank sensor" });
+    const thigh = addDemoDevice({ serialNo: "WT9011DCL-THIGH-001", name: "WT9011DCL-BT50 thigh sensor", model: "WT9011DCL-BT50" });
+    const shank = addDemoDevice({ serialNo: "WT9011DCL-SHANK-001", name: "WT9011DCL-BT50 shank sensor", model: "WT9011DCL-BT50" });
     addDemoDeviceBinding({ deviceId: thigh.id, patientId, placement: "THIGH" });
     addDemoDeviceBinding({ deviceId: shank.id, patientId, placement: "SHANK" });
     const activeSession = addDemoSensorSession({ patientId, source: "HARDWARE" });
@@ -63,12 +63,12 @@ export async function POST(request: Request) {
   await ensureDemoPatients();
 
   const thigh = await prisma.device.upsert({
-    where: { serialNo: "BWT901CL-THIGH-001" },
+    where: { serialNo: "WT9011DCL-THIGH-001" },
     update: { lastSeenAt: new Date(now), status: "ONLINE", batteryLevel: 89, signalStrength: 95 },
     create: {
-      serialNo: "BWT901CL-THIGH-001",
-      name: "BWT901CL thigh sensor",
-      model: "BWT901CL",
+      serialNo: "WT9011DCL-THIGH-001",
+      name: "WT9011DCL-BT50 thigh sensor",
+      model: "WT9011DCL-BT50",
       manufacturer: "WitMotion",
       status: "ONLINE",
       batteryLevel: 89,
@@ -77,12 +77,12 @@ export async function POST(request: Request) {
     },
   });
   const shank = await prisma.device.upsert({
-    where: { serialNo: "BWT901CL-SHANK-001" },
+    where: { serialNo: "WT9011DCL-SHANK-001" },
     update: { lastSeenAt: new Date(now), status: "ONLINE", batteryLevel: 90, signalStrength: 96 },
     create: {
-      serialNo: "BWT901CL-SHANK-001",
-      name: "BWT901CL shank sensor",
-      model: "BWT901CL",
+      serialNo: "WT9011DCL-SHANK-001",
+      name: "WT9011DCL-BT50 shank sensor",
+      model: "WT9011DCL-BT50",
       manufacturer: "WitMotion",
       status: "ONLINE",
       batteryLevel: 90,

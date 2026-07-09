@@ -19,6 +19,8 @@ nurse intervention, SOAP nursing records, family guidance, and appointments.
 - `src/lib/supabase*.ts` and `supabase/realtime.sql` own Supabase Auth and
   Realtime integration.
 - `prisma/schema.prisma` and `prisma/migrations` define the production database.
+- `hardware-gateway` contains the transport-independent WT9011DCL-BT50 BLE
+  record contract, WIT frame parser, offline queue, pairing logic, and uploader.
 - `research` contains SPSS-style data/charts for presentation or paper support.
 - `copyright-materials` contains software copyright submission materials.
 - `ppt-build*.js` and `ppt-font-test*.js` are presentation helper scripts, not
@@ -51,6 +53,7 @@ by execution policy.
 - Prisma generate: `cmd /c npm run db:generate`
 - Development migration: `cmd /c npm run db:migrate`
 - Production migration deploy: `cmd /c npm run db:deploy`
+- Hardware gateway tests: `cmd /c npm run gateway:test`
 
 On Linux, GitHub Codespaces, and Codex cloud environments, use:
 
@@ -60,6 +63,7 @@ On Linux, GitHub Codespaces, and Codex cloud environments, use:
 - Lint: `npm run lint`
 - Prisma generate: `npm run db:generate`
 - Production migration deploy: `npm run db:deploy`
+- Hardware gateway tests: `npm run gateway:test`
 
 Known current state: `npm run build` and `npm run lint` pass. Local PowerPoint
 helper scripts are excluded from ESLint because they are not application code
@@ -95,6 +99,10 @@ and are not committed to the public repository.
 - Keep the operational UI dense, medical, and task-focused.
 - Keep `.devcontainer`, GitHub Actions, and Linux commands working when changing
   dependencies or development scripts.
+- Treat `WT9011DCL-BT50` as the selected sensor. Its production transport is
+  Android BLE 5.0 through the official WitMotion SDK, not a Windows COM port.
+- Keep hardware samples explicitly traceable as BLE SDK, binary capture, demo,
+  or manual input; never label generated values as physical hardware data.
 
 ## Mandatory Task Closeout
 

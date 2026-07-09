@@ -25,7 +25,7 @@ const placementLabels: Record<DevicePlacement, string> = {
 };
 
 const defaultForm: DeviceForm = {
-  name: "BWT901CL",
+  name: "WT9011DCL-BT50",
   serialNo: "",
   placement: "THIGH",
 };
@@ -131,7 +131,7 @@ export default function FamilyDevicesPage() {
     }
 
     if (!form.serialNo.trim()) {
-      setError("请填写 BWT901CL 序列号或你贴在设备上的编号");
+      setError("请填写 WT9011DCL-BT50 序列号或你贴在设备上的编号");
       return;
     }
 
@@ -145,8 +145,8 @@ export default function FamilyDevicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serialNo: form.serialNo.trim(),
-          name: form.name.trim() || "BWT901CL",
-          model: "BWT901CL",
+          name: form.name.trim() || "WT9011DCL-BT50",
+          model: "WT9011DCL-BT50",
           manufacturer: "WitMotion",
         }),
       });
@@ -189,7 +189,7 @@ export default function FamilyDevicesPage() {
     const shank = bindingByPlacement.get("SHANK");
 
     if (!thigh || !shank) {
-      setError("请先绑定大腿和小腿两个 BWT901CL 传感器");
+      setError("请先绑定大腿和小腿两个 WT9011DCL-BT50 传感器");
       return;
     }
 
@@ -263,7 +263,7 @@ export default function FamilyDevicesPage() {
             <div>
               <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
                 <Radio className="size-4" />
-                BWT901CL 真实设备准备
+                WT9011DCL-BT50 真实设备准备
               </Badge>
               <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">设备绑定与校准</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">
@@ -292,7 +292,7 @@ export default function FamilyDevicesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-2xl">
                 <Smartphone className="size-7 text-emerald-700" />
-                绑定 BWT901CL
+                绑定 WT9011DCL-BT50
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -308,7 +308,7 @@ export default function FamilyDevicesPage() {
 
               <label className="block space-y-2">
                 <span className="text-sm font-semibold text-slate-600">序列号 / 自定义编号</span>
-                <Input value={form.serialNo} onChange={(event) => setForm((current) => ({ ...current, serialNo: event.target.value }))} placeholder="例如 BWT901CL-THIGH-001" />
+                <Input value={form.serialNo} onChange={(event) => setForm((current) => ({ ...current, serialNo: event.target.value }))} placeholder="例如 WT9011DCL-THIGH-001" />
               </label>
 
               <div className="grid grid-cols-2 gap-2">

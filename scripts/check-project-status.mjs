@@ -39,7 +39,7 @@ function getChangedFiles() {
 
 function requiresStatusUpdate(file) {
   return (
-    /^(src|prisma|supabase|public|scripts)\//.test(file) ||
+    /^(src|prisma|supabase|public|scripts|hardware-gateway)\//.test(file) ||
     /^(\.devcontainer|\.github\/workflows)\//.test(file) ||
     /^(package(-lock)?\.json|next\.config\.[^.]+|middleware\.[^.]+|eslint\.config\.[^.]+|postcss\.config\.[^.]+|tsconfig\.json|components\.json)$/.test(
       file,

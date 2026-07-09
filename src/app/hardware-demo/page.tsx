@@ -80,8 +80,8 @@ export default function HardwareDemoPage() {
   const [index, setIndex] = useState(1);
   const [history, setHistory] = useState<SamplePoint[]>(() => [createSample(0)]);
   const [uploads, setUploads] = useState<UploadItem[]>([
-    { id: 1, label: "BWT901CL-THIGH-001 已连接", status: "uploaded" },
-    { id: 2, label: "BWT901CL-SHANK-001 已连接", status: "uploaded" },
+    { id: 1, label: "WT9011DCL-THIGH-001 已连接", status: "uploaded" },
+    { id: 2, label: "WT9011DCL-SHANK-001 已连接", status: "uploaded" },
     { id: 3, label: "零点校准 GOOD", status: "uploaded" },
   ]);
   const [apiState, setApiState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -177,7 +177,7 @@ export default function HardwareDemoPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="success" className="gap-2 px-3 py-1">
                   <Bluetooth className="size-4" />
-                  BWT901CL 双传感器本地演示
+                  WT9011DCL-BT50 双传感器演示
                 </Badge>
                 <Badge variant={alertOpen ? "warning" : "secondary"} className="px-3 py-1">
                   {angleStatus}
@@ -185,7 +185,7 @@ export default function HardwareDemoPage() {
               </div>
               <h1 className="mt-3 break-words text-2xl font-black md:text-4xl">膝关节真实采集闭环工作台</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#607063] md:text-base">
-                大腿和小腿两个 BWT901CL 的姿态样本会被转换成膝关节屈曲角度，再进入上传、预警和护理处置链路。
+                大腿和小腿两个 WT9011DCL-BT50 的姿态样本会被转换成膝关节屈曲角度，再进入上传、预警和护理处置链路。
               </p>
             </div>
             <div className="flex min-w-0 flex-wrap gap-2">
@@ -288,8 +288,8 @@ export default function HardwareDemoPage() {
               </CardHeader>
               <CardContent className="grid gap-3">
                 {[
-                  ["BWT901CL-THIGH-001", "大腿", "94%", "88%"],
-                  ["BWT901CL-SHANK-001", "小腿", "96%", "90%"],
+                  ["WT9011DCL-THIGH-001", "大腿", "94%", "88%"],
+                  ["WT9011DCL-SHANK-001", "小腿", "96%", "90%"],
                 ].map(([serial, placement, signal, battery]) => (
                   <div key={serial} className="rounded-[1rem] border border-white/10 bg-white/10 p-3">
                     <div className="flex items-center justify-between gap-3">

@@ -48,7 +48,7 @@ rules.
 
 ## Hardware Boundary
 
-GitHub Codespaces cannot connect directly to a nearby BWT901CL over Bluetooth.
+GitHub Codespaces cannot connect directly to a nearby WT9011DCL-BT50 over BLE.
 A phone, computer, or dedicated gateway near the sensor must read the device
 and upload samples to the application API. Codespaces can develop and test that
 API, but it is not the physical sensor gateway.
