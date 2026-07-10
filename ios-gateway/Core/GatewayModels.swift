@@ -93,7 +93,7 @@ public struct QueuedSensorSample: Codable, Sendable {
 
 public struct KneeAngleResult: Equatable, Sendable {
     public let flexion: Double
-    public let extension: Double
+    public let extensionAngle: Double
     public let confidence: Double
 }
 
@@ -112,7 +112,7 @@ public enum KneeAngleCalculator {
         let flexion = min(150, abs(shankPitch - thighPitch))
         return KneeAngleResult(
             flexion: round(flexion * 10) / 10,
-            extension: max(-20, min(40, -flexion)),
+            extensionAngle: max(-20, min(40, -flexion)),
             confidence: max(0.5, 1 - skew)
         )
     }
