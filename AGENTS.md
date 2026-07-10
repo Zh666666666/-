@@ -21,6 +21,9 @@ nurse intervention, SOAP nursing records, family guidance, and appointments.
 - `prisma/schema.prisma` and `prisma/migrations` define the production database.
 - `hardware-gateway` contains the transport-independent WT9011DCL-BT50 BLE
   record contract, WIT frame parser, offline queue, pairing logic, and uploader.
+- `mobile-gateway-android` is the native near-device Android gateway. It wraps
+  the official WitMotion SDK and keeps its locally downloaded `vendor/WitSDK`
+  dependency out of this public repository.
 - `research` contains SPSS-style data/charts for presentation or paper support.
 - `copyright-materials` contains software copyright submission materials.
 - `ppt-build*.js` and `ppt-font-test*.js` are presentation helper scripts, not

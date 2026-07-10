@@ -31,20 +31,25 @@ Official product documents:
   upload client
 - WIT standard frame parser for captured-notification verification
 - unit tests for BLE records, binary frames, and offline queue behavior
+- native Android gateway shell in `mobile-gateway-android`, with an official SDK
+  wrapper, two-device placement assignment, zero-angle commands, encrypted
+  append-only offline storage, and platform API uploader
 
 The JSONL queue is the desktop reference implementation. The Android app should
 implement the same `OfflineQueue` contract with encrypted mobile storage.
 
 ## Android Work Still Required
 
-- create the Android application shell
-- integrate the official `wit-sdk.aar`
-- request Android Bluetooth scan/connect permissions
-- discover and connect two devices
-- expose SDK records to the shared gateway contract
-- add encrypted offline storage and background upload
-- add device selection, placement confirmation, calibration, and connection
-  status screens
+- run `mobile-gateway-android/scripts/sync-wit-sdk.ps1` and compile the native
+  shell with Android Studio, SDK Platform 35, and JDK 17
+- confirm the downloaded official SDK remains compatible with the selected
+  WT9011DCL-BT50 firmware
+- add a foreground service and reconnect scheduling after physical validation;
+  the first version is intentionally foreground-only
+- replace the temporary BLE-address gateway identifier with a verified physical
+  serial number if the shipped device or official SDK exposes one
+- complete real device selection, placement confirmation, calibration, and
+  connection-status testing with the purchased sensors
 
 ## Physical Verification
 

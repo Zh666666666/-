@@ -1,0 +1,6 @@
+# Downloaded locally by scripts/sync-wit-sdk.ps1. The official SDK source is
+# intentionally not committed because its upstream repository has no license file.
+/vendor/WitSDK/
+/app/build/
+/.gradle/
+
