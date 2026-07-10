@@ -43,6 +43,7 @@
 - 已增加 Android 无 USB 云端验证和发布加固：JVM 测试、Android Lint、Debug/Release 构建、R8 混淆与资源缩减、zipalign，以及 APK v2/v3 与 v4 `.idsig` 签名生成和核验脚本。
 - 已增加 Android 安装自检：在无需 USB 的手机安装场景中逐项显示 BLE 硬件、蓝牙、权限、定位、加密离线队列和平台配置是否就绪；自检通过只代表可以开始扫描，不会把未连接的传感器误标记为可用。
 - 已修复硬件演示来源污染：模拟器会话、原始样本和派生康复记录统一标记为 `DEMO`，模拟设备使用 `SIM-` 序列号；真实 Android BLE 网关仍使用 `HARDWARE`，避免模拟值伪装为真实设备数据。
+- 已创建 iOS BLE 网关工程：SwiftUI 现场操作界面、Core Bluetooth 双设备接入、BLE5 二进制解析、Keychain 加密离线队列、HTTPS 上传与 iPhone 无 USB 自检；macOS CI 已完成 Swift 核心测试和未签名模拟器构建。
 
 ### Agent 与云端开发
 
@@ -69,6 +70,7 @@
 - 云端无密钥时：使用 Demo 模式
 - 目标型号：已调整为更具性价比的 `WT9011DCL-BT50`，购买或换货状态待确认
 - Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`；安装自检已通过 Android CI，尚未连接 Android 手机或实物传感器验证
+- iOS 网关：已建立最低 iOS 17 的独立工程，面向 iPhone 15 Pro（iOS 26.5.2）设计；macOS CI 已通过 Swift 核心测试和未签名模拟器构建，尚未通过 TestFlight 或真实 WT9011DCL-BT50 验证
 - 正式服务器：暂不可用，尚未部署生产环境
 - 当前产品性质：可演示、可云端开发；演示数据与真实硬件数据已在来源链上隔离，生产服务器恢复后需先执行新增的传感器样本来源迁移，尚未完成真实硬件与生产部署验收
 - 视觉系统：核心工作台已完成临床化 UI 收敛，其他业务页面继续复用共享卡片、按钮、输入框和导航样式
@@ -86,17 +88,20 @@
    - 在真机上确认 WT9011DCL-BT50 的搜索、连接、SDK 输出键、采样频率和权限流程。
    - 设备到货后确认物理序列号；当前 `BLE-...` 仅是手机端网关标识，不能作为已验证的厂商序列号。
    - 通过断网采集和恢复网络验证加密离线队列与 API 补传。
-3. **P0 - WT9011DCL-BT50 到货实机联调**
+3. **P0 - 编译与验证 iOS BLE 硬件接入助手**
+   - 在 iPhone 15 Pro 上安装开发或 TestFlight 包，确认蓝牙授权、安装自检和基础页面。
+   - 用 WT9011DCL-BT50 确认 GATT UUID、通知包、双传感器配对、归零、断网补传和角度对照。
+4. **P0 - WT9011DCL-BT50 到货实机联调**
    - 确认 BLE 设备标识、SDK 输出键、采样频率、坐标轴方向和通知数据。
    - 完成双传感器安装、零点校准和膝关节角度算法验证。
    - 对照维特工具记录原始数据，证明系统使用的是真实采集值。
-4. **P1 - 自动化测试**
+5. **P1 - 自动化测试**
    - 为硬件 API、数据校验、重复样本和离线补传增加测试。
    - 增加家属端与护士端关键流程的浏览器回归测试。
-5. **P1 - 正式服务器部署**
+6. **P1 - 正式服务器部署**
    - 恢复服务器后配置数据库、环境变量、HTTPS、迁移和备份。
    - 验证家属端、护士端、Realtime 和硬件上传链路。
-6. **P1 - 产品安全与交付**
+7. **P1 - 产品安全与交付**
    - 完善真实账号权限、审计日志、患者隐私和告警升级规则。
    - 编写安装、校准、使用、故障处理和交付验收文档。
 
@@ -118,6 +123,7 @@
 | 2026-07-10 | 增加 Android 安装自检和 JVM 覆盖：将 BLE、蓝牙开关、权限、定位、离线队列及平台配置的状态集中显示，明确区分“可扫描”与“已连接真实传感器” | 已通过 Android CI；尚未在 Android 手机或实物 WT9011DCL-BT50 上运行 | 从 Actions 下载新 APK，在手机运行安装自检并保存结果；设备到货后再验证扫描、连接和上传 | `Android Gateway #29087162196` 成功；JVM 测试、Lint、Debug/Release 构建和 v4 校验通过 |
 | 2026-07-10 | 使用长期 Release 证书重新构建包含安装自检的 APK | 已生成可下载的正式签名 APK；仍只验证了云端构建，未把真实设备状态伪装为已验证 | 在 Android 手机安装 Release，依次运行安装自检、授权扫描和实际 WT9011DCL-BT50 联调 | `Android Gateway #29087347840` 的 `verify` 与 `signed-release` 均成功 |
 | 2026-07-10 | 修复硬件模拟器将生成值标记为 `HARDWARE` 的来源污染；为会话、样本和康复记录统一传递 `DEMO`，并增加来源解析回归测试 | 已通过本地网关回归、Prisma 生成、Lint、生产构建和 GitHub Build；历史生成记录不应被重新宣称为真实硬件数据，生产库仍待执行迁移 | 服务器恢复后执行 `npm run db:deploy`；传感器到货后用 Android BLE 网关生成首批 `HARDWARE` 实测样本 | `gateway:test`（8/8）、`npm run db:generate`、`npm run lint`、`npm run build`、PR #6 Build 成功 |
+| 2026-07-10 | 新建 iOS 网关：Core Bluetooth、WT BLE5 解析、Keychain 加密队列、平台上传、SwiftUI 无 USB 自检与 macOS CI | iPhone 15 Pro 是首台目标测试机；工程和 CI 已验证，未宣称真实 BLE 已连接 | 在 iPhone 和 WT9011DCL-BT50 完成协议、权限、双设备、归零与补传验收 | GitHub Actions `iOS Gateway #29097444308`：`swift test`、未签名 iPhone Simulator `xcodebuild` 均通过 |
 
 ## Agent 更新规则
 

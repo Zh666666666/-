@@ -46,4 +46,11 @@ next-env.d.ts
 /research/
 /ppt-build*.js
 /ppt-font-test*
+
+# native mobile build products and local signing state
+/ios-gateway/.build/
+/ios-gateway/DerivedData/
+/ios-gateway/*.xcarchive/
+/ios-gateway/TkaIosGateway.xcodeproj/xcuserdata/
+/ios-gateway/TkaIosGateway.xcodeproj/project.xcworkspace/xcuserdata/
 /.gateway-data/

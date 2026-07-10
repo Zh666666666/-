@@ -1,0 +1,38 @@
+name: iOS Gateway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios-gateway/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    paths:
+      - 'ios-gateway/**'
+      - '.github/workflows/ios.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Run iOS gateway core tests
+        working-directory: ios-gateway
+        run: swift test
+
+      - name: Build the iPhone app without signing
+        run: >-
+          xcodebuild
+          -project ios-gateway/TkaIosGateway.xcodeproj
+          -scheme TkaIosGateway
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build
