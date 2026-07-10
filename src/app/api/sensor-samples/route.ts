@@ -6,11 +6,13 @@ import { ensureDemoPatients } from "@/lib/data";
 import { hasUsableDatabaseUrl } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { assessKneeRecord } from "@/lib/rehab";
+import { resolveSensorDataSource, sensorDataSources } from "@/lib/sample-provenance";
 
 const sensorSampleSchema = z.object({
   sessionId: z.string().optional().nullable(),
   deviceId: z.string().optional().nullable(),
   patientId: z.string().min(1),
+  source: z.enum(sensorDataSources).optional(),
   placement: z.enum(["THIGH", "SHANK", "BRACE", "UNKNOWN"]).optional().default("UNKNOWN"),
   recordedAt: z.string().datetime().optional(),
   roll: z.coerce.number().optional().nullable(),
@@ -77,6 +79,19 @@ export async function POST(request: Request) {
 
   await ensureDemoPatients();
 
+  const session = body.sessionId
+    ? await prisma.sensorSession.findFirst({
+        where: { id: body.sessionId, patientId: body.patientId },
+        select: { source: true },
+      })
+    : null;
+
+  if (body.sessionId && !session) {
+    return NextResponse.json({ error: "Sensor session was not found for this patient" }, { status: 404 });
+  }
+
+  const source = resolveSensorDataSource(session?.source, body.source);
+
   const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
 
   const sample = await prisma.sensorSample.create({
@@ -84,6 +99,7 @@ export async function POST(request: Request) {
       sessionId: body.sessionId ?? null,
       deviceId: body.deviceId ?? null,
       patientId: body.patientId,
+      source,
       placement: body.placement,
       recordedAt,
       roll: body.roll ?? null,
@@ -136,7 +152,7 @@ export async function POST(request: Request) {
           painScore: 0,
           batteryLevel: body.batteryLevel ?? 92,
           signalStrength: body.signalStrength ?? 96,
-          source: "HARDWARE",
+          source,
           recordedAt,
         },
       })
@@ -165,6 +181,7 @@ export async function POST(request: Request) {
       deviceId: sample.deviceId,
       sessionId: sample.sessionId,
       placement: sample.placement,
+      source: sample.source,
       recordedAt: sample.recordedAt.toISOString(),
       flexionAngle: sample.flexionAngle,
       confidence: sample.confidence,

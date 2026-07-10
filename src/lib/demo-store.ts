@@ -20,6 +20,7 @@ import {
   type ProfileItem,
   type UserRole,
 } from "@/lib/rehab";
+import { resolveSensorDataSource } from "@/lib/sample-provenance";
 
 type DemoNursingRecord = Omit<NursingRecordItem, "soap">;
 
@@ -107,6 +108,7 @@ type SensorSampleInput = {
   sessionId?: string | null;
   deviceId?: string | null;
   patientId: string;
+  source?: KneeDataPoint["source"];
   placement?: DevicePlacement;
   recordedAt?: string;
   roll?: number | null;
@@ -648,6 +650,7 @@ export function addDemoSensorSample(input: SensorSampleInput) {
   const session = input.sessionId ? state.sensorSessions.find((item) => item.id === input.sessionId) : null;
   const device = input.deviceId ? state.devices.find((item) => item.id === input.deviceId) : null;
   const now = input.recordedAt ?? new Date().toISOString();
+  const source = resolveSensorDataSource(session?.source, input.source);
 
   if (session) {
     session.sampleCount += 1;
@@ -671,7 +674,7 @@ export function addDemoSensorSample(input: SensorSampleInput) {
       painScore: 0,
       batteryLevel: input.batteryLevel ?? device?.batteryLevel ?? 92,
       signalStrength: input.signalStrength ?? device?.signalStrength ?? 96,
-      source: "HARDWARE",
+      source,
       recordedAt: now,
     });
   }

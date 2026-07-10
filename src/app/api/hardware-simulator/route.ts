@@ -12,6 +12,10 @@ const simulatorSchema = z.object({
   patientId: z.string().optional(),
 });
 
+const SIMULATED_SOURCE = "DEMO" as const;
+const SIMULATED_THIGH_SERIAL = "SIM-WT9011DCL-THIGH-001";
+const SIMULATED_SHANK_SERIAL = "SIM-WT9011DCL-SHANK-001";
+
 function makeSimulatedAngles() {
   const t = Date.now() / 1000;
   const thighPitch = 8 + Math.sin(t / 4) * 3;
@@ -37,15 +41,16 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
 
   if (!hasUsableDatabaseUrl()) {
-    const thigh = addDemoDevice({ serialNo: "WT9011DCL-THIGH-001", name: "WT9011DCL-BT50 thigh sensor", model: "WT9011DCL-BT50" });
-    const shank = addDemoDevice({ serialNo: "WT9011DCL-SHANK-001", name: "WT9011DCL-BT50 shank sensor", model: "WT9011DCL-BT50" });
+    const thigh = addDemoDevice({ serialNo: SIMULATED_THIGH_SERIAL, name: "Simulated WT9011DCL-BT50 thigh sensor", model: "WT9011DCL-BT50" });
+    const shank = addDemoDevice({ serialNo: SIMULATED_SHANK_SERIAL, name: "Simulated WT9011DCL-BT50 shank sensor", model: "WT9011DCL-BT50" });
     addDemoDeviceBinding({ deviceId: thigh.id, patientId, placement: "THIGH" });
     addDemoDeviceBinding({ deviceId: shank.id, patientId, placement: "SHANK" });
-    const activeSession = addDemoSensorSession({ patientId, source: "HARDWARE" });
+    const activeSession = addDemoSensorSession({ patientId, source: SIMULATED_SOURCE });
     const result = addDemoSensorSample({
       sessionId: activeSession.id,
       deviceId: shank.id,
       patientId,
+      source: SIMULATED_SOURCE,
       placement: "SHANK",
       recordedAt: now,
       pitch: simulated.shankPitch,
@@ -54,20 +59,20 @@ export async function POST(request: Request) {
       confidence: simulated.confidence,
       batteryLevel: 89,
       signalStrength: 95,
-      raw: simulated,
+      raw: { origin: "HARDWARE_SIMULATOR", ...simulated },
     });
 
-    return NextResponse.json({ session: activeSession, simulated, ...result });
+    return NextResponse.json({ source: SIMULATED_SOURCE, session: activeSession, simulated, ...result });
   }
 
   await ensureDemoPatients();
 
   const thigh = await prisma.device.upsert({
-    where: { serialNo: "WT9011DCL-THIGH-001" },
+    where: { serialNo: SIMULATED_THIGH_SERIAL },
     update: { lastSeenAt: new Date(now), status: "ONLINE", batteryLevel: 89, signalStrength: 95 },
     create: {
-      serialNo: "WT9011DCL-THIGH-001",
-      name: "WT9011DCL-BT50 thigh sensor",
+      serialNo: SIMULATED_THIGH_SERIAL,
+      name: "Simulated WT9011DCL-BT50 thigh sensor",
       model: "WT9011DCL-BT50",
       manufacturer: "WitMotion",
       status: "ONLINE",
@@ -77,11 +82,11 @@ export async function POST(request: Request) {
     },
   });
   const shank = await prisma.device.upsert({
-    where: { serialNo: "WT9011DCL-SHANK-001" },
+    where: { serialNo: SIMULATED_SHANK_SERIAL },
     update: { lastSeenAt: new Date(now), status: "ONLINE", batteryLevel: 90, signalStrength: 96 },
     create: {
-      serialNo: "WT9011DCL-SHANK-001",
-      name: "WT9011DCL-BT50 shank sensor",
+      serialNo: SIMULATED_SHANK_SERIAL,
+      name: "Simulated WT9011DCL-BT50 shank sensor",
       model: "WT9011DCL-BT50",
       manufacturer: "WitMotion",
       status: "ONLINE",
@@ -103,7 +108,7 @@ export async function POST(request: Request) {
     await prisma.deviceBinding.create({ data: { deviceId: shank.id, patientId, placement: "SHANK" } });
   }
 
-  const session = await prisma.sensorSession.create({ data: { patientId, source: "HARDWARE" } });
+  const session = await prisma.sensorSession.create({ data: { patientId, source: SIMULATED_SOURCE } });
   const response = await fetch(new URL("/api/sensor-samples", request.url), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -111,6 +116,7 @@ export async function POST(request: Request) {
       sessionId: session.id,
       deviceId: shank.id,
       patientId,
+      source: SIMULATED_SOURCE,
       placement: "SHANK",
       recordedAt: now,
       pitch: simulated.shankPitch,
@@ -119,10 +125,10 @@ export async function POST(request: Request) {
       confidence: simulated.confidence,
       batteryLevel: 90,
       signalStrength: 96,
-      raw: simulated,
+      raw: { origin: "HARDWARE_SIMULATOR", ...simulated },
     }),
   });
 
   const data = await response.json();
-  return NextResponse.json({ session, simulated, ...data });
+  return NextResponse.json({ source: SIMULATED_SOURCE, session, simulated, ...data });
 }
