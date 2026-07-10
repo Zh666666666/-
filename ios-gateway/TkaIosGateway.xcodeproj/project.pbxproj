@@ -1,0 +1,81 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* TkaIosGatewayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* TkaIosGatewayApp.swift */; };
+		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
+		A10000000000000000000003 /* GatewayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* GatewayViewModel.swift */; };
+		A10000000000000000000004 /* WitBleGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* WitBleGateway.swift */; };
+		A10000000000000000000005 /* PlatformGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* PlatformGateway.swift */; };
+		A10000000000000000000006 /* EncryptedSampleQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* EncryptedSampleQueue.swift */; };
+		A10000000000000000000007 /* GatewayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* GatewayModels.swift */; };
+		A10000000000000000000008 /* GatewayConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* GatewayConfiguration.swift */; };
+		A10000000000000000000009 /* WitPacketParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* WitPacketParser.swift */; };
+		A10000000000000000000010 /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* CoreBluetooth.framework */; };
+		A10000000000000000000011 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* Security.framework */; };
+		A10000000000000000000012 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* CryptoKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* TkaIosGatewayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TkaIosGatewayApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* GatewayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayViewModel.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* WitBleGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WitBleGateway.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* PlatformGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformGateway.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* EncryptedSampleQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedSampleQueue.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* GatewayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayModels.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* GatewayConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayConfiguration.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* WitPacketParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WitPacketParser.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000010 /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
+		A20000000000000000000011 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		A20000000000000000000012 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000013 /* TkaIosGateway.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TkaIosGateway.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000010 /* CoreBluetooth.framework in Frameworks */, A10000000000000000000011 /* Security.framework in Frameworks */, A10000000000000000000012 /* CryptoKit.framework in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* TkaIosGateway */, A40000000000000000000003 /* Core */, A40000000000000000000004 /* Frameworks */, A40000000000000000000005 /* Products */); sourceTree = "<group>"; };
+		A40000000000000000000002 /* TkaIosGateway */ = {isa = PBXGroup; children = (A20000000000000000000001 /* TkaIosGatewayApp.swift */, A20000000000000000000002 /* ContentView.swift */, A20000000000000000000003 /* GatewayViewModel.swift */, A20000000000000000000004 /* WitBleGateway.swift */, A20000000000000000000005 /* PlatformGateway.swift */, A20000000000000000000006 /* EncryptedSampleQueue.swift */, A2000000000000000000000A /* Info.plist */); path = TkaIosGateway; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Core */ = {isa = PBXGroup; children = (A20000000000000000000007 /* GatewayModels.swift */, A20000000000000000000008 /* GatewayConfiguration.swift */, A20000000000000000000009 /* WitPacketParser.swift */); path = Core; sourceTree = "<group>"; };
+		A40000000000000000000004 /* Frameworks */ = {isa = PBXGroup; children = (A20000000000000000000010 /* CoreBluetooth.framework */, A20000000000000000000011 /* Security.framework */, A20000000000000000000012 /* CryptoKit.framework */); name = Frameworks; sourceTree = "<group>"; };
+		A40000000000000000000005 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000013 /* TkaIosGateway.app */); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* TkaIosGateway */ = {isa = PBXNativeTarget; buildConfigurationList = A60000000000000000000002 /* Build configuration list for PBXNativeTarget "TkaIosGateway" */; buildPhases = (A30000000000000000000002 /* Sources */, A30000000000000000000001 /* Frameworks */, A30000000000000000000003 /* Resources */); buildRules = (); dependencies = (); name = TkaIosGateway; productName = TkaIosGateway; productReference = A20000000000000000000013 /* TkaIosGateway.app */; productType = "com.apple.product-type.application"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A70000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 15.0;};};}; buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "TkaIosGateway" */; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, "zh-Hans"); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000005 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001 /* TkaIosGateway */); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A30000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* TkaIosGatewayApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */, A10000000000000000000003 /* GatewayViewModel.swift in Sources */, A10000000000000000000004 /* WitBleGateway.swift in Sources */, A10000000000000000000005 /* PlatformGateway.swift in Sources */, A10000000000000000000006 /* EncryptedSampleQueue.swift in Sources */, A10000000000000000000007 /* GatewayModels.swift in Sources */, A10000000000000000000008 /* GatewayConfiguration.swift in Sources */, A10000000000000000000009 /* WitPacketParser.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A80000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; SWIFT_VERSION = 5.0;}; name = Debug; };
+		A80000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; SWIFT_VERSION = 5.0;}; name = Release; };
+		A80000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = TkaIosGateway/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = cn.tkarehab.gateway.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Debug; };
+		A80000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = TkaIosGateway/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = cn.tkarehab.gateway.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A60000000000000000000001 /* Build configuration list for PBXProject "TkaIosGateway" */ = {isa = XCConfigurationList; buildConfigurations = (A80000000000000000000001 /* Debug */, A80000000000000000000002 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A60000000000000000000002 /* Build configuration list for PBXNativeTarget "TkaIosGateway" */ = {isa = XCConfigurationList; buildConfigurations = (A80000000000000000000003 /* Debug */, A80000000000000000000004 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A70000000000000000000001 /* Project object */;
+}

@@ -1,9 +1,10 @@
 # WT9011DCL-BT50 Mobile BLE Gateway
 
-The selected sensor model is `WT9011DCL-BT50`. It uses Bluetooth 5.0 BLE and
-the official WitMotion Android SDK supports this model. The product gateway
-therefore runs on a nearby Android phone instead of depending on a Windows
-Bluetooth COM port.
+The selected sensor model is `WT9011DCL-BT50`. It uses Bluetooth 5.0 BLE. The
+product gateway runs on a nearby Android or iPhone instead of depending on a
+Windows Bluetooth COM port. Android wraps the official WitMotion SDK; iOS uses
+Core Bluetooth against the same GATT/protocol contract and must be verified on
+a physical device before it is considered equivalent.
 
 Official product documents:
 
@@ -12,8 +13,8 @@ Official product documents:
 
 ## Architecture
 
-1. The Android app asks for Bluetooth permissions.
-2. The official WitMotion SDK searches for `WT` BLE devices.
+1. The Android or iOS app asks for Bluetooth permissions.
+2. The native transport searches for `WT` BLE devices.
 3. The user assigns one physical sensor to `THIGH` and one to `SHANK`.
 4. SDK record callbacks provide acceleration, angular velocity, and angle keys.
 5. The native bridge converts those records to the shared gateway contract.
@@ -44,11 +45,14 @@ Official product documents:
 - GitHub Actions no-USB validation plus R8 release shrinking and explicit APK
   Signature Scheme v2/v3/v4 signing scripts; v4 is delivered as the required
   `.idsig` sidecar
+- native iOS gateway scaffold in `ios-gateway`, with Core Bluetooth central
+  state restoration, iOS background-mode declaration, WT BLE5 binary parser,
+  Keychain-backed encrypted queue, SwiftUI field screen, and macOS CI build
 
 The JSONL queue is the desktop reference implementation. The Android app should
 implement the same `OfflineQueue` contract with encrypted mobile storage.
 
-## Android Work Still Required
+## Mobile Work Still Required
 
 - install the compiled debug APK on a physical Android phone and verify runtime
   permission, foreground lifecycle, and screen behavior
@@ -60,6 +64,9 @@ implement the same `OfflineQueue` contract with encrypted mobile storage.
   serial number if the shipped device or official SDK exposes one
 - complete real device selection, placement confirmation, calibration, and
   connection-status testing with the purchased sensors
+- on iPhone, confirm that the selected firmware exposes the expected `FFE5`,
+  `FFE4`, and `FFE9` GATT contract and that its notification packets match the
+  `55 61` parser before recording production data
 
 ## Physical Verification
 
