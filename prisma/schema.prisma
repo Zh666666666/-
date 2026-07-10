@@ -250,6 +250,7 @@ model SensorSample {
   sessionId       String?         @map("session_id")
   deviceId        String?         @map("device_id")
   patientId       String          @map("patient_id")
+  source          DeviceSource    @default(HARDWARE)
   placement       DevicePlacement @default(UNKNOWN)
   recordedAt      DateTime        @default(now()) @map("recorded_at")
   roll            Float?

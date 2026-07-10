@@ -241,15 +241,15 @@ export default function FamilyDevicesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("硬件模拟采集失败");
+        throw new Error("演示样本写入失败");
       }
 
       const data = (await response.json()) as { record?: { flexionAngle?: number }; simulated?: { flexionAngle?: number } };
       setLastSimulatedAngle(data.record?.flexionAngle ?? data.simulated?.flexionAngle ?? null);
-      setMessage("已写入一条硬件格式样本，并同步生成康复记录。护士端趋势图会读到这条数据。");
+      setMessage("已写入一条 DEMO 演示样本，并同步生成康复记录。护士端趋势图会读到这条演示数据。");
       await loadHardwareState(patientId);
     } catch (simulationError) {
-      setError(simulationError instanceof Error ? simulationError.message : "硬件模拟失败");
+      setError(simulationError instanceof Error ? simulationError.message : "演示样本写入失败");
     } finally {
       setSimulating(false);
     }

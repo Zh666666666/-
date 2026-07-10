@@ -145,7 +145,7 @@ export default function HardwareDemoPage() {
 
       setApiState("saved");
       setUploads((items) => [
-        { id: crypto.randomUUID(), label: "已写入本地 HARDWARE 样本", status: "uploaded" as const },
+        { id: crypto.randomUUID(), label: "已写入本地 DEMO 演示样本", status: "uploaded" as const },
         ...items,
       ].slice(0, 8));
     } catch {
@@ -331,7 +331,7 @@ export default function HardwareDemoPage() {
                     <Badge variant={item.status === "alert" ? "warning" : "success"}>{sourceLabel(item.status)}</Badge>
                   </div>
                 ))}
-                {apiState === "saved" ? <p className="rounded-[0.9rem] bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800">本地 API 已收到 HARDWARE 样本。</p> : null}
+                {apiState === "saved" ? <p className="rounded-[0.9rem] bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800">本地 API 已收到 DEMO 演示样本。</p> : null}
                 {apiState === "failed" ? <p className="rounded-[0.9rem] bg-red-50 px-3 py-2 text-sm font-bold text-red-700">本地 API 暂未响应，请先启动开发服务。</p> : null}
               </CardContent>
             </Card>
@@ -375,7 +375,7 @@ export default function HardwareDemoPage() {
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 size-5 text-[#2f6f55]" />
                   <p className="text-sm leading-6 text-[#4c5b50]">
-                    本页演示的是传感器到货后的实际业务链路。当前样本来自本地模拟，写入 API 后会以 `HARDWARE` 来源进入现有护士端趋势和预警。
+                    本页演示的是传感器到货后的业务链路。当前样本来自本地模拟，写入 API 后会以 `DEMO` 来源进入趋势和预警，不能作为真实硬件数据使用。
                   </p>
                 </div>
               </div>
