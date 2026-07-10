@@ -38,7 +38,7 @@ final class GatewayCoreTests: XCTestCase {
             shankPitch: 80
         )
         XCTAssertEqual(paired?.flexion, 70)
-        XCTAssertEqual(paired?.confidence, 0.88)
+        XCTAssertEqual(paired?.confidence ?? 0, 0.88, accuracy: 0.0001)
         XCTAssertNil(KneeAngleCalculator.calculate(
             thighAt: start,
             thighPitch: 10,
