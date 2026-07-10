@@ -3,6 +3,11 @@ package cn.tkarehab.gateway;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
 final class SensorSample {
     final String gatewayDeviceId;
     final String deviceName;
@@ -59,7 +64,7 @@ final class SensorSample {
         payload.put("gatewayDeviceId", gatewayDeviceId);
         payload.put("patientId", "");
         payload.put("placement", placement.name());
-        payload.put("recordedAt", java.time.Instant.ofEpochMilli(recordedAtMs).toString());
+        payload.put("recordedAt", formatRecordedAt(recordedAtMs));
         payload.put("roll", roll);
         payload.put("pitch", pitch);
         payload.put("yaw", yaw);
@@ -71,5 +76,11 @@ final class SensorSample {
         payload.put("gz", gz);
         payload.put("raw", raw);
         return payload;
+    }
+
+    static String formatRecordedAt(long recordedAtMs) {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return formatter.format(new Date(recordedAtMs));
     }
 }

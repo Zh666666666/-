@@ -58,7 +58,8 @@ final class EncryptedSampleQueue {
         if (files.length == 0) {
             return null;
         }
-        try (InputStream input = encrypted(files[0]).openFileInput();
+        File head = files[0];
+        try (InputStream input = encrypted(head).openFileInput();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[4096];
             int count;
@@ -66,6 +67,12 @@ final class EncryptedSampleQueue {
                 output.write(buffer, 0, count);
             }
             return new JSONObject(output.toString(StandardCharsets.UTF_8.name()));
+        } catch (Exception error) {
+            File quarantined = new File(directory, head.getName().replace(".payload", ".corrupt"));
+            if (!head.renameTo(quarantined)) {
+                throw new IllegalStateException("A damaged queued sample could not be quarantined.", error);
+            }
+            throw new IllegalStateException("A damaged queued sample was quarantined for inspection.", error);
         }
     }
 

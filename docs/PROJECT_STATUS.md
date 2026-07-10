@@ -39,6 +39,8 @@
 - 已为 BLE 记录、WIT 数据帧和断网队列增加自动化测试。
 - 已创建原生 Android BLE 网关工程：封装官方 SDK 的扫描、连接、双传感器位置分配和零点命令；读取官方实时键值后先写入加密离线日志，再调用平台设备、绑定、会话和样本 API 上传。
 - 已配置 JDK 17、Android Platform 35、Build Tools、ADB 与 Gradle 8.7 Wrapper；官方 WitSDK 支持 Git 或 GitHub API 同步，Android Debug APK 已在 Windows 完整编译成功并核验包名、SDK 版本和蓝牙权限。
+- 已完成 Android 网关 v0.2 稳定性修复：首次授权后自动续扫、蓝牙/定位前置检查、SDK 监听器释放、重复连接清理、Android 7 时间格式兼容、每传感器 10Hz 限流、15 秒离线补传、损坏队列隔离，以及按样本原患者恢复设备绑定与采集会话。
+- 已增加 Android 无 USB 云端验证和发布加固：JVM 测试、Android Lint、Debug/Release 构建、R8 混淆与资源缩减、zipalign，以及 APK v2/v3 与 v4 `.idsig` 签名生成和核验脚本。
 
 ### Agent 与云端开发
 
@@ -64,7 +66,7 @@
 - GitHub Actions：通过
 - 云端无密钥时：使用 Demo 模式
 - 目标型号：已调整为更具性价比的 `WT9011DCL-BT50`，购买或换货状态待确认
-- Android 网关：Debug APK 已成功编译，包名 `cn.tkarehab.gateway`、最低 Android 7.0（API 24）、目标 API 35；尚未连接 Android 手机或实物传感器验证
+- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；本次云端编译与签名流水线待 PR 验证，尚未连接 Android 手机或实物传感器验证
 - 正式服务器：暂不可用，尚未部署生产环境
 - 当前产品性质：可演示、可云端开发，尚未完成真实硬件与生产部署验收
 - 视觉系统：核心工作台已完成临床化 UI 收敛，其他业务页面继续复用共享卡片、按钮、输入框和导航样式
@@ -77,7 +79,8 @@
    - 确认云端任务能读取 `AGENTS.md` 和本文件。
    - 确认云端任务能修改分支、运行检查并创建 Pull Request。
 2. **P0 - 编译与验证 Android BLE 硬件接入助手**
-   - 将已编译 Debug APK 安装到 Android 真机，确认应用启动、蓝牙权限和基础页面。
+   - 从 GitHub Actions 下载无 USB 测试 APK，在 Android 真机确认应用启动、蓝牙权限和基础页面。
+   - 提供或确认长期保存的 Android release keystore，将其配置为仓库 Secrets 后生成可持续升级的 v2/v3/v4 正式签名 APK。
    - 在真机上确认 WT9011DCL-BT50 的搜索、连接、SDK 输出键、采样频率和权限流程。
    - 设备到货后确认物理序列号；当前 `BLE-...` 仅是手机端网关标识，不能作为已验证的厂商序列号。
    - 通过断网采集和恢复网络验证加密离线队列与 API 补传。
@@ -107,6 +110,7 @@
 | 2026-07-10 | 创建 `mobile-gateway-android` 原生网关：官方 SDK 封装、双设备位置分配、零点校准、加密离线日志和平台 API 上传 | 代码尚未在 Android SDK/JDK 或实物 WT9011DCL-BT50 上编译验证；Next.js 侧网关测试可运行 | 同步官方 SDK，在 Android Studio 编译并于传感器到货后完成真机联调 | `npm run gateway:test`、`npm run check:status`、`npm run lint`；Android 构建待本机安装 Android 工具链 |
 | 2026-07-10 | 升级共享视觉基座及家属端、护士端、设备演示页为临床工作台风格 | 已在桌面与手机视口检查核心页面；保留原有业务与硬件演示行为 | 继续完善其余业务页并结合真实账号、服务器和硬件进行交付验收 | `npm run lint`、`npm run build`、桌面与手机浏览器检查 |
 | 2026-07-10 | 建立 Android 本地工具链与可重复构建：修复非 ASCII 路径、Library 插件、Kotlin 依赖和加密文件异常声明，生成 Gradle Wrapper 与 Debug APK | APK 已编译并核验清单，当前没有连接 Android 真机，传感器也尚未到货 | 安装 APK 到 Android 手机，随后用单只 WT9011DCL-BT50 验证扫描、连接和真实样本上传 | `build-debug.ps1 -SkipSdkSync`、`aapt dump badging`、`adb devices -l` |
+| 2026-07-10 | 修复 Android 首次扫描、系统开关、监听器、重复连接、Android 7 时间、离线重试及跨患者队列问题；增加中文操作界面、R8 与 v2/v3/v4 签名及无 USB Actions；将网关测试改为无 IPC 启动 | 代码与脚本静态检查及 6 项网关测试通过，Android Actions 与签名产物待 PR 验证；仍未做手机和传感器实测 | 完成 PR 云端构建，配置长期 release keystore，并在手机安装产物验证真实 BLE | `npm run gateway:test`（6/6）、`npm run lint`、`npm run check:status`、`bash -n`、`git diff --check`；Android CI 待运行 |
 
 ## Agent 更新规则
 

@@ -12,8 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Mirrors the shared TypeScript gateway's order of operations: persist, provision,
@@ -27,51 +28,74 @@ final class PlatformGateway {
 
     private final EncryptedSampleQueue queue;
     private final Listener listener;
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
     private final Map<String, String> platformDeviceIds = new HashMap<>();
+    private final Map<String, String> sessionIds = new HashMap<>();
     private final Map<SensorPlacement, TimedPitch> latestPitch = new EnumMap<>(SensorPlacement.class);
 
     private String baseUrl;
     private String patientId;
     private String bearerToken;
-    private String sessionId;
-    private boolean active;
+    private volatile boolean active;
 
     PlatformGateway(EncryptedSampleQueue queue, Listener listener) {
         this.queue = queue;
         this.listener = listener;
+        worker.scheduleWithFixedDelay(this::retryQueuedSamples, 15, 15, TimeUnit.SECONDS);
     }
 
     void start(String baseUrl, String patientId, String bearerToken) {
-        this.baseUrl = stripTrailingSlash(baseUrl);
+        String normalizedUrl = stripTrailingSlash(baseUrl);
+        if (this.baseUrl != null && !this.baseUrl.equals(normalizedUrl)) {
+            platformDeviceIds.clear();
+            sessionIds.clear();
+        }
+        this.baseUrl = normalizedUrl;
         this.patientId = patientId;
         this.bearerToken = bearerToken;
-        this.sessionId = null;
+        sessionIds.remove(patientId);
+        latestPitch.clear();
         this.active = true;
+        listener.onStatus("采集会话已就绪；加密队列中有 " + queue.size() + " 条待上传数据。");
         flush();
     }
 
     void stop() {
         active = false;
+        worker.execute(latestPitch::clear);
+    }
+
+    void close() {
+        active = false;
+        worker.shutdownNow();
     }
 
     void accept(SensorSample sample) {
         if (!active) {
             return;
         }
+        String targetPatientId = patientId;
         worker.execute(() -> {
+            if (!active) {
+                return;
+            }
             try {
                 JSONObject payload = sample.toUploadJson();
-                payload.put("patientId", patientId);
+                payload.put("patientId", targetPatientId);
                 latestPitch.put(sample.placement, new TimedPitch(sample.recordedAtMs, sample.pitch));
                 TimedPitch thigh = latestPitch.get(SensorPlacement.THIGH);
-                if (sample.placement == SensorPlacement.SHANK
-                        && thigh != null
-                        && Math.abs(sample.recordedAtMs - thigh.recordedAtMs) <= 300) {
-                    double flexion = Math.min(150, Math.abs(sample.pitch - thigh.pitch));
-                    payload.put("flexionAngle", Math.round(flexion * 10.0) / 10.0);
-                    payload.put("extensionAngle", Math.max(-20, Math.min(40, -flexion)));
-                    payload.put("confidence", Math.max(0.5, 1.0 - Math.abs(sample.recordedAtMs - thigh.recordedAtMs) / 1000.0));
+                if (sample.placement == SensorPlacement.SHANK && thigh != null) {
+                    KneeAngleCalculator.Result angle = KneeAngleCalculator.calculate(
+                            thigh.recordedAtMs,
+                            thigh.pitch,
+                            sample.recordedAtMs,
+                            sample.pitch
+                    );
+                    if (angle != null) {
+                        payload.put("flexionAngle", angle.flexion);
+                        payload.put("extensionAngle", angle.extension);
+                        payload.put("confidence", angle.confidence);
+                    }
                 }
                 queue.append(payload);
                 flushOnWorker();
@@ -96,7 +120,8 @@ final class PlatformGateway {
             JSONObject sample;
             while ((sample = queue.peek()) != null) {
                 String deviceId = ensureDevice(sample);
-                String activeSessionId = ensureSession();
+                String samplePatientId = sample.getString("patientId");
+                String activeSessionId = ensureSession(samplePatientId);
                 sample.put("deviceId", deviceId);
                 sample.put("sessionId", activeSessionId);
                 postJson("/api/sensor-samples", sample);
@@ -104,16 +129,24 @@ final class PlatformGateway {
                 uploaded += 1;
             }
             if (uploaded > 0) {
-                listener.onStatus("Uploaded " + uploaded + " physical gateway samples.");
+                listener.onStatus("已上传 " + uploaded + " 条真实网关采样。");
             }
         } catch (Exception error) {
-            listener.onStatus("Upload paused; encrypted local queue will retry when restarted.");
+            listener.onStatus("上传暂缓；" + queue.size() + " 条数据仍在加密队列中，15 秒后自动重试。");
+        }
+    }
+
+    private void retryQueuedSamples() {
+        if (active) {
+            flushOnWorker();
         }
     }
 
     private String ensureDevice(JSONObject sample) throws Exception {
         String gatewayDeviceId = sample.getString("gatewayDeviceId");
-        String cached = platformDeviceIds.get(gatewayDeviceId);
+        String samplePatientId = sample.getString("patientId");
+        String cacheKey = samplePatientId + "\u0000" + gatewayDeviceId + "\u0000" + sample.getString("placement");
+        String cached = platformDeviceIds.get(cacheKey);
         if (cached != null) {
             return cached;
         }
@@ -128,47 +161,53 @@ final class PlatformGateway {
 
         JSONObject bindingPayload = new JSONObject();
         bindingPayload.put("deviceId", deviceId);
-        bindingPayload.put("patientId", patientId);
+        bindingPayload.put("patientId", samplePatientId);
         bindingPayload.put("placement", sample.getString("placement"));
         postJson("/api/device-bindings", bindingPayload);
-        platformDeviceIds.put(gatewayDeviceId, deviceId);
+        platformDeviceIds.put(cacheKey, deviceId);
         return deviceId;
     }
 
-    private String ensureSession() throws Exception {
+    private String ensureSession(String samplePatientId) throws Exception {
+        String sessionId = sessionIds.get(samplePatientId);
         if (sessionId == null) {
             JSONObject sessionPayload = new JSONObject();
-            sessionPayload.put("patientId", patientId);
+            sessionPayload.put("patientId", samplePatientId);
             sessionPayload.put("source", "HARDWARE");
             sessionId = postJson("/api/sensor-sessions", sessionPayload).getString("id");
+            sessionIds.put(samplePatientId, sessionId);
         }
         return sessionId;
     }
 
     private JSONObject postJson(String path, JSONObject body) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + path).openConnection();
-        connection.setRequestMethod("POST");
-        connection.setConnectTimeout(10_000);
-        connection.setReadTimeout(15_000);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Accept", "application/json");
-        if (bearerToken != null && !bearerToken.isEmpty()) {
-            connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
-        }
-        connection.setDoOutput(true);
-        try (OutputStream output = connection.getOutputStream()) {
-            output.write(body.toString().getBytes(StandardCharsets.UTF_8));
-        }
+        try {
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(10_000);
+            connection.setReadTimeout(15_000);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Accept", "application/json");
+            if (bearerToken != null && !bearerToken.isEmpty()) {
+                connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
+            }
+            connection.setDoOutput(true);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body.toString().getBytes(StandardCharsets.UTF_8));
+            }
 
-        int status = connection.getResponseCode();
-        InputStream stream = status >= 200 && status < 300
-                ? connection.getInputStream()
-                : connection.getErrorStream();
-        String response = readFully(stream);
-        if (status < 200 || status >= 300) {
-            throw new IllegalStateException("POST " + path + " failed (" + status + "): " + response);
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 200 && status < 300
+                    ? connection.getInputStream()
+                    : connection.getErrorStream();
+            String response = readFully(stream);
+            if (status < 200 || status >= 300) {
+                throw new IllegalStateException("POST " + path + " failed (" + status + "): " + response);
+            }
+            return new JSONObject(response);
+        } finally {
+            connection.disconnect();
         }
-        return new JSONObject(response);
     }
 
     private static String readFully(InputStream stream) throws Exception {
