@@ -57,6 +57,7 @@ by execution policy.
 - Development migration: `cmd /c npm run db:migrate`
 - Production migration deploy: `cmd /c npm run db:deploy`
 - Hardware gateway tests: `cmd /c npm run gateway:test`
+- Android debug APK: `powershell -ExecutionPolicy Bypass -File mobile-gateway-android/scripts/build-debug.ps1 -SkipSdkSync`
 
 On Linux, GitHub Codespaces, and Codex cloud environments, use:
 

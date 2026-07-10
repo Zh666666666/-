@@ -10,8 +10,10 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.UUID;
@@ -78,7 +80,7 @@ final class EncryptedSampleQueue {
         return files().length;
     }
 
-    private EncryptedFile encrypted(File destination) {
+    private EncryptedFile encrypted(File destination) throws GeneralSecurityException, IOException {
         return new EncryptedFile.Builder(
                 context,
                 destination,

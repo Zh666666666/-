@@ -6,15 +6,22 @@ Codespace cannot connect to a patient's nearby BLE devices.
 
 ## Before building
 
-1. Install Android Studio with Android SDK Platform 35 and JDK 17.
+1. Install Android Studio with Android SDK Platform 35 and JDK 17, or prepare
+   those tools under `%LOCALAPPDATA%\tka-rehab-tools`.
 2. From this directory, run `powershell -ExecutionPolicy Bypass -File scripts/sync-wit-sdk.ps1`.
-3. Open this directory in Android Studio and let Gradle sync.
+3. Run `powershell -ExecutionPolicy Bypass -File scripts/build-debug.ps1`, or
+   open this directory in Android Studio and let Gradle sync.
 4. Set a production HTTPS API URL and patient ID in the app before starting a session.
 
 `sync-wit-sdk.ps1` downloads the Android `WitSDK` source module from WitMotion's
 official sample repository into `vendor/WitSDK`. That local dependency is ignored
 by Git because the upstream repository does not publish a license file. Review
 and accept the upstream terms before distributing an APK.
+
+The sync script first tries a shallow Git clone. When direct GitHub clone access
+is unavailable, it falls back to the authenticated GitHub API and verifies the
+official `DeviceModel.java` file before returning successfully. Use `-ApiOnly`
+to skip the Git clone attempt on a restricted network.
 
 ## Implemented contract
 
@@ -26,10 +33,12 @@ and accept the upstream terms before distributing an APK.
 - Provisions devices, records active placements, opens a hardware session, and
   posts samples to the platform APIs.
 
-The app has not been compiled or physically validated in this repository yet:
-this computer has no Android SDK/JDK installed and the sensors have not arrived.
-Do not call a reading real hardware data until it arrives through the official
-SDK callback on a physical phone.
+The debug application has been compiled successfully on Windows with JDK 17,
+Android Platform 35, Gradle 8.7, and the downloaded official WitSDK. The output
+is `app/build/outputs/apk/debug/app-debug.apk`. It has not been installed on a
+physical Android phone or validated with a sensor yet. Do not call a reading
+real hardware data until it arrives through the official SDK callback on a
+physical phone.
 
 ## Arrival-day verification
 

@@ -2,5 +2,7 @@
 # intentionally not committed because its upstream repository has no license file.
 /vendor/WitSDK/
 /app/build/
+/build/
 /.gradle/
-
+/local.properties
+/.idea/

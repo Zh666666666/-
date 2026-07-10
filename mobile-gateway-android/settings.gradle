@@ -21,5 +21,6 @@ def witSdkDirectory = file('vendor/WitSDK')
 if (witSdkDirectory.exists()) {
     include ':WitSDK'
     project(':WitSDK').projectDir = witSdkDirectory
+} else {
+    throw new GradleException('Official WitSDK is missing. Run scripts/sync-wit-sdk.ps1 before building.')
 }
-

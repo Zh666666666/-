@@ -34,14 +34,17 @@ Official product documents:
 - native Android gateway shell in `mobile-gateway-android`, with an official SDK
   wrapper, two-device placement assignment, zero-angle commands, encrypted
   append-only offline storage, and platform API uploader
+- reproducible Android build scripts, Gradle 8.7 wrapper with distribution
+  checksum, restricted-network GitHub API fallback for WitSDK, and a verified
+  debug APK build using Android Platform 35 and JDK 17
 
 The JSONL queue is the desktop reference implementation. The Android app should
 implement the same `OfflineQueue` contract with encrypted mobile storage.
 
 ## Android Work Still Required
 
-- run `mobile-gateway-android/scripts/sync-wit-sdk.ps1` and compile the native
-  shell with Android Studio, SDK Platform 35, and JDK 17
+- install the compiled debug APK on a physical Android phone and verify runtime
+  permission, foreground lifecycle, and screen behavior
 - confirm the downloaded official SDK remains compatible with the selected
   WT9011DCL-BT50 firmware
 - add a foreground service and reconnect scheduling after physical validation;
