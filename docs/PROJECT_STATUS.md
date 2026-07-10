@@ -41,6 +41,7 @@
 - 已配置 JDK 17、Android Platform 35、Build Tools、ADB 与 Gradle 8.7 Wrapper；官方 WitSDK 支持 Git 或 GitHub API 同步，Android Debug APK 已在 Windows 完整编译成功并核验包名、SDK 版本和蓝牙权限。
 - 已完成 Android 网关 v0.2 稳定性修复：首次授权后自动续扫、蓝牙/定位前置检查、SDK 监听器释放、重复连接清理、Android 7 时间格式兼容、每传感器 10Hz 限流、15 秒离线补传、损坏队列隔离，以及按样本原患者恢复设备绑定与采集会话。
 - 已增加 Android 无 USB 云端验证和发布加固：JVM 测试、Android Lint、Debug/Release 构建、R8 混淆与资源缩减、zipalign，以及 APK v2/v3 与 v4 `.idsig` 签名生成和核验脚本。
+- 已增加 Android 安装自检：在无需 USB 的手机安装场景中逐项显示 BLE 硬件、蓝牙、权限、定位、加密离线队列和平台配置是否就绪；自检通过只代表可以开始扫描，不会把未连接的传感器误标记为可用。
 
 ### Agent 与云端开发
 
@@ -66,7 +67,7 @@
 - GitHub Actions：通过
 - 云端无密钥时：使用 Demo 模式
 - 目标型号：已调整为更具性价比的 `WT9011DCL-BT50`，购买或换货状态待确认
-- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`；尚未连接 Android 手机或实物传感器验证
+- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`；安装自检代码待本次 PR 的 Android CI 验证，尚未连接 Android 手机或实物传感器验证
 - 正式服务器：暂不可用，尚未部署生产环境
 - 当前产品性质：可演示、可云端开发，尚未完成真实硬件与生产部署验收
 - 视觉系统：核心工作台已完成临床化 UI 收敛，其他业务页面继续复用共享卡片、按钮、输入框和导航样式
@@ -113,6 +114,7 @@
 | 2026-07-10 | 修复 Android 首次扫描、系统开关、监听器、重复连接、Android 7 时间、离线重试及跨患者队列问题；增加中文操作界面、R8 与 v2/v3/v4 签名及无 USB Actions；将网关测试改为无 IPC 启动 | 代码与脚本静态检查及 6 项网关测试通过，Android Actions 与签名产物待 PR 验证；仍未做手机和传感器实测 | 完成 PR 云端构建，配置长期 release keystore，并在手机安装产物验证真实 BLE | `npm run gateway:test`（6/6）、`npm run lint`、`npm run check:status`、`bash -n`、`git diff --check`；Android CI 待运行 |
 | 2026-07-10 | 生成长期 Release 签名证书并将密钥材料配置为 GitHub Secrets；云端流水线生成可安装 APK、v2/v3 签名凭据和 v4 `.idsig`，本地以 Android APK 签名库实际验证 v4 | 远端签名产物已验证；新增加的脚本化 v4 校验待本 PR 的 Android Actions 验证；没有 USB 时仅能验证构建与安装包，BLE 真机行为仍待手机和传感器 | 完成 v4 校验 PR；从 Actions 下载 APK 到手机进行无需 USB 的启动、权限和基础页面检查 | `Android Gateway #29083371917` 成功；`VerifyV4Signature` 输出 `Overall verified: true`、`Verified using v4 scheme: true` |
 | 2026-07-10 | 合并 APK v4 签名校验脚本；云端完整执行临时与长期证书签名、R8、zipalign、v2/v3 和 `.idsig` 的密码学校验，并上传无 USB 测试包及正式 Release 产物 | Release APK 已由长期证书签名；尚未安装到 Android 手机，亦未与真实传感器联调 | 从 GitHub Actions 下载 Debug 或 Release APK 到手机，验证启动、权限与基础页面；传感器到货后执行 BLE 实机验收 | `Android Gateway #29085556867` 两个 job 成功；产物 `TKA-Gateway-v0.2.0.apk.v4-verify.txt` 为 `Overall verified: true`、`Verified using v4 scheme: true` |
+| 2026-07-10 | 增加 Android 安装自检和 JVM 覆盖：将 BLE、蓝牙开关、权限、定位、离线队列及平台配置的状态集中显示，明确区分“可扫描”与“已连接真实传感器” | 代码待本 PR 的 Android CI 验证；尚未在 Android 手机或实物 WT9011DCL-BT50 上运行 | 合并后从 Actions 下载新 APK，在手机运行安装自检并保存结果；设备到货后再验证扫描、连接和上传 | `GatewayReadinessTest`、Android Lint/构建待运行 |
 
 ## Agent 更新规则
 

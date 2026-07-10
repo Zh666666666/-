@@ -2,6 +2,8 @@ package cn.tkarehab.gateway;
 
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.bluetooth.BluetoothAdapter;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -15,6 +17,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.wit.witsdk.Bluetooth.WitBluetoothManager;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -174,6 +178,11 @@ public final class MainActivity extends AppCompatActivity {
         sessionActions.addView(stop, weightedButton());
         content.addView(sessionActions);
 
+        Button readiness = new Button(this);
+        readiness.setText("运行安装自检");
+        readiness.setOnClickListener(view -> runReadinessCheck());
+        content.addView(readiness);
+
         Button scan = new Button(this);
         scan.setText("授权并扫描 WT 设备");
         scan.setOnClickListener(view -> {
@@ -289,6 +298,28 @@ public final class MainActivity extends AppCompatActivity {
     private void restoreConfiguration() {
         apiUrl.setText(preferences.getString("apiUrl", ""));
         patientId.setText(preferences.getString("patientId", ""));
+    }
+
+    private void runReadinessCheck() {
+        boolean supportsBle = getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        boolean bluetoothEnabled = adapter != null && adapter.isEnabled();
+        boolean permissionsGranted = WitBluetoothManager.checkPermissions(this);
+        LocationManager location = (LocationManager) getSystemService(LOCATION_SERVICE);
+        boolean locationEnabled = location == null || location.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        GatewayConfig.Validation configuration = GatewayConfig.validate(
+                apiUrl.getText().toString(),
+                patientId.getText().toString()
+        );
+        renderStatus(GatewayReadiness.report(
+                BuildConfig.VERSION_NAME,
+                supportsBle,
+                bluetoothEnabled,
+                permissionsGranted,
+                locationEnabled,
+                platformGateway != null,
+                configuration
+        ));
     }
 
     private void addDiscoveredDevice(String address, String name) {
