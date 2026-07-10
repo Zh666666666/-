@@ -25,12 +25,13 @@ fi
 build_tools="$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
 zipalign="$build_tools/zipalign"
 apksigner="$build_tools/apksigner"
-if [[ ! -x "$zipalign" || ! -x "$apksigner" ]]; then
-    echo "zipalign or apksigner was not found under $ANDROID_SDK_ROOT/build-tools." >&2
+apksigner_jar="$build_tools/lib/apksigner.jar"
+if [[ ! -x "$zipalign" || ! -x "$apksigner" || ! -f "$apksigner_jar" ]]; then
+    echo "zipalign, apksigner, or apksigner.jar was not found under $ANDROID_SDK_ROOT/build-tools." >&2
     exit 1
 fi
 
-rm -f "$aligned_apk" "$signed_apk" "$signed_apk.idsig" "$signed_apk.verify.txt"
+rm -f "$aligned_apk" "$signed_apk" "$signed_apk.idsig" "$signed_apk.verify.txt" "$signed_apk.v4-verify.txt"
 "$zipalign" -p -f 4 "$unsigned_apk" "$aligned_apk"
 "$apksigner" sign \
     --ks "$SIGNING_KEYSTORE" \
@@ -50,6 +51,9 @@ rm -f "$aligned_apk" "$signed_apk" "$signed_apk.idsig" "$signed_apk.verify.txt"
 grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$signed_apk.verify.txt"
 grep -Fq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$signed_apk.verify.txt"
 test -s "$signed_apk.idsig"
+javac -cp "$apksigner_jar" -d "$output_dir" "$project_root/scripts/VerifyV4Signature.java"
+java -cp "$apksigner_jar:$output_dir" VerifyV4Signature "$signed_apk" "$signed_apk.idsig" | tee "$signed_apk.v4-verify.txt"
+rm -f "$output_dir/VerifyV4Signature.class"
 sha256sum "$signed_apk" "$signed_apk.idsig"
 rm -f "$aligned_apk"
 
