@@ -258,14 +258,14 @@ export default function FamilyDevicesPage() {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <header className="overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_28rem),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(236,253,245,0.9))] p-5 shadow-sm md:rounded-[2rem] md:p-6">
+        <header className="overflow-hidden rounded-lg border border-[#d9e2e9] bg-white p-5 shadow-sm md:p-6">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
                 <Radio className="size-4" />
                 WT9011DCL-BT50 真实设备准备
               </Badge>
-              <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:text-5xl">设备绑定与校准</h1>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#12304a] md:text-4xl">设备绑定与校准</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">
                 先把大腿和小腿两个传感器档案建好。传感器到货后，手机采集端只要按这里的绑定关系上传数据，就能进入真实康复闭环。
               </p>

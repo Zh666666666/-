@@ -204,9 +204,9 @@ const soapTemplateOptions: Array<{ key: SoapTemplateKey; label: string; helper: 
   { key: "familyStress", label: "家属压力 SOAP", helper: "照护焦虑与沟通支持" },
 ];
 
-const nursePanelClass = "rounded-[2rem] border border-[#e7dcc8] bg-[#fffaf2]/95 text-[#17251f] shadow-[0_24px_70px_rgba(46,61,50,0.10)] backdrop-blur";
-const nurseQuietPanelClass = "rounded-[1.5rem] border border-[#eadfce] bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]";
-const nurseDarkPanelClass = "rounded-[1.75rem] bg-[#17251f] text-white shadow-[0_24px_70px_rgba(23,37,31,0.24)]";
+const nursePanelClass = "rounded-lg border border-[#d9e2e9] bg-white text-[#142536] shadow-[0_2px_8px_rgba(20,45,65,0.06)]";
+const nurseQuietPanelClass = "rounded-md border border-[#e1e9ee] bg-[#f8fbfc]";
+const nurseDarkPanelClass = "rounded-lg bg-[#12304a] text-white shadow-sm";
 
 function guidanceTemplateFor(key: GuidanceTemplateKey, patient: PatientSummary | null): Pick<GuidanceState, "guidance" | "notes"> {
   const name = patient?.name ?? "家人";
@@ -668,13 +668,13 @@ export default function NursePage() {
   const averageDuration = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.activityDuration, 0) / latestByPatient.length : 0;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] pb-32 text-[#17251f] md:pb-0">
+    <main className="relative min-h-screen bg-[#f5f8fb] pb-32 text-[#142536] md:pb-0">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_8%,rgba(91,135,111,0.28),transparent_30rem),radial-gradient(circle_at_86%_4%,rgba(235,181,95,0.22),transparent_26rem)]" />
       <div className="pointer-events-none absolute -left-24 top-64 h-64 w-64 rounded-full bg-[#dfcaa8]/35 blur-3xl" />
       <div className="pointer-events-none absolute bottom-20 right-0 h-72 w-72 rounded-full bg-[#9fc4b1]/25 blur-3xl" />
 
       <section className="relative mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 md:gap-5 md:px-8 md:py-5">
-        <header className="family-view-enter relative overflow-hidden rounded-[1.75rem] bg-[#17251f] p-4 text-white shadow-[0_24px_70px_rgba(23,37,31,0.22)] md:rounded-[2.5rem] md:p-8 md:shadow-[0_32px_90px_rgba(23,37,31,0.28)]">
+        <header className="family-view-enter relative overflow-hidden rounded-lg border border-[#1c4967] bg-[#12304a] p-4 text-white shadow-[0_4px_16px_rgba(18,48,74,0.16)] md:p-6">
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#d7a75f]/25 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -685,7 +685,7 @@ export default function NursePage() {
                 </Badge>
                 <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-white shadow-none">TKA 康复护士工作台</Badge>
               </div>
-              <h1 className="mt-4 max-w-4xl font-display text-3xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:mt-6 md:text-7xl">病区护理，一屏掌握。</h1>
+              <h1 className="mt-4 max-w-4xl text-3xl font-bold leading-tight text-white md:mt-5 md:text-5xl">病区护理，一屏掌握。</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-[#d6e4da] md:mt-5 md:text-lg md:leading-9">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
             </div>
             <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end">
@@ -716,7 +716,7 @@ export default function NursePage() {
           </div>
         </header>
 
-        <nav className="family-view-enter grid grid-cols-5 gap-1 rounded-[1.25rem] border border-[#e1d3bd] bg-[#fffaf2]/82 p-1 shadow-[0_14px_42px_rgba(46,61,50,0.07)] backdrop-blur md:gap-2 md:rounded-[2rem] md:p-2 md:shadow-[0_18px_60px_rgba(46,61,50,0.08)] lg:grid-cols-5">
+        <nav className="family-view-enter grid grid-cols-5 gap-1 rounded-lg border border-[#d9e2e9] bg-white p-1 shadow-sm md:gap-2 md:p-2 lg:grid-cols-5">
           {nurseWorkspaces.map((item, index) => {
             const Icon = item.icon;
             const active = activeWorkspace === item.value;
@@ -726,13 +726,13 @@ export default function NursePage() {
                 key={item.value}
                 type="button"
                 className={cn(
-                  "group rounded-[0.95rem] p-2 text-center transition-all duration-300 md:rounded-[1.45rem] md:p-4 md:text-left",
-                  active ? "bg-[#17251f] text-white shadow-[0_18px_45px_rgba(23,37,31,0.22)]" : "text-[#4c5b50] hover:bg-white/80 hover:text-[#17251f]",
+                  "group rounded-md p-2 text-center transition-colors md:p-3 md:text-left",
+                  active ? "bg-[#12304a] text-white shadow-sm" : "text-[#516878] hover:bg-[#edf4f6] hover:text-[#12304a]",
                 )}
                 onClick={() => setActiveWorkspace(item.value)}
               >
                 <div className="flex items-center justify-center gap-2 md:justify-between md:gap-3">
-                  <span className={cn("flex size-8 items-center justify-center rounded-xl transition md:size-10 md:rounded-2xl", active ? "bg-[#f2c36b] text-[#17251f]" : "bg-[#eef1e8] text-[#5b876f] group-hover:bg-[#e2eadf]")}>
+                  <span className={cn("flex size-8 items-center justify-center rounded-md transition md:size-9", active ? "bg-[#48b4c0] text-[#082a43]" : "bg-[#e5f1f2] text-[#087e8b] group-hover:bg-[#d5e9eb]")}>
                     <Icon className="size-4 md:size-5" />
                   </span>
                   <span className={cn("hidden text-xs font-black tracking-[0.16em] md:inline", active ? "text-[#f2c36b]" : "text-[#a28f73]")}>0{index + 1}</span>
@@ -1154,13 +1154,13 @@ function DetailList({ title, empty, children }: { title: string; empty: string; 
 function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; helper: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-[1.35rem] border p-3 text-left shadow-[0_14px_38px_rgba(46,61,50,0.07)] transition-all hover:-translate-y-0.5 hover:bg-white md:rounded-[2rem] md:p-5 md:shadow-[0_18px_55px_rgba(46,61,50,0.08)]", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[#e1d3bd] bg-[#fffaf2]/90 text-[#17251f]")}>
-        <div className={cn("flex items-center justify-between", danger ? "text-red-700" : "text-[#718174]")}>
+      <button className={cn("rounded-lg border p-3 text-left shadow-sm transition-colors hover:bg-[#f8fbfc] md:p-4", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[#d9e2e9] bg-white text-[#142536]")}>
+        <div className={cn("flex items-center justify-between", danger ? "text-red-700" : "text-[#66798a]")}>
           <span className="text-xs md:text-sm">{label}</span>
-          <Icon className={cn("size-4 md:size-5", danger ? "text-red-600" : "text-[#5b876f]")} />
+          <Icon className={cn("size-4 md:size-5", danger ? "text-red-600" : "text-[#087e8b]")} />
         </div>
         <p className="mt-2 text-2xl font-black tracking-tight md:mt-4 md:text-4xl">{value}</p>
-        <p className={cn("mt-1 text-xs md:mt-2 md:text-sm", danger ? "text-red-700" : "text-[#718174]")}>{helper} · 点击科普</p>
+        <p className={cn("mt-1 text-xs md:mt-2 md:text-sm", danger ? "text-red-700" : "text-[#66798a]")}>{helper} · 点击科普</p>
       </button>
     </MetricEducationDialog>
   );
@@ -1169,7 +1169,7 @@ function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: 
 function PatientMetric({ icon: Icon, metric, label, value, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-3xl border p-5 text-left transition-all hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg", danger ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-[#17251f]")}>
+      <button className={cn("rounded-lg border p-4 text-left transition-colors hover:border-[#93c7cd] hover:bg-[#f8fbfc]", danger ? "border-red-200 bg-red-50 text-red-700" : "border-[#d9e2e9] bg-white text-[#142536]")}>
         <div className="flex items-center justify-between text-sm">
           <span>{label}</span>
           <Icon className="size-5" />

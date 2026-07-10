@@ -4,33 +4,33 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f4efe5;
-  --foreground: #17251f;
-  --card: #fffaf2;
-  --card-foreground: #17251f;
-  --popover: #fffaf2;
-  --popover-foreground: #17251f;
-  --primary: #17251f;
-  --primary-foreground: #fff7e8;
-  --secondary: #edf2e7;
-  --secondary-foreground: #315242;
-  --muted: #efe6d6;
-  --muted-foreground: #718174;
-  --accent: #fff1cf;
-  --accent-foreground: #7a571b;
+  --background: #f5f8fb;
+  --foreground: #142536;
+  --card: #ffffff;
+  --card-foreground: #142536;
+  --popover: #ffffff;
+  --popover-foreground: #142536;
+  --primary: #12304a;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f2f3;
+  --secondary-foreground: #0b5d6b;
+  --muted: #edf2f5;
+  --muted-foreground: #66798a;
+  --accent: #d8eff1;
+  --accent-foreground: #075b69;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e1d3bd;
-  --input: #d8c8ad;
-  --ring: #5b876f;
-  --chart-1: #2f6f55;
-  --chart-2: #2f5f8f;
-  --chart-3: #b0823d;
+  --border: #d9e2e9;
+  --input: #c9d6e0;
+  --ring: #0b7f8f;
+  --chart-1: #087e8b;
+  --chart-2: #206b9c;
+  --chart-3: #d18b28;
   --chart-4: #dc2626;
-  --chart-5: #6f5a3c;
-  --radius: 1.15rem;
-  --font-sans: "Aptos", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  --font-display: "Georgia", "Noto Serif SC", "SimSun", serif;
+  --chart-5: #5f6b7a;
+  --radius: 0.5rem;
+  --font-sans: "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-display: "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 
 @theme inline {
@@ -77,10 +77,7 @@ html {
 body {
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(91, 135, 111, 0.18), transparent 32rem),
-    radial-gradient(circle at 82% 0%, rgba(242, 195, 107, 0.14), transparent 28rem),
-    linear-gradient(135deg, #f8f3e9 0%, #f2eadc 45%, #f7f4ec 100%);
+  background: #f5f8fb;
   color: var(--foreground);
   font-family: var(--font-sans);
 }
@@ -90,11 +87,9 @@ body {
 }
 
 .rehab-grid {
-  background-image:
-    linear-gradient(rgba(91, 135, 111, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(91, 135, 111, 0.07) 1px, transparent 1px),
-    radial-gradient(circle at 20% 10%, rgba(242, 195, 107, 0.16), transparent 28rem);
-  background-size: 34px 34px, 34px 34px, auto;
+  background-color: #f5f8fb;
+  background-image: linear-gradient(rgba(20, 61, 88, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 61, 88, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
 @keyframes pulse-sync {
@@ -142,12 +137,10 @@ body {
 
 .hello-mark {
   display: inline-block;
-  background: linear-gradient(90deg, #fff7e8 0%, #f2c36b 44%, #d6e4da 100%);
-  background-clip: text;
-  color: transparent;
-  font-family: Georgia, "Noto Serif SC", serif;
-  font-style: italic;
-  letter-spacing: -0.12em;
-  line-height: 0.82;
+  color: #12304a;
+  font-family: var(--font-sans);
+  font-style: normal;
+  letter-spacing: 0;
+  line-height: 1;
   animation: hello-reveal 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

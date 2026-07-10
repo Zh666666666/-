@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -31,12 +31,21 @@ type SamplePoint = {
 };
 
 type UploadItem = {
-  id: number;
+  id: string;
   label: string;
   status: "queued" | "uploaded" | "alert";
 };
 
 const maxHistory = 18;
+
+const initialSample: SamplePoint = {
+  id: 0,
+  time: "--:--:--",
+  thighPitch: 7,
+  shankPitch: 99,
+  angle: 92,
+  confidence: 0.9,
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -77,12 +86,12 @@ function sourceLabel(status: UploadItem["status"]) {
 export default function HardwareDemoPage() {
   const [running, setRunning] = useState(true);
   const [calibrated, setCalibrated] = useState(true);
-  const [index, setIndex] = useState(1);
-  const [history, setHistory] = useState<SamplePoint[]>(() => [createSample(0)]);
+  const nextSampleIndex = useRef(1);
+  const [history, setHistory] = useState<SamplePoint[]>([initialSample]);
   const [uploads, setUploads] = useState<UploadItem[]>([
-    { id: 1, label: "WT9011DCL-THIGH-001 已连接", status: "uploaded" },
-    { id: 2, label: "WT9011DCL-SHANK-001 已连接", status: "uploaded" },
-    { id: 3, label: "零点校准 GOOD", status: "uploaded" },
+    { id: "thigh-connected", label: "WT9011DCL-THIGH-001 已连接", status: "uploaded" },
+    { id: "shank-connected", label: "WT9011DCL-SHANK-001 已连接", status: "uploaded" },
+    { id: "initial-calibration", label: "零点校准 GOOD", status: "uploaded" },
   ]);
   const [apiState, setApiState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
 
@@ -92,28 +101,22 @@ export default function HardwareDemoPage() {
     }
 
     const timer = window.setInterval(() => {
-      setIndex((current) => {
-        const next = current + 1;
-        const sample = createSample(next);
+      const sample = createSample(nextSampleIndex.current);
+      nextSampleIndex.current += 1;
+      const upload: UploadItem = {
+        id: crypto.randomUUID(),
+        label: `屈曲 ${sample.angle.toFixed(0)} 度 · 可信度 ${(sample.confidence * 100).toFixed(0)}%`,
+        status: sample.angle < 78 ? "alert" : "uploaded",
+      };
 
-        setHistory((items) => [...items.slice(-(maxHistory - 1)), sample]);
-        setUploads((items) => [
-          {
-            id: Date.now(),
-            label: `屈曲 ${sample.angle.toFixed(0)} 度 · 可信度 ${(sample.confidence * 100).toFixed(0)}%`,
-            status: sample.angle < 78 ? "alert" as const : "uploaded" as const,
-          },
-          ...items,
-        ].slice(0, 8));
-
-        return next;
-      });
+      setHistory((items) => [...items.slice(-(maxHistory - 1)), sample]);
+      setUploads((items) => [upload, ...items].slice(0, 8));
     }, 1200);
 
     return () => window.clearInterval(timer);
   }, [running]);
 
-  const latest = history.at(-1) ?? createSample(0);
+  const latest = history.at(-1) ?? initialSample;
   const angleStatus = latest.angle < 78 ? "需要护士复核" : latest.angle >= 105 ? "接近目标范围" : "稳定训练中";
   const alertOpen = latest.angle < 78;
   const minAngle = Math.min(...history.map((item) => item.angle));
@@ -142,7 +145,7 @@ export default function HardwareDemoPage() {
 
       setApiState("saved");
       setUploads((items) => [
-        { id: Date.now(), label: "已写入本地 HARDWARE 样本", status: "uploaded" as const },
+        { id: crypto.randomUUID(), label: "已写入本地 HARDWARE 样本", status: "uploaded" as const },
         ...items,
       ].slice(0, 8));
     } catch {
@@ -151,11 +154,11 @@ export default function HardwareDemoPage() {
   }
 
   function injectLowAngle() {
-    const sample = createSample(index + 1, true);
-    setIndex((current) => current + 1);
+    const sample = createSample(nextSampleIndex.current, true);
+    nextSampleIndex.current += 1;
     setHistory((items) => [...items.slice(-(maxHistory - 1)), sample]);
     setUploads((items) => [
-      { id: Date.now(), label: `屈曲 ${sample.angle.toFixed(0)} 度 · 触发 ROM 预警`, status: "alert" as const },
+      { id: crypto.randomUUID(), label: `屈曲 ${sample.angle.toFixed(0)} 度 · 触发 ROM 预警`, status: "alert" as const },
       ...items,
     ].slice(0, 8));
   }
@@ -163,15 +166,15 @@ export default function HardwareDemoPage() {
   function resetCalibration() {
     setCalibrated(true);
     setUploads((items) => [
-      { id: Date.now(), label: "伸直位零点校准 GOOD", status: "uploaded" as const },
+      { id: crypto.randomUUID(), label: "伸直位零点校准 GOOD", status: "uploaded" as const },
       ...items,
     ].slice(0, 8));
   }
 
   return (
-    <main className="rehab-grid min-h-screen overflow-x-hidden px-4 py-4 text-[#17251f] md:px-8 md:py-6">
+    <main className="rehab-grid min-h-screen overflow-x-hidden px-4 py-4 text-[#142536] md:px-8 md:py-6">
       <section className="mx-auto grid w-full min-w-0 max-w-7xl gap-4">
-        <header className="min-w-0 overflow-hidden rounded-[1.5rem] border border-[#d8c8ad] bg-[#fffaf2]/95 p-4 shadow-sm md:p-5">
+        <header className="min-w-0 overflow-hidden rounded-lg border border-[#d9e2e9] bg-white p-4 shadow-sm md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -204,7 +207,7 @@ export default function HardwareDemoPage() {
         </header>
 
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-          <Card className="min-w-0 overflow-hidden rounded-[1.5rem]">
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Activity className="size-5 text-[#2f6f55]" />
@@ -213,16 +216,16 @@ export default function HardwareDemoPage() {
             </CardHeader>
             <CardContent>
               <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <div className="min-w-0 rounded-[1.25rem] border border-[#e1d3bd] bg-white/75 p-4">
-                  <div className="relative mx-auto flex aspect-square max-w-[21rem] items-center justify-center rounded-full border border-[#d8c8ad] bg-[#f8f3e9]">
-                    <div className="absolute h-[42%] w-5 origin-bottom rounded-full bg-[#2f6f55] shadow-lg" style={{ transform: `translateY(-36%) rotate(${latest.thighPitch - 8}deg)` }} />
-                    <div className="absolute h-[45%] w-5 origin-top rounded-full bg-[#b0823d] shadow-lg" style={{ transform: `translateY(36%) rotate(${latest.angle - 88}deg)` }} />
-                    <div className="absolute flex size-24 flex-col items-center justify-center rounded-full border border-[#d8c8ad] bg-[#fffaf2] shadow-sm">
+                <div className="min-w-0 rounded-lg border border-[#d9e2e9] bg-[#f8fbfc] p-4">
+                  <div className="relative mx-auto flex aspect-square max-w-[21rem] items-center justify-center rounded-full border border-[#cbd8e1] bg-[#eef7f8]">
+                    <div className="absolute h-[42%] w-5 origin-bottom rounded-full bg-[#087e8b] shadow-lg" style={{ transform: `translateY(-36%) rotate(${latest.thighPitch - 8}deg)` }} />
+                    <div className="absolute h-[45%] w-5 origin-top rounded-full bg-[#d18b28] shadow-lg" style={{ transform: `translateY(36%) rotate(${latest.angle - 88}deg)` }} />
+                    <div className="absolute flex size-24 flex-col items-center justify-center rounded-full border border-[#cbd8e1] bg-white shadow-sm">
                       <span className="text-3xl font-black">{latest.angle.toFixed(0)}°</span>
                       <span className="text-xs font-bold text-[#718174]">屈曲角</span>
                     </div>
-                    <span className="absolute left-5 top-8 rounded-full bg-[#edf2e7] px-3 py-1 text-xs font-bold text-[#315242]">大腿 IMU</span>
-                    <span className="absolute bottom-8 right-5 rounded-full bg-[#fff1cf] px-3 py-1 text-xs font-bold text-[#7a571b]">小腿 IMU</span>
+                    <span className="absolute left-5 top-8 rounded-full bg-[#d8eff1] px-3 py-1 text-xs font-bold text-[#075b69]">大腿 IMU</span>
+                    <span className="absolute bottom-8 right-5 rounded-full bg-[#fff0d6] px-3 py-1 text-xs font-bold text-[#8a560d]">小腿 IMU</span>
                   </div>
                 </div>
 
@@ -234,14 +237,14 @@ export default function HardwareDemoPage() {
                       ["可信度", `${(latest.confidence * 100).toFixed(0)}%`],
                       ["采样时间", latest.time],
                     ].map(([label, value]) => (
-                      <div key={label} className="rounded-[1rem] border border-[#e1d3bd] bg-white/80 p-3">
+                      <div key={label} className="rounded-md border border-[#d9e2e9] bg-white p-3">
                         <p className="text-xs font-bold text-[#718174]">{label}</p>
                         <p className="mt-2 text-xl font-black">{value}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="rounded-[1.25rem] border border-[#e1d3bd] bg-white/75 p-4">
+                  <div className="rounded-lg border border-[#d9e2e9] bg-white p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="font-black">最近采集曲线</p>
                       <p className="text-xs font-bold text-[#718174]">范围 {minAngle.toFixed(0)}° - {maxAngle.toFixed(0)}°</p>
@@ -279,7 +282,7 @@ export default function HardwareDemoPage() {
           </Card>
 
           <div className="grid min-w-0 gap-4">
-            <Card className="min-w-0 overflow-hidden rounded-[1.5rem] bg-[#17251f] text-white">
+            <Card className="min-w-0 overflow-hidden bg-[#12304a] text-white">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Wifi className="size-5 text-[#f2c36b]" />
@@ -314,7 +317,7 @@ export default function HardwareDemoPage() {
               </CardContent>
             </Card>
 
-            <Card className="min-w-0 overflow-hidden rounded-[1.5rem]">
+            <Card className="min-w-0 overflow-hidden">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <CloudUpload className="size-5 text-[#2f6f55]" />
@@ -336,7 +339,7 @@ export default function HardwareDemoPage() {
         </div>
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-          <Card className={`min-w-0 overflow-hidden rounded-[1.5rem] ${alertOpen ? "border-red-200 bg-red-50/90" : "border-emerald-100 bg-emerald-50/90"}`}>
+          <Card className={`min-w-0 overflow-hidden ${alertOpen ? "border-red-200 bg-red-50/90" : "border-[#b7dde1] bg-[#eef9fa]"}`}>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <AlertTriangle className={`size-5 ${alertOpen ? "text-red-600" : "text-emerald-700"}`} />
@@ -351,7 +354,7 @@ export default function HardwareDemoPage() {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 overflow-hidden rounded-[1.5rem]">
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Stethoscope className="size-5 text-[#2f6f55]" />

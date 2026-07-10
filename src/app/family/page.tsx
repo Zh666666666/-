@@ -78,9 +78,9 @@ const careToolCards = [
   },
 ];
 
-const panelClass = "rounded-[2rem] border border-[#e7dcc8] bg-[#fffaf2]/95 text-[#17251f] shadow-[0_24px_70px_rgba(46,61,50,0.10)] backdrop-blur";
-const quietPanelClass = "rounded-[1.5rem] border border-[#eadfce] bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]";
-const darkPanelClass = "rounded-[1.75rem] bg-[#17251f] text-white shadow-[0_24px_70px_rgba(23,37,31,0.24)]";
+const panelClass = "rounded-lg border border-[#d9e2e9] bg-white text-[#142536] shadow-[0_2px_8px_rgba(20,45,65,0.06)]";
+const quietPanelClass = "rounded-md border border-[#e1e9ee] bg-[#f8fbfc]";
+const darkPanelClass = "rounded-lg bg-[#12304a] text-white shadow-sm";
 
 export default function FamilyPage() {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
@@ -226,37 +226,32 @@ export default function FamilyPage() {
       : "先完成今日陪伴打卡，再查看最新角度和训练时长；如有疼痛、肿胀或不放心，及时预约护士。";
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] px-3 pb-28 pt-3 text-[#17251f] md:px-10 md:pb-10 md:pt-6">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_8%,rgba(91,135,111,0.28),transparent_30rem),radial-gradient(circle_at_86%_4%,rgba(235,181,95,0.22),transparent_26rem)]" />
-      <div className="pointer-events-none absolute -left-24 top-64 h-64 w-64 rounded-full bg-[#dfcaa8]/35 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-20 right-0 h-72 w-72 rounded-full bg-[#9fc4b1]/25 blur-3xl" />
+    <main className="relative min-h-screen bg-[#f5f8fb] px-3 pb-28 pt-3 text-[#142536] md:px-10 md:pb-10 md:pt-6">
 
       <section className="relative mx-auto flex max-w-6xl flex-col gap-3 md:gap-6">
-        <header className="family-view-enter relative overflow-hidden rounded-[1.75rem] bg-[#17251f] p-4 text-white shadow-[0_24px_70px_rgba(23,37,31,0.22)] md:rounded-[2.5rem] md:p-8 md:shadow-[0_32px_90px_rgba(23,37,31,0.28)]">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#d7a75f]/25 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 left-1/3 h-px w-80 bg-gradient-to-r from-transparent via-[#f4d18a]/70 to-transparent" />
+        <header className="family-view-enter relative overflow-hidden rounded-lg border border-[#1c4967] bg-[#12304a] p-4 text-white shadow-[0_4px_16px_rgba(18,48,74,0.16)] md:p-6">
           <div className="relative grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-end">
             <div>
-              <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-[#f8deb0] shadow-none">
+              <Badge className="border border-[#78c9d3]/40 bg-[#0b7f8f]/20 px-3 py-1 text-[#d8f3f5] shadow-none">
                 家庭照护台 · 智能护膝在线
               </Badge>
-              <h1 className="mt-4 max-w-3xl font-display text-3xl font-bold leading-[1.05] tracking-[-0.04em] text-[#fff7e8] md:mt-6 md:text-7xl">
+              <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-tight text-white md:mt-5 md:text-5xl">
                 今日康复照护，一眼看清。
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-[#d6e4da] md:mt-5 md:text-lg md:leading-9">
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-[#d6e7ee] md:mt-4 md:text-base md:leading-7">
                 先看今日陪伴和风险提醒，再查看训练数据、护士建议和上门护理安排，让家属照护更有把握。
               </p>
               <div className="mt-5 grid grid-cols-2 gap-2 md:mt-7 md:flex md:flex-wrap md:gap-3">
-                <Button asChild size="lg" className="h-10 rounded-xl bg-[#f2c36b] text-sm text-[#17251f] shadow-[0_14px_32px_rgba(242,195,107,0.20)] hover:bg-[#ffd27d] md:h-12 md:rounded-2xl md:text-base md:shadow-[0_18px_42px_rgba(242,195,107,0.24)]">
+                <Button asChild size="lg" className="h-10 rounded-md bg-[#48b4c0] text-sm text-[#082a43] shadow-none hover:bg-[#68c3cc] md:h-11 md:text-base">
                   <Link href="/appointments">预约护理</Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 text-sm text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:text-base">
+                <Button asChild size="lg" variant="outline" className="h-10 rounded-md border-white/30 bg-transparent text-sm text-white hover:bg-white/10 hover:text-white md:h-11 md:text-base">
                   <Link href="/family/profile">个人资料</Link>
                 </Button>
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-white/12 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur md:rounded-[2rem] md:p-5">
+            <div className="rounded-md border border-white/15 bg-white/[0.08] p-4 md:p-5">
               <div className="flex items-center justify-between text-sm text-[#c9dfd2]">
                 <span>{patient ? `${patient.name} · ${patient.age} 岁` : "正在读取家人信息"}</span>
                 <span className="flex items-center gap-2 rounded-full bg-emerald-300/15 px-3 py-1 text-emerald-100">
@@ -269,7 +264,7 @@ export default function FamilyPage() {
                   <p className="text-sm text-[#c9dfd2]">最新屈曲角度</p>
                   <p className="mt-1 text-4xl font-black tracking-[-0.08em] text-[#fff7e8] md:mt-2 md:text-6xl">{flexion.toFixed(0)}°</p>
                 </div>
-                <div className="rounded-xl bg-[#fff7e8] px-3 py-2 text-right text-[#17251f] md:rounded-2xl md:px-4 md:py-3">
+                <div className="rounded-md bg-white px-3 py-2 text-right text-[#12304a] md:px-4 md:py-3">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6f6a5d]">Target</p>
                   <p className="mt-1 text-xl font-black md:text-2xl">{patient?.targetFlexion ?? 110}°</p>
                 </div>
@@ -278,7 +273,7 @@ export default function FamilyPage() {
           </div>
         </header>
 
-        <nav className="family-view-enter grid grid-cols-4 gap-1 rounded-[1.25rem] border border-[#e1d3bd] bg-[#fffaf2]/82 p-1 shadow-[0_14px_42px_rgba(46,61,50,0.07)] backdrop-blur md:gap-2 md:rounded-[2rem] md:p-2 md:shadow-[0_18px_60px_rgba(46,61,50,0.08)] lg:grid-cols-4">
+        <nav className="family-view-enter grid grid-cols-4 gap-1 rounded-lg border border-[#d9e2e9] bg-white p-1 shadow-sm md:gap-2 md:p-2 lg:grid-cols-4">
           {familyWorkspaces.map((item, index) => {
             const Icon = item.icon;
             const active = activeWorkspace === item.value;
@@ -288,13 +283,13 @@ export default function FamilyPage() {
                 key={item.value}
                 type="button"
                 className={cn(
-                  "group rounded-[0.95rem] p-2 text-center transition-all duration-300 md:rounded-[1.45rem] md:p-4 md:text-left",
-                  active ? "bg-[#17251f] text-white shadow-[0_18px_45px_rgba(23,37,31,0.22)]" : "text-[#4c5b50] hover:bg-white/80 hover:text-[#17251f]",
+                  "group rounded-md p-2 text-center transition-colors md:p-3 md:text-left",
+                  active ? "bg-[#12304a] text-white shadow-sm" : "text-[#516878] hover:bg-[#edf4f6] hover:text-[#12304a]",
                 )}
                 onClick={() => setActiveWorkspace(item.value)}
               >
                 <div className="flex items-center justify-center gap-2 md:justify-between md:gap-3">
-                  <span className={cn("flex size-8 items-center justify-center rounded-xl transition md:size-10 md:rounded-2xl", active ? "bg-[#f2c36b] text-[#17251f]" : "bg-[#eef1e8] text-[#5b876f] group-hover:bg-[#e2eadf]") }>
+                  <span className={cn("flex size-8 items-center justify-center rounded-md transition md:size-9", active ? "bg-[#48b4c0] text-[#082a43]" : "bg-[#e5f1f2] text-[#087e8b] group-hover:bg-[#d5e9eb]") }>
                     <Icon className="size-4 md:size-5" />
                   </span>
                   <span className={cn("hidden text-xs font-black tracking-[0.16em] md:inline", active ? "text-[#f2c36b]" : "text-[#a28f73]")}>0{index + 1}</span>
