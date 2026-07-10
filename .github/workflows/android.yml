@@ -72,6 +72,7 @@ jobs:
             mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk
             mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk.idsig
             mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk.verify.txt
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk.v4-verify.txt
             mobile-gateway-android/app/build/reports/tests/testDebugUnitTest/
             mobile-gateway-android/app/build/reports/lint-results-debug.html
 
@@ -122,3 +123,4 @@ jobs:
             mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk
             mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk.idsig
             mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk.verify.txt
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk.v4-verify.txt

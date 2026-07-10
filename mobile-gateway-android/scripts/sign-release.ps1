@@ -34,11 +34,12 @@ $buildTools = Get-ChildItem (Join-Path $AndroidSdk 'build-tools') -Directory |
     Select-Object -First 1
 $zipalign = Join-Path $buildTools.FullName 'zipalign.exe'
 $apksigner = Join-Path $buildTools.FullName 'apksigner.bat'
-if (-not (Test-Path $zipalign) -or -not (Test-Path $apksigner)) {
-    throw 'zipalign or apksigner was not found in Android build-tools.'
+$apksignerJar = Join-Path $buildTools.FullName 'lib\apksigner.jar'
+if (-not (Test-Path $zipalign) -or -not (Test-Path $apksigner) -or -not (Test-Path $apksignerJar)) {
+    throw 'zipalign, apksigner, or apksigner.jar was not found in Android build-tools.'
 }
 
-Remove-Item $alignedApk, $signedApk, "$signedApk.idsig", "$signedApk.verify.txt" -Force -ErrorAction SilentlyContinue
+Remove-Item $alignedApk, $signedApk, "$signedApk.idsig", "$signedApk.verify.txt", "$signedApk.v4-verify.txt" -Force -ErrorAction SilentlyContinue
 & $zipalign -p -f 4 $unsignedApk $alignedApk
 if ($LASTEXITCODE -ne 0) { throw 'zipalign failed.' }
 & $apksigner sign --ks $Keystore --ks-key-alias $Alias --ks-pass env:SIGNING_STORE_PASSWORD --key-pass env:SIGNING_KEY_PASSWORD --min-sdk-version 24 --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled true --out $signedApk $alignedApk
@@ -51,6 +52,12 @@ if ($LASTEXITCODE -ne 0 -or $verification -notmatch 'Verified using v2 scheme \(
     throw 'APK v2/v3 signature verification failed.'
 }
 if (-not (Test-Path "$signedApk.idsig")) { throw 'APK v4 .idsig output is missing.' }
+$v4Verifier = Join-Path $PSScriptRoot 'VerifyV4Signature.java'
+& javac -cp $apksignerJar -d $outputDirectory $v4Verifier
+if ($LASTEXITCODE -ne 0) { throw 'APK v4 verifier compilation failed.' }
+& java -cp "$apksignerJar;$outputDirectory" VerifyV4Signature $signedApk "$signedApk.idsig" | Set-Content "$signedApk.v4-verify.txt"
+if ($LASTEXITCODE -ne 0) { throw 'APK v4 signature verification failed.' }
+Remove-Item (Join-Path $outputDirectory 'VerifyV4Signature.class') -Force -ErrorAction SilentlyContinue
 Remove-Item $alignedApk -Force
 Write-Output "Signed APK ready: $signedApk"
 Write-Output "APK Signature Scheme v4 sidecar: $signedApk.idsig"
