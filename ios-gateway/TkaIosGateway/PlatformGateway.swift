@@ -64,7 +64,7 @@ actor PlatformGateway {
         if placement == .shank, let thigh = latestPitch[.thigh],
            let angle = KneeAngleCalculator.calculate(thighAt: thigh.at, thighPitch: thigh.pitch, shankAt: now, shankPitch: sample.pitch) {
             sample.flexionAngle = angle.flexion
-            sample.extensionAngle = angle.extension
+            sample.extensionAngle = angle.extensionAngle
             sample.confidence = angle.confidence
         }
         do {
