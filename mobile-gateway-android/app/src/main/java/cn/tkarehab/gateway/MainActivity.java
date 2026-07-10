@@ -1,35 +1,48 @@
 package cn.tkarehab.gateway;
 
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.HashSet;
 import java.util.Set;
 
-/** A deliberately small operational screen for initial device pairing and field testing. */
+/** Operational screen for pairing, collection, and no-USB field diagnostics. */
 public final class MainActivity extends AppCompatActivity {
+    private static final int WIT_PERMISSION_REQUEST = 1001;
+    private static final String PREFERENCES = "gateway-config";
+
     private final Set<String> renderedDevices = new HashSet<>();
     private LinearLayout devices;
     private TextView status;
+    private TextView sessionState;
     private EditText apiUrl;
     private EditText patientId;
     private EditText apiToken;
+    private Button start;
+    private Button stop;
     private WitBleGateway bleGateway;
     private PlatformGateway platformGateway;
+    private SharedPreferences preferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
         setContentView(createContent());
+        restoreConfiguration();
 
         try {
             platformGateway = new PlatformGateway(
@@ -47,7 +60,7 @@ public final class MainActivity extends AppCompatActivity {
                     }
             );
         } catch (Exception error) {
-            renderStatus("Encrypted queue initialization failed" + detail(error));
+            renderStatus("加密离线队列初始化失败" + detail(error));
         }
 
         bleGateway = new WitBleGateway(this, new WitBleGateway.Listener() {
@@ -58,7 +71,7 @@ public final class MainActivity extends AppCompatActivity {
 
             @Override
             public void onConnectionChanged(String address, boolean connected) {
-                renderStatus(address + (connected ? " connected" : " disconnected"));
+                renderStatus(address + (connected ? " 已连接" : " 已断开"));
             }
 
             @Override
@@ -77,10 +90,31 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (bleGateway != null) {
             bleGateway.stop();
         }
+        if (platformGateway != null) {
+            platformGateway.close();
+        }
         super.onDestroy();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            @NonNull String[] permissions,
+            @NonNull int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != WIT_PERMISSION_REQUEST || bleGateway == null) {
+            return;
+        }
+        boolean granted = grantResults.length > 0;
+        for (int result : grantResults) {
+            granted &= result == PackageManager.PERMISSION_GRANTED;
+        }
+        bleGateway.onPermissionsResult(granted);
     }
 
     private View createContent() {
@@ -90,57 +124,104 @@ public final class MainActivity extends AppCompatActivity {
         content.setPadding(padding, padding, padding, padding);
 
         TextView title = new TextView(this);
-        title.setText("TKA Hardware Gateway");
-        title.setTextSize(22);
+        title.setText("TKA 康复传感器网关");
+        title.setTextSize(24);
+        title.setTextColor(0xFF0F2942);
         content.addView(title);
 
-        apiUrl = labeledInput(content, "HTTPS API URL", "https://your-server.example.com", InputType.TYPE_TEXT_VARIATION_URI);
-        patientId = labeledInput(content, "Patient ID", "Patient ID from the platform", InputType.TYPE_CLASS_TEXT);
-        apiToken = labeledInput(content, "Bearer token (optional)", "Leave blank until production auth is enabled", InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        TextView description = new TextView(this);
+        description.setText("连接大腿与小腿 WT9011DCL-BT50，数据先加密保存在手机，网络恢复后自动补传。");
+        description.setTextColor(0xFF496579);
+        description.setPadding(0, dp(6), 0, dp(10));
+        content.addView(description);
 
-        Button start = new Button(this);
-        start.setText("Start hardware session");
+        sessionState = new TextView(this);
+        sessionState.setText("采集状态：未开始");
+        sessionState.setTextColor(0xFF7A4E00);
+        sessionState.setBackgroundColor(0xFFFFF4D6);
+        sessionState.setPadding(dp(12), dp(10), dp(12), dp(10));
+        content.addView(sessionState);
+
+        apiUrl = labeledInput(
+                content,
+                "平台 HTTPS 地址",
+                "https://your-server.example.com",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
+        );
+        patientId = labeledInput(
+                content,
+                "患者 ID",
+                "从平台患者资料复制",
+                InputType.TYPE_CLASS_TEXT
+        );
+        apiToken = labeledInput(
+                content,
+                "Bearer Token（可选，不保存）",
+                "正式鉴权启用后填写",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+
+        LinearLayout sessionActions = new LinearLayout(this);
+        sessionActions.setOrientation(LinearLayout.HORIZONTAL);
+        start = new Button(this);
+        start.setText("开始采集");
         start.setOnClickListener(view -> startSession());
-        content.addView(start);
+        sessionActions.addView(start, weightedButton());
+        stop = new Button(this);
+        stop.setText("停止");
+        stop.setEnabled(false);
+        stop.setOnClickListener(view -> stopSession());
+        sessionActions.addView(stop, weightedButton());
+        content.addView(sessionActions);
 
         Button scan = new Button(this);
-        scan.setText("Request permissions and scan WT devices");
+        scan.setText("授权并扫描 WT 设备");
         scan.setOnClickListener(view -> {
             renderedDevices.clear();
             devices.removeAllViews();
             bleGateway.requestPermissionsAndScan();
-            renderStatus("Scanning for official WIT BLE devices.");
         });
         content.addView(scan);
 
         LinearLayout calibration = new LinearLayout(this);
         calibration.setOrientation(LinearLayout.HORIZONTAL);
         Button zeroThigh = new Button(this);
-        zeroThigh.setText("Zero thigh");
+        zeroThigh.setText("大腿归零");
         zeroThigh.setOnClickListener(view -> bleGateway.setAngleZero(SensorPlacement.THIGH));
-        calibration.addView(zeroThigh, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        calibration.addView(zeroThigh, weightedButton());
         Button zeroShank = new Button(this);
-        zeroShank.setText("Zero shank");
+        zeroShank.setText("小腿归零");
         zeroShank.setOnClickListener(view -> bleGateway.setAngleZero(SensorPlacement.SHANK));
-        calibration.addView(zeroShank, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        calibration.addView(zeroShank, weightedButton());
         content.addView(calibration);
 
         TextView discoveredLabel = new TextView(this);
-        discoveredLabel.setText("Discovered devices");
+        discoveredLabel.setText("扫描到的设备");
         discoveredLabel.setTextSize(18);
-        discoveredLabel.setPadding(0, dp(12), 0, dp(4));
+        discoveredLabel.setTextColor(0xFF0F2942);
+        discoveredLabel.setPadding(0, dp(14), 0, dp(4));
         content.addView(discoveredLabel);
 
         devices = new LinearLayout(this);
         devices.setOrientation(LinearLayout.VERTICAL);
         content.addView(devices);
 
+        TextView statusLabel = new TextView(this);
+        statusLabel.setText("运行信息");
+        statusLabel.setTextSize(18);
+        statusLabel.setTextColor(0xFF0F2942);
+        statusLabel.setPadding(0, dp(14), 0, dp(4));
+        content.addView(statusLabel);
+
         status = new TextView(this);
-        status.setText("Enter the server URL and patient ID, then start a session. Readings stay queued until upload succeeds.");
-        status.setPadding(0, dp(16), 0, 0);
+        status.setText("先填写平台地址和患者 ID，再开始采集。首次扫描会请求蓝牙和定位权限。");
+        status.setTextIsSelectable(true);
+        status.setBackgroundColor(0xFFF2F6F8);
+        status.setPadding(dp(12), dp(10), dp(12), dp(10));
         content.addView(status);
 
         ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
         scrollView.addView(content);
         return scrollView;
     }
@@ -148,6 +229,7 @@ public final class MainActivity extends AppCompatActivity {
     private EditText labeledInput(LinearLayout container, String label, String hint, int inputType) {
         TextView text = new TextView(this);
         text.setText(label);
+        text.setTextColor(0xFF2D4A5E);
         text.setPadding(0, dp(10), 0, dp(2));
         container.addView(text);
 
@@ -160,18 +242,53 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void startSession() {
-        String url = apiUrl.getText().toString().trim();
-        String patient = patientId.getText().toString().trim();
-        if (!url.startsWith("https://") || patient.isEmpty()) {
-            renderStatus("Use an HTTPS API URL and a platform patient ID before collecting physical data.");
+        GatewayConfig.Validation validation = GatewayConfig.validate(
+                apiUrl.getText().toString(),
+                patientId.getText().toString()
+        );
+        if (!validation.valid) {
+            renderStatus(validation.message);
             return;
         }
         if (platformGateway == null) {
-            renderStatus("The encrypted queue is unavailable; do not start collection.");
+            renderStatus("加密队列不可用，已阻止采集，避免丢失数据。");
             return;
         }
-        platformGateway.start(url, patient, apiToken.getText().toString().trim());
-        renderStatus("Hardware session armed. Scan and assign the thigh and shank sensors.");
+
+        preferences.edit()
+                .putString("apiUrl", validation.baseUrl)
+                .putString("patientId", validation.patientId)
+                .apply();
+        platformGateway.start(
+                validation.baseUrl,
+                validation.patientId,
+                apiToken.getText().toString().trim()
+        );
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        start.setEnabled(false);
+        stop.setEnabled(true);
+        sessionState.setText("采集状态：已开始（等待传感器）");
+        sessionState.setTextColor(0xFF00695C);
+        sessionState.setBackgroundColor(0xFFE0F2F1);
+        renderStatus("采集已启动。现在扫描设备，并分别分配为大腿和小腿传感器。");
+    }
+
+    private void stopSession() {
+        if (platformGateway != null) {
+            platformGateway.stop();
+        }
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        start.setEnabled(true);
+        stop.setEnabled(false);
+        sessionState.setText("采集状态：已停止");
+        sessionState.setTextColor(0xFF7A4E00);
+        sessionState.setBackgroundColor(0xFFFFF4D6);
+        renderStatus("采集已停止。未上传的数据仍保存在手机的加密队列中。");
+    }
+
+    private void restoreConfiguration() {
+        apiUrl.setText(preferences.getString("apiUrl", ""));
+        patientId.setText(preferences.getString("patientId", ""));
     }
 
     private void addDiscoveredDevice(String address, String name) {
@@ -184,26 +301,31 @@ public final class MainActivity extends AppCompatActivity {
 
         TextView label = new TextView(this);
         label.setText(name + "\n" + address);
+        label.setTextIsSelectable(true);
         row.addView(label);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setGravity(Gravity.START);
         Button thigh = new Button(this);
-        thigh.setText("Assign thigh");
+        thigh.setText("设为大腿");
         thigh.setOnClickListener(view -> {
             bleGateway.assignAndConnect(address, SensorPlacement.THIGH);
-            renderStatus(name + " assigned as thigh.");
+            renderStatus(name + " 正在连接为大腿传感器。");
         });
-        actions.addView(thigh);
+        actions.addView(thigh, weightedButton());
         Button shank = new Button(this);
-        shank.setText("Assign shank");
+        shank.setText("设为小腿");
         shank.setOnClickListener(view -> {
             bleGateway.assignAndConnect(address, SensorPlacement.SHANK);
-            renderStatus(name + " assigned as shank.");
+            renderStatus(name + " 正在连接为小腿传感器。");
         });
-        actions.addView(shank);
+        actions.addView(shank, weightedButton());
         row.addView(actions);
         devices.addView(row);
+    }
+
+    private LinearLayout.LayoutParams weightedButton() {
+        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
     }
 
     private void renderStatus(String message) {
@@ -215,6 +337,9 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private static String detail(Exception error) {
-        return error == null ? "" : ": " + error.getMessage();
+        if (error == null || error.getMessage() == null || error.getMessage().isEmpty()) {
+            return "";
+        }
+        return "：" + error.getMessage();
     }
 }

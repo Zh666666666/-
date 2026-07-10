@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:status": "node scripts/check-project-status.mjs",
-    "gateway:test": "tsx --test hardware-gateway/protocol/wit-standard.test.ts hardware-gateway/offline-queue.test.ts hardware-gateway/ble-sdk-adapter.test.ts",
+    "gateway:test": "node --import tsx --test hardware-gateway/protocol/wit-standard.test.ts hardware-gateway/offline-queue.test.ts hardware-gateway/ble-sdk-adapter.test.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

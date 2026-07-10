@@ -1,0 +1,124 @@
+name: Android Gateway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile-gateway-android/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'mobile-gateway-android/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      create_signed_release:
+        description: 'Create a durable release with the configured signing secrets'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Prepare pinned official WitSDK
+        run: mobile-gateway-android/scripts/sync-wit-sdk.sh
+
+      - name: Run unit tests, lint, and release builds
+        working-directory: mobile-gateway-android
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease
+
+      - name: Exercise v2/v3/v4 signing pipeline with an ephemeral CI key
+        env:
+          SIGNING_KEYSTORE: ${{ runner.temp }}/android-ci-signing.jks
+          SIGNING_KEY_ALIAS: android-ci
+          SIGNING_STORE_PASSWORD: android-ci-only
+          SIGNING_KEY_PASSWORD: android-ci-only
+          SIGNED_APK: ${{ github.workspace }}/mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk
+        run: |
+          keytool -genkeypair -noprompt \
+            -keystore "$SIGNING_KEYSTORE" \
+            -storepass "$SIGNING_STORE_PASSWORD" \
+            -keypass "$SIGNING_KEY_PASSWORD" \
+            -alias "$SIGNING_KEY_ALIAS" \
+            -keyalg RSA -keysize 3072 -validity 30 \
+            -dname 'CN=CI Test Only, O=TKA Rehab, C=CN'
+          mobile-gateway-android/scripts/sign-release.sh --skip-build
+
+      - name: Upload no-USB test APK and verification evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: android-gateway-ci-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            mobile-gateway-android/app/build/outputs/apk/debug/app-debug.apk
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk.idsig
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0-ci.apk.verify.txt
+            mobile-gateway-android/app/build/reports/tests/testDebugUnitTest/
+            mobile-gateway-android/app/build/reports/lint-results-debug.html
+
+  signed-release:
+    if: github.event_name == 'workflow_dispatch' && inputs.create_signed_release
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SIGNING_KEYSTORE: /tmp/tka-release.jks
+      SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+      SIGNED_APK: ${{ github.workspace }}/mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Validate release signing secrets
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          for value in "$SIGNING_KEYSTORE_BASE64" "$SIGNING_KEY_ALIAS" "$SIGNING_STORE_PASSWORD" "$SIGNING_KEY_PASSWORD"; do
+            test -n "$value" || { echo 'Android release signing secrets are incomplete.' >&2; exit 1; }
+          done
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$SIGNING_KEYSTORE"
+
+      - name: Prepare pinned official WitSDK
+        run: mobile-gateway-android/scripts/sync-wit-sdk.sh
+
+      - name: Build, harden, and sign release APK
+        run: mobile-gateway-android/scripts/sign-release.sh
+
+      - name: Upload durable signed release
+        uses: actions/upload-artifact@v6
+        with:
+          name: android-gateway-release-${{ github.sha }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk.idsig
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.2.0.apk.verify.txt

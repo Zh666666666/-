@@ -8,6 +8,7 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $destination = Join-Path $projectRoot 'vendor\WitSDK'
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'witmotion-ble5-sdk'
 $sourceRepository = 'https://github.com/WITMOTION/WitBluetooth_BWT901BLE5_0.git'
+$sourceCommit = '9efaab0fdd6a06dc807bf80402e58aa91b431c6f'
 $sourceModule = Join-Path $temporaryRoot 'Android_Java\wit-example-ble5\WitSDK'
 $repositoryApi = 'repos/WITMOTION/WitBluetooth_BWT901BLE5_0'
 $modulePrefix = 'Android_Java/wit-example-ble5/WitSDK/'
@@ -19,7 +20,7 @@ function Sync-FromGitHubApi {
         throw 'Git clone failed and GitHub CLI is unavailable for the API fallback.'
     }
 
-    $tree = gh api "$repositoryApi/git/trees/main?recursive=1" | ConvertFrom-Json
+    $tree = gh api "$repositoryApi/git/trees/$sourceCommit`?recursive=1" | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) {
         throw 'Could not read the official WitMotion repository tree through GitHub API.'
     }
@@ -36,7 +37,7 @@ function Sync-FromGitHubApi {
         $relativePath = $file.path.Substring($modulePrefix.Length).Replace('/', [IO.Path]::DirectorySeparatorChar)
         $targetPath = Join-Path $TargetDirectory $relativePath
         New-Item -ItemType Directory -Force (Split-Path $targetPath) | Out-Null
-        $content = gh api "$repositoryApi/contents/$($file.path)" | ConvertFrom-Json
+        $content = gh api "$repositoryApi/contents/$($file.path)?ref=$sourceCommit" | ConvertFrom-Json
         if ($LASTEXITCODE -ne 0 -or $null -eq $content.content) {
             throw "Could not download official SDK file $($file.path)."
         }
@@ -57,17 +58,22 @@ if (Test-Path $destination) {
 $cloneSucceeded = $false
 if (-not $ApiOnly) {
     if (-not (Test-Path $temporaryRoot)) {
-        git clone --depth 1 $sourceRepository $temporaryRoot
+        git init $temporaryRoot
+        git -C $temporaryRoot remote add origin $sourceRepository
     } else {
-        git -C $temporaryRoot pull --ff-only
+        git -C $temporaryRoot remote set-url origin $sourceRepository
     }
-    $cloneSucceeded = $LASTEXITCODE -eq 0
+    git -C $temporaryRoot fetch --depth 1 origin $sourceCommit
+    if ($LASTEXITCODE -eq 0) {
+        git -C $temporaryRoot checkout --detach FETCH_HEAD
+        $cloneSucceeded = $LASTEXITCODE -eq 0
+    }
 }
 
 if ($cloneSucceeded -and (Test-Path $sourceModule)) {
     New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
     Copy-Item -LiteralPath $sourceModule -Destination $destination -Recurse
-    Write-Output "Official WitSDK prepared from Git clone at $destination"
+    Write-Output "Official WitSDK prepared from pinned commit $sourceCommit at $destination"
 } else {
     if (Test-Path $temporaryRoot) {
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force

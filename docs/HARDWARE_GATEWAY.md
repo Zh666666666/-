@@ -35,8 +35,15 @@ Official product documents:
   wrapper, two-device placement assignment, zero-angle commands, encrypted
   append-only offline storage, and platform API uploader
 - reproducible Android build scripts, Gradle 8.7 wrapper with distribution
-  checksum, restricted-network GitHub API fallback for WitSDK, and a verified
-  debug APK build using Android Platform 35 and JDK 17
+  checksum, a pinned WitSDK commit with restricted-network GitHub API fallback,
+  and a verified debug APK build using Android Platform 35 and JDK 17
+- Android v0.2 runtime fixes for permission continuation, Bluetooth/location
+  readiness, SDK listener cleanup, duplicate connection cleanup, Android 7-safe
+  timestamps, sample-rate limiting, periodic offline retries, corrupt-record
+  quarantine, and patient-safe queue restoration
+- GitHub Actions no-USB validation plus R8 release shrinking and explicit APK
+  Signature Scheme v2/v3/v4 signing scripts; v4 is delivered as the required
+  `.idsig` sidecar
 
 The JSONL queue is the desktop reference implementation. The Android app should
 implement the same `OfflineQueue` contract with encrypted mobile storage.
