@@ -64,6 +64,11 @@ the browser or file manager for that one install, and install `app-debug.apk`.
 The debug package ID is `cn.tkarehab.gateway.debug`, so it can coexist with a
 production release.
 
+After installing, tap `运行安装自检`. It reports BLE hardware, Bluetooth, runtime
+permissions, location services, encrypted offline queue, and platform
+configuration separately. A successful self-check means the phone is ready to
+scan; it does not claim that a physical sensor has connected or uploaded data.
+
 ## Hardened release signing
 
 Release builds enable R8 code optimization/obfuscation and resource shrinking,
