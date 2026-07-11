@@ -40,6 +40,7 @@ public final class MainActivity extends AppCompatActivity {
     private WitBleGateway bleGateway;
     private PlatformGateway platformGateway;
     private SharedPreferences preferences;
+    private String bleInitializationFailure;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,29 +68,34 @@ public final class MainActivity extends AppCompatActivity {
             renderStatus("加密离线队列初始化失败" + detail(error));
         }
 
-        bleGateway = new WitBleGateway(this, new WitBleGateway.Listener() {
-            @Override
-            public void onDeviceFound(String address, String name) {
-                runOnUiThread(() -> addDiscoveredDevice(address, name));
-            }
-
-            @Override
-            public void onConnectionChanged(String address, boolean connected) {
-                renderStatus(address + (connected ? " 已连接" : " 已断开"));
-            }
-
-            @Override
-            public void onReading(SensorSample sample) {
-                if (platformGateway != null) {
-                    platformGateway.accept(sample);
+        try {
+            bleGateway = new WitBleGateway(this, new WitBleGateway.Listener() {
+                @Override
+                public void onDeviceFound(String address, String name) {
+                    runOnUiThread(() -> addDiscoveredDevice(address, name));
                 }
-            }
 
-            @Override
-            public void onError(String message, Exception error) {
-                renderStatus(message + detail(error));
-            }
-        });
+                @Override
+                public void onConnectionChanged(String address, boolean connected) {
+                    renderStatus(address + (connected ? " 已连接" : " 已断开"));
+                }
+
+                @Override
+                public void onReading(SensorSample sample) {
+                    if (platformGateway != null) {
+                        platformGateway.accept(sample);
+                    }
+                }
+
+                @Override
+                public void onError(String message, Exception error) {
+                    renderStatus(message + detail(error));
+                }
+            });
+        } catch (Throwable error) {
+            bleInitializationFailure = describe(error);
+            renderStatus("蓝牙 SDK 初始化失败。应用仍可打开，请保存此信息并反馈：" + bleInitializationFailure);
+        }
     }
 
     @Override
@@ -186,6 +192,9 @@ public final class MainActivity extends AppCompatActivity {
         Button scan = new Button(this);
         scan.setText("授权并扫描 WT 设备");
         scan.setOnClickListener(view -> {
+            if (!requireBleGateway()) {
+                return;
+            }
             renderedDevices.clear();
             devices.removeAllViews();
             bleGateway.requestPermissionsAndScan();
@@ -196,11 +205,19 @@ public final class MainActivity extends AppCompatActivity {
         calibration.setOrientation(LinearLayout.HORIZONTAL);
         Button zeroThigh = new Button(this);
         zeroThigh.setText("大腿归零");
-        zeroThigh.setOnClickListener(view -> bleGateway.setAngleZero(SensorPlacement.THIGH));
+        zeroThigh.setOnClickListener(view -> {
+            if (requireBleGateway()) {
+                bleGateway.setAngleZero(SensorPlacement.THIGH);
+            }
+        });
         calibration.addView(zeroThigh, weightedButton());
         Button zeroShank = new Button(this);
         zeroShank.setText("小腿归零");
-        zeroShank.setOnClickListener(view -> bleGateway.setAngleZero(SensorPlacement.SHANK));
+        zeroShank.setOnClickListener(view -> {
+            if (requireBleGateway()) {
+                bleGateway.setAngleZero(SensorPlacement.SHANK);
+            }
+        });
         calibration.addView(zeroShank, weightedButton());
         content.addView(calibration);
 
@@ -304,7 +321,12 @@ public final class MainActivity extends AppCompatActivity {
         boolean supportsBle = getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         boolean bluetoothEnabled = adapter != null && adapter.isEnabled();
-        boolean permissionsGranted = WitBluetoothManager.checkPermissions(this);
+        boolean permissionsGranted = false;
+        try {
+            permissionsGranted = WitBluetoothManager.checkPermissions(this);
+        } catch (Throwable error) {
+            bleInitializationFailure = describe(error);
+        }
         LocationManager location = (LocationManager) getSystemService(LOCATION_SERVICE);
         boolean locationEnabled = location == null || location.isProviderEnabled(LocationManager.GPS_PROVIDER);
         GatewayConfig.Validation configuration = GatewayConfig.validate(
@@ -319,7 +341,7 @@ public final class MainActivity extends AppCompatActivity {
                 locationEnabled,
                 platformGateway != null,
                 configuration
-        ));
+        ) + (bleInitializationFailure == null ? "" : "\n蓝牙 SDK：初始化失败 - " + bleInitializationFailure));
     }
 
     private void addDiscoveredDevice(String address, String name) {
@@ -340,6 +362,9 @@ public final class MainActivity extends AppCompatActivity {
         Button thigh = new Button(this);
         thigh.setText("设为大腿");
         thigh.setOnClickListener(view -> {
+            if (!requireBleGateway()) {
+                return;
+            }
             bleGateway.assignAndConnect(address, SensorPlacement.THIGH);
             renderStatus(name + " 正在连接为大腿传感器。");
         });
@@ -347,6 +372,9 @@ public final class MainActivity extends AppCompatActivity {
         Button shank = new Button(this);
         shank.setText("设为小腿");
         shank.setOnClickListener(view -> {
+            if (!requireBleGateway()) {
+                return;
+            }
             bleGateway.assignAndConnect(address, SensorPlacement.SHANK);
             renderStatus(name + " 正在连接为小腿传感器。");
         });
@@ -363,6 +391,14 @@ public final class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> status.setText(message));
     }
 
+    private boolean requireBleGateway() {
+        if (bleGateway != null) {
+            return true;
+        }
+        renderStatus("蓝牙 SDK 未就绪，无法执行此操作。请反馈：" + (bleInitializationFailure == null ? "初始化未完成" : bleInitializationFailure));
+        return false;
+    }
+
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
@@ -372,5 +408,10 @@ public final class MainActivity extends AppCompatActivity {
             return "";
         }
         return "：" + error.getMessage();
+    }
+
+    private static String describe(Throwable error) {
+        String message = error.getMessage();
+        return error.getClass().getSimpleName() + (message == null || message.isEmpty() ? "" : "：" + message);
     }
 }
