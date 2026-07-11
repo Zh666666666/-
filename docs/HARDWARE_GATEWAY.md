@@ -10,6 +10,10 @@ Official product documents:
 - https://wit-motion.yuque.com/wumwnr/docs/eeb0ridm0cnakfyn
 - https://wit-motion.gitbook.io/witmotion-sdk/ble-5.0-protocol/sdk/android_sdk-quick-start
 
+Repository reference: `docs/WITMOTION_WT9011DCL_BT50_REFERENCE.md` is the
+required vendor-document digest, protocol safety guide, and real-device
+acceptance checklist. Read it before changing BLE mappings or calibration.
+
 ## Architecture
 
 1. The Android app asks for Bluetooth permissions.
@@ -63,7 +67,7 @@ implement the same `OfflineQueue` contract with encrypted mobile storage.
 
 ## Physical Verification
 
-When the two devices arrive:
+When the two devices are available for the project test:
 
 1. Confirm both devices appear in the official WitMotion Android application.
 2. Record the actual device names, identifiers, firmware, and output keys.
