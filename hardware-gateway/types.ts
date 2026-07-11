@@ -28,6 +28,7 @@ export type SensorReading = {
     protocol: "WIT_STANDARD" | "WIT_BLE_SDK";
     transport: "BLE_5_NATIVE";
     frameTypes?: number[];
+    battery?: number;
   };
 };
 

@@ -11,6 +11,7 @@ import java.util.TimeZone;
 final class SensorSample {
     final String gatewayDeviceId;
     final String deviceName;
+    final String bleAddress;
     final SensorPlacement placement;
     final long recordedAtMs;
     final double roll;
@@ -22,10 +23,12 @@ final class SensorSample {
     final double gx;
     final double gy;
     final double gz;
+    final Integer batteryLevel;
 
     SensorSample(
             String gatewayDeviceId,
             String deviceName,
+            String bleAddress,
             SensorPlacement placement,
             long recordedAtMs,
             double roll,
@@ -36,10 +39,12 @@ final class SensorSample {
             double az,
             double gx,
             double gy,
-            double gz
+            double gz,
+            Integer batteryLevel
     ) {
         this.gatewayDeviceId = gatewayDeviceId;
         this.deviceName = deviceName;
+        this.bleAddress = bleAddress;
         this.placement = placement;
         this.recordedAtMs = recordedAtMs;
         this.roll = roll;
@@ -51,6 +56,7 @@ final class SensorSample {
         this.gx = gx;
         this.gy = gy;
         this.gz = gz;
+        this.batteryLevel = batteryLevel;
     }
 
     JSONObject toUploadJson() throws JSONException {
@@ -59,10 +65,14 @@ final class SensorSample {
         raw.put("transport", "BLE_5_NATIVE");
         raw.put("gatewayDeviceId", gatewayDeviceId);
         raw.put("deviceName", deviceName);
+        raw.put("bleAddress", bleAddress);
+        raw.put("sdkKeys", "Acc*/As*/Ang*/Electricity");
+        raw.put("model", "WT9011DCL-BT50");
 
         JSONObject payload = new JSONObject();
         payload.put("gatewayDeviceId", gatewayDeviceId);
         payload.put("patientId", "");
+        payload.put("source", "HARDWARE");
         payload.put("placement", placement.name());
         payload.put("recordedAt", formatRecordedAt(recordedAtMs));
         payload.put("roll", roll);
@@ -74,6 +84,9 @@ final class SensorSample {
         payload.put("gx", gx);
         payload.put("gy", gy);
         payload.put("gz", gz);
+        if (batteryLevel != null) {
+            payload.put("batteryLevel", batteryLevel);
+        }
         payload.put("raw", raw);
         return payload;
     }

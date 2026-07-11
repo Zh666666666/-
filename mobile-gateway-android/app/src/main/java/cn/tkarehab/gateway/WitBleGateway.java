@@ -36,6 +36,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private final Listener listener;
     private final DeviceManager deviceManager = DeviceManager.getInstance();
     private final Map<String, BluetoothDevice> discoveredDevices = new HashMap<>();
+    private final Map<String, String> discoveredNames = new HashMap<>();
     private final Map<String, SensorPlacement> placements = new HashMap<>();
     private final Map<String, Long> lastSampleAt = new HashMap<>();
     private boolean waitingForPermissions;
@@ -163,6 +164,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         deviceManager.RemoveDeviceFindListener(this);
         placements.clear();
         discoveredDevices.clear();
+        discoveredNames.clear();
         lastSampleAt.clear();
     }
 
@@ -178,6 +180,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
             return;
         }
         discoveredDevices.put(address, device);
+        discoveredNames.put(address, name);
         listener.onDeviceFound(address, name);
     }
 
@@ -196,22 +199,42 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         }
         lastSampleAt.put(address, now);
 
+        // Official WitSDK stores numeric attitude under AngX/AngY/AngZ and battery under Electricity.
+        // Display labels may say AngleX, but GetData must use the Ang* keys.
+        Double electricity = device.GetData("Electricity");
+        Integer batteryLevel = null;
+        if (electricity != null && Double.isFinite(electricity) && electricity >= 0) {
+            batteryLevel = (int) Math.max(0, Math.min(100, Math.round(electricity)));
+        }
+
+        String advertisedName = discoveredNames.get(address);
+        if (advertisedName == null || advertisedName.trim().isEmpty()) {
+            advertisedName = address;
+        }
+
         SensorSample sample = new SensorSample(
                 "BLE-" + address.replace(":", ""),
+                advertisedName,
                 address,
                 placement,
                 now,
-                device.GetData("AngX"),
-                device.GetData("AngY"),
-                device.GetData("AngZ"),
-                device.GetData("AccX"),
-                device.GetData("AccY"),
-                device.GetData("AccZ"),
-                device.GetData("AsX"),
-                device.GetData("AsY"),
-                device.GetData("AsZ")
+                safeData(device, "AngX"),
+                safeData(device, "AngY"),
+                safeData(device, "AngZ"),
+                safeData(device, "AccX"),
+                safeData(device, "AccY"),
+                safeData(device, "AccZ"),
+                safeData(device, "AsX"),
+                safeData(device, "AsY"),
+                safeData(device, "AsZ"),
+                batteryLevel
         );
         listener.onReading(sample);
+    }
+
+    private static double safeData(DeviceModel device, String key) {
+        Double value = device.GetData(key);
+        return value == null || !Double.isFinite(value) ? 0.0 : value;
     }
 
     @Override

@@ -32,7 +32,32 @@ test("normalizes the official BLE SDK key/value record", () => {
   assert.deepEqual(reading.raw, {
     protocol: "WIT_BLE_SDK",
     transport: "BLE_5_NATIVE",
+    battery: undefined,
   });
+});
+
+test("prefers official Ang* numeric keys from the Android SDK", () => {
+  const reading = normalizeWitBleSdkRecord({
+    serialNo: "WT9011DCL-SHANK-001",
+    placement: "SHANK",
+    record: {
+      AngX: 1,
+      AngY: 55,
+      AngZ: -3,
+      Electricity: 88,
+      AccX: 0.1,
+      AccY: 0.2,
+      AccZ: 0.9,
+      AsX: 1,
+      AsY: 2,
+      AsZ: 3,
+    },
+  });
+
+  assert.equal(reading.roll, 1);
+  assert.equal(reading.pitch, 55);
+  assert.equal(reading.yaw, -3);
+  assert.equal(reading.raw?.battery, 88);
 });
 
 test("rejects incomplete BLE attitude records", () => {
@@ -43,6 +68,6 @@ test("rejects incomplete BLE attitude records", () => {
         placement: "SHANK",
         record: { AngleX: 0, AngleY: 30 },
       }),
-    /missing AngleX, AngleY, or AngleZ/,
+    /missing AngX\/AngleX, AngY\/AngleY, or AngZ\/AngleZ/,
   );
 });

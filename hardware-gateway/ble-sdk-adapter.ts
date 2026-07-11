@@ -14,6 +14,10 @@ export type WitBleSdkRecord = Partial<
     | "AngleX"
     | "AngleY"
     | "AngleZ"
+    | "AngX"
+    | "AngY"
+    | "AngZ"
+    | "Electricity"
     | "Q0"
     | "Q1"
     | "Q2"
@@ -31,18 +35,31 @@ function optionalNumber(value: string | number | undefined) {
   return Number.isFinite(number) ? number : undefined;
 }
 
+function firstNumber(...values: Array<string | number | undefined>) {
+  for (const value of values) {
+    const number = optionalNumber(value);
+    if (number != null) {
+      return number;
+    }
+  }
+
+  return undefined;
+}
+
 export function normalizeWitBleSdkRecord(input: {
   serialNo: string;
   placement: GatewayPlacement;
   record: WitBleSdkRecord;
   recordedAt?: string;
 }): SensorReading {
-  const roll = optionalNumber(input.record.AngleX);
-  const pitch = optionalNumber(input.record.AngleY);
-  const yaw = optionalNumber(input.record.AngleZ);
+  // Official Android SDK stores numeric keys as AngX/AngY/AngZ.
+  // Some docs/display strings say AngleX/AngleY/AngleZ — accept both.
+  const roll = firstNumber(input.record.AngX, input.record.AngleX);
+  const pitch = firstNumber(input.record.AngY, input.record.AngleY);
+  const yaw = firstNumber(input.record.AngZ, input.record.AngleZ);
 
   if (roll == null || pitch == null || yaw == null) {
-    throw new Error("BLE record is missing AngleX, AngleY, or AngleZ.");
+    throw new Error("BLE record is missing AngX/AngleX, AngY/AngleY, or AngZ/AngleZ.");
   }
 
   return {
@@ -65,6 +82,7 @@ export function normalizeWitBleSdkRecord(input: {
     raw: {
       protocol: "WIT_BLE_SDK",
       transport: "BLE_5_NATIVE",
+      battery: optionalNumber(input.record.Electricity),
     },
   };
 }

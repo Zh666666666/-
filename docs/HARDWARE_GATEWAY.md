@@ -13,6 +13,8 @@ Official product documents:
 Repository reference: `docs/WITMOTION_WT9011DCL_BT50_REFERENCE.md` is the
 required vendor-document digest, protocol safety guide, and real-device
 acceptance checklist. Read it before changing BLE mappings or calibration.
+Protocol audit against the current APK lives in
+`docs/WITMOTION_PROTOCOL_AUDIT.md`.
 
 ## Architecture
 

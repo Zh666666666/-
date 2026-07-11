@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { maybeAutoAnalyzeAfterSample } from "@/lib/ai-analysis";
 import { addDemoSensorSample } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { hasUsableDatabaseUrl } from "@/lib/env";
@@ -74,7 +75,16 @@ export async function POST(request: Request) {
   const body = parsed.data;
 
   if (!hasUsableDatabaseUrl()) {
-    return NextResponse.json(addDemoSensorSample(body));
+    const demoResult = addDemoSensorSample(body);
+    const analysis = await maybeAutoAnalyzeAfterSample({
+      patientId: body.patientId,
+      hasKneeRecord: Boolean(demoResult.record),
+    });
+
+    return NextResponse.json({
+      ...demoResult,
+      analysis,
+    });
   }
 
   await ensureDemoPatients();
@@ -174,6 +184,11 @@ export async function POST(request: Request) {
       })
     : null;
 
+  const analysis = await maybeAutoAnalyzeAfterSample({
+    patientId: body.patientId,
+    hasKneeRecord: Boolean(kneeRecord),
+  });
+
   return NextResponse.json({
     sample: {
       id: sample.id,
@@ -188,5 +203,6 @@ export async function POST(request: Request) {
     },
     record: kneeRecord ? serializeKneeRecord(kneeRecord) : null,
     alert,
+    analysis,
   });
 }
