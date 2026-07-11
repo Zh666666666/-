@@ -1,6 +1,6 @@
 # 项目状态与 Agent 交接
 
-最后更新：2026-07-10
+最后更新：2026-07-11
 
 本文件是所有本地和云端 Agent 的统一进度来源。每次代码任务结束前，
 必须更新“已完成事项”“当前状态”“下一步任务”和“Agent 工作记录”，
@@ -43,6 +43,8 @@
 - 已增加 Android 无 USB 云端验证和发布加固：JVM 测试、Android Lint、Debug/Release 构建、R8 混淆与资源缩减、zipalign，以及 APK v2/v3 与 v4 `.idsig` 签名生成和核验脚本。
 - 已增加 Android 安装自检：在无需 USB 的手机安装场景中逐项显示 BLE 硬件、蓝牙、权限、定位、加密离线队列和平台配置是否就绪；自检通过只代表可以开始扫描，不会把未连接的传感器误标记为可用。
 - 已修复硬件演示来源污染：模拟器会话、原始样本和派生康复记录统一标记为 `DEMO`，模拟设备使用 `SIM-` 序列号；真实 Android BLE 网关仍使用 `HARDWARE`，避免模拟值伪装为真实设备数据。
+- 已为网关采样增加持久化 `gatewaySampleId`：Android 与共享网关在入队时生成稳定 ID，平台 API 和数据库以该 ID 幂等接收，网络重试不会重复创建样本、康复记录、告警或会话计数。
+- 已增加软件回归覆盖：网关离线失败后保留队首并重试、硬件样本 API 的无效负载与重复上传、家属/护士登录到工作台的 Playwright 页面流程；CI 会执行 Node API/网关测试和浏览器回归。
 
 ### Agent 与云端开发
 
@@ -67,8 +69,9 @@
 - 本地 `npm run build`：通过
 - GitHub Actions：通过
 - 云端无密钥时：使用 Demo 模式
-- 目标型号：已调整为更具性价比的 `WT9011DCL-BT50`，购买或换货状态待确认
-- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`；安装自检已通过 Android CI，尚未连接 Android 手机或实物传感器验证
+- 目标型号：`WT9011DCL-BT50`；官方 iPhone 工具已确认实物通过 `BWT901BLECL5.0` BLE5 配置广播并输出实时加速度、角速度和姿态角，物理序列号不写入公开仓库
+- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`；扫描逻辑与官方 BLE5 SDK匹配实物广播前缀，尚未完成 Android 真机和实物传感器联调
+- 软件回归：网关与 API 测试已在本地通过；浏览器回归已接入 CI，本地受限环境无法下载 Chromium，因此待本 PR 的 GitHub Actions 验证
 - 正式服务器：暂不可用，尚未部署生产环境
 - 当前产品性质：可演示、可云端开发；演示数据与真实硬件数据已在来源链上隔离，生产服务器恢复后需先执行新增的传感器样本来源迁移，尚未完成真实硬件与生产部署验收
 - 视觉系统：核心工作台已完成临床化 UI 收敛，其他业务页面继续复用共享卡片、按钮、输入框和导航样式
@@ -87,12 +90,12 @@
    - 设备到货后确认物理序列号；当前 `BLE-...` 仅是手机端网关标识，不能作为已验证的厂商序列号。
    - 通过断网采集和恢复网络验证加密离线队列与 API 补传。
 3. **P0 - WT9011DCL-BT50 到货实机联调**
-   - 确认 BLE 设备标识、SDK 输出键、采样频率、坐标轴方向和通知数据。
+   - 在 Android 真机确认 BLE 设备标识、SDK 输出键、采样频率、坐标轴方向和通知数据。
    - 完成双传感器安装、零点校准和膝关节角度算法验证。
    - 对照维特工具记录原始数据，证明系统使用的是真实采集值。
 4. **P1 - 自动化测试**
-   - 为硬件 API、数据校验、重复样本和离线补传增加测试。
-   - 增加家属端与护士端关键流程的浏览器回归测试。
+   - 观察本 PR 的 CI 浏览器回归结果；失败时保留 Playwright trace 并修复。
+   - 为生产数据库分支增加传感器样本幂等写入和补传的集成测试。
 5. **P1 - 正式服务器部署**
    - 恢复服务器后配置数据库、环境变量、HTTPS、迁移和备份。
    - 验证家属端、护士端、Realtime 和硬件上传链路。
@@ -118,6 +121,7 @@
 | 2026-07-10 | 增加 Android 安装自检和 JVM 覆盖：将 BLE、蓝牙开关、权限、定位、离线队列及平台配置的状态集中显示，明确区分“可扫描”与“已连接真实传感器” | 已通过 Android CI；尚未在 Android 手机或实物 WT9011DCL-BT50 上运行 | 从 Actions 下载新 APK，在手机运行安装自检并保存结果；设备到货后再验证扫描、连接和上传 | `Android Gateway #29087162196` 成功；JVM 测试、Lint、Debug/Release 构建和 v4 校验通过 |
 | 2026-07-10 | 使用长期 Release 证书重新构建包含安装自检的 APK | 已生成可下载的正式签名 APK；仍只验证了云端构建，未把真实设备状态伪装为已验证 | 在 Android 手机安装 Release，依次运行安装自检、授权扫描和实际 WT9011DCL-BT50 联调 | `Android Gateway #29087347840` 的 `verify` 与 `signed-release` 均成功 |
 | 2026-07-10 | 修复硬件模拟器将生成值标记为 `HARDWARE` 的来源污染；为会话、样本和康复记录统一传递 `DEMO`，并增加来源解析回归测试 | 已通过本地网关回归、Prisma 生成、Lint、生产构建和 GitHub Build；历史生成记录不应被重新宣称为真实硬件数据，生产库仍待执行迁移 | 服务器恢复后执行 `npm run db:deploy`；传感器到货后用 Android BLE 网关生成首批 `HARDWARE` 实测样本 | `gateway:test`（8/8）、`npm run db:generate`、`npm run lint`、`npm run build`、PR #6 Build 成功 |
+| 2026-07-11 | 为网关采样增加稳定幂等 ID、数据库唯一约束和 Android JSON 透传；新增离线重试、API 重复样本与家属/护士 Playwright 回归；官方 iPhone 工具确认 WT9011DCL-BT50 正常广播和输出实时数据 | Node 网关/API 测试、Lint 和生产构建已通过；Playwright 用例已接入 CI，本地受限环境不能下载 Chromium；Android 应用尚未在真机连接实物 | 等待 PR CI 的浏览器回归；在 Android 真机完成 BLE、归零和补传验收 | `npm run test`（11/11）、`npm run lint`、`npm run build`；官方工具显示实时加速度、角速度和姿态角 |
 
 ## Agent 更新规则
 

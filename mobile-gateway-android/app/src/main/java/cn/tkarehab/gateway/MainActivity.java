@@ -134,7 +134,7 @@ public final class MainActivity extends AppCompatActivity {
         content.addView(title);
 
         TextView description = new TextView(this);
-        description.setText("连接大腿与小腿 WT9011DCL-BT50，数据先加密保存在手机，网络恢复后自动补传。");
+        description.setText("连接大腿与小腿 WitMotion BLE5 传感器，数据先加密保存在手机，网络恢复后自动补传。");
         description.setTextColor(0xFF496579);
         description.setPadding(0, dp(6), 0, dp(10));
         content.addView(description);

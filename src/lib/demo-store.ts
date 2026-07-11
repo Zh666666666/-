@@ -32,6 +32,7 @@ type DemoState = Omit<DashboardData, "nursingRecords"> & {
   deviceBindings: DeviceBindingItem[];
   sensorSessions: SensorSessionItem[];
   calibrationRecords: CalibrationRecordItem[];
+  gatewaySampleIds: Set<string>;
 };
 
 type AiAnalysisInput = Omit<AiAnalysisItem, "id" | "createdAt">;
@@ -105,6 +106,7 @@ type SensorSessionInput = {
 };
 
 type SensorSampleInput = {
+  gatewaySampleId?: string | null;
   sessionId?: string | null;
   deviceId?: string | null;
   patientId: string;
@@ -270,6 +272,7 @@ function initialState(): DemoState {
       },
     ],
     sensorSessions: [],
+    gatewaySampleIds: new Set(),
     calibrationRecords: [
       {
         id: "demo-calibration-1",
@@ -647,10 +650,18 @@ export function finishDemoSensorSession(id: string, status: "COMPLETED" | "ABORT
 
 export function addDemoSensorSample(input: SensorSampleInput) {
   const state = getState();
+  if (input.gatewaySampleId && state.gatewaySampleIds.has(input.gatewaySampleId)) {
+    return { record: null, alert: null, duplicate: true };
+  }
+
   const session = input.sessionId ? state.sensorSessions.find((item) => item.id === input.sessionId) : null;
   const device = input.deviceId ? state.devices.find((item) => item.id === input.deviceId) : null;
   const now = input.recordedAt ?? new Date().toISOString();
   const source = resolveSensorDataSource(session?.source, input.source);
+
+  if (input.gatewaySampleId) {
+    state.gatewaySampleIds.add(input.gatewaySampleId);
+  }
 
   if (session) {
     session.sampleCount += 1;
@@ -665,7 +676,7 @@ export function addDemoSensorSample(input: SensorSampleInput) {
   }
 
   if (typeof input.flexionAngle === "number") {
-    return addDemoKneeRecord({
+    return { ...addDemoKneeRecord({
       patientId: input.patientId,
       flexionAngle: input.flexionAngle,
       extensionAngle: input.extensionAngle ?? 0,
@@ -676,10 +687,10 @@ export function addDemoSensorSample(input: SensorSampleInput) {
       signalStrength: input.signalStrength ?? device?.signalStrength ?? 96,
       source,
       recordedAt: now,
-    });
+    }), duplicate: false };
   }
 
-  return { record: null, alert: null };
+  return { record: null, alert: null, duplicate: false };
 }
 
 export function addDemoCalibrationRecord(input: CalibrationInput) {

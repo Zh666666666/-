@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { addDemoSensorSample } from "@/lib/demo-store";
@@ -9,6 +10,7 @@ import { assessKneeRecord } from "@/lib/rehab";
 import { resolveSensorDataSource, sensorDataSources } from "@/lib/sample-provenance";
 
 const sensorSampleSchema = z.object({
+  gatewaySampleId: z.string().min(8).max(128).optional(),
   sessionId: z.string().optional().nullable(),
   deviceId: z.string().optional().nullable(),
   patientId: z.string().min(1),
@@ -93,34 +95,57 @@ export async function POST(request: Request) {
   const source = resolveSensorDataSource(session?.source, body.source);
 
   const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
+  const sampleData: Prisma.SensorSampleCreateManyInput = {
+    gatewaySampleId: body.gatewaySampleId ?? null,
+    sessionId: body.sessionId ?? null,
+    deviceId: body.deviceId ?? null,
+    patientId: body.patientId,
+    source,
+    placement: body.placement,
+    recordedAt,
+    roll: body.roll ?? null,
+    pitch: body.pitch ?? null,
+    yaw: body.yaw ?? null,
+    q0: body.q0 ?? null,
+    q1: body.q1 ?? null,
+    q2: body.q2 ?? null,
+    q3: body.q3 ?? null,
+    ax: body.ax ?? null,
+    ay: body.ay ?? null,
+    az: body.az ?? null,
+    gx: body.gx ?? null,
+    gy: body.gy ?? null,
+    gz: body.gz ?? null,
+    flexionAngle: body.flexionAngle ?? null,
+    extensionAngle: body.extensionAngle ?? null,
+    confidence: body.confidence ?? null,
+    raw: body.raw == null ? undefined : body.raw as Prisma.InputJsonValue,
+  };
+  const duplicate = Boolean(body.gatewaySampleId) && (
+    await prisma.sensorSample.createMany({ data: sampleData, skipDuplicates: true })
+  ).count === 0;
+  const sample = body.gatewaySampleId
+    ? await prisma.sensorSample.findUniqueOrThrow({ where: { gatewaySampleId: body.gatewaySampleId } })
+    : await prisma.sensorSample.create({ data: sampleData });
 
-  const sample = await prisma.sensorSample.create({
-    data: {
-      sessionId: body.sessionId ?? null,
-      deviceId: body.deviceId ?? null,
-      patientId: body.patientId,
-      source,
-      placement: body.placement,
-      recordedAt,
-      roll: body.roll ?? null,
-      pitch: body.pitch ?? null,
-      yaw: body.yaw ?? null,
-      q0: body.q0 ?? null,
-      q1: body.q1 ?? null,
-      q2: body.q2 ?? null,
-      q3: body.q3 ?? null,
-      ax: body.ax ?? null,
-      ay: body.ay ?? null,
-      az: body.az ?? null,
-      gx: body.gx ?? null,
-      gy: body.gy ?? null,
-      gz: body.gz ?? null,
-      flexionAngle: body.flexionAngle ?? null,
-      extensionAngle: body.extensionAngle ?? null,
-      confidence: body.confidence ?? null,
-      raw: body.raw == null ? undefined : body.raw,
-    },
-  });
+  if (duplicate) {
+    return NextResponse.json({
+      duplicate: true,
+      sample: {
+        id: sample.id,
+        patientId: sample.patientId,
+        deviceId: sample.deviceId,
+        sessionId: sample.sessionId,
+        placement: sample.placement,
+        source: sample.source,
+        recordedAt: sample.recordedAt.toISOString(),
+        flexionAngle: sample.flexionAngle,
+        confidence: sample.confidence,
+      },
+      record: null,
+      alert: null,
+    });
+  }
 
   if (body.sessionId) {
     await prisma.sensorSession.update({
@@ -175,6 +200,7 @@ export async function POST(request: Request) {
     : null;
 
   return NextResponse.json({
+    duplicate: false,
     sample: {
       id: sample.id,
       patientId: sample.patientId,

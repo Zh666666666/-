@@ -247,6 +247,7 @@ model SensorSession {
 
 model SensorSample {
   id              String          @id @default(cuid())
+  gatewaySampleId String?         @unique @map("gateway_sample_id")
   sessionId       String?         @map("session_id")
   deviceId        String?         @map("device_id")
   patientId       String          @map("patient_id")

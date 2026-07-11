@@ -1,4 +1,5 @@
 import { GatewayApiClient } from "./api-client";
+import { randomUUID } from "node:crypto";
 import type {
   GatewayPlacement,
   OfflineQueue,
@@ -60,6 +61,7 @@ export class HardwareGateway {
     this.lastQueuedAt.set(reading.placement, recordedAt);
     const queued: QueuedSensorSample = {
       ...reading,
+      gatewaySampleId: randomUUID(),
       patientId: this.options.patientId,
     };
 

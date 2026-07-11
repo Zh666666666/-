@@ -39,3 +39,12 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Run hardware and API regression tests
+        run: npm run test
+
+      - name: Install Chromium for page regression tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run family and nurse page regression tests
+        run: npm run e2e:test

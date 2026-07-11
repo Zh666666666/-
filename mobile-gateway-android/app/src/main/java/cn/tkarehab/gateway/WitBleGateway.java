@@ -198,7 +198,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
 
         SensorSample sample = new SensorSample(
                 "BLE-" + address.replace(":", ""),
-                address,
+                device.getName() == null ? address : device.getName(),
                 placement,
                 now,
                 device.GetData("AngX"),

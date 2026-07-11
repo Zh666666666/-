@@ -32,6 +32,7 @@ export type SensorReading = {
 };
 
 export type QueuedSensorSample = SensorReading & {
+  gatewaySampleId: string;
   patientId: string;
   flexionAngle?: number;
   extensionAngle?: number;

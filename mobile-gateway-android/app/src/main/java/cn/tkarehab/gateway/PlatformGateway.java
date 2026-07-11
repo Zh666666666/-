@@ -153,7 +153,9 @@ final class PlatformGateway {
 
         JSONObject devicePayload = new JSONObject();
         devicePayload.put("serialNo", gatewayDeviceId);
-        devicePayload.put("name", "WT9011DCL-BT50 " + sample.getString("placement"));
+        JSONObject raw = sample.optJSONObject("raw");
+        String advertisedName = raw == null ? gatewayDeviceId : raw.optString("deviceName", gatewayDeviceId);
+        devicePayload.put("name", advertisedName + " " + sample.getString("placement"));
         devicePayload.put("model", "WT9011DCL-BT50");
         devicePayload.put("manufacturer", "WitMotion");
         JSONObject device = postJson("/api/devices", devicePayload);
