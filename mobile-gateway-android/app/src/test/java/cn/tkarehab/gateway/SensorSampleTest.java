@@ -18,8 +18,9 @@ public final class SensorSampleTest {
                 1, 2, 3, 4, 5, 6, 7, 8, 9
         );
 
-        String firstUploadId = sample.toUploadJson().getString("gatewaySampleId");
-        String retryUploadId = sample.toUploadJson().getString("gatewaySampleId");
+        String firstUploadId = sample.gatewaySampleId;
+        sample.toUploadJson();
+        String retryUploadId = sample.gatewaySampleId;
 
         assertEquals(firstUploadId, retryUploadId);
         assertTrue(firstUploadId.matches("^[0-9a-fA-F-]{36}$"));
