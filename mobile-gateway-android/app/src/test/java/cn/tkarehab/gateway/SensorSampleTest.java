@@ -1,7 +1,7 @@
 package cn.tkarehab.gateway;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -18,7 +18,10 @@ public final class SensorSampleTest {
                 1, 2, 3, 4, 5, 6, 7, 8, 9
         );
 
-        assertEquals(sample.gatewaySampleId, sample.toUploadJson().getString("gatewaySampleId"));
-        assertNotEquals("", sample.gatewaySampleId);
+        String firstUploadId = sample.toUploadJson().getString("gatewaySampleId");
+        String retryUploadId = sample.toUploadJson().getString("gatewaySampleId");
+
+        assertEquals(firstUploadId, retryUploadId);
+        assertTrue(firstUploadId.matches("^[0-9a-fA-F-]{36}$"));
     }
 }
