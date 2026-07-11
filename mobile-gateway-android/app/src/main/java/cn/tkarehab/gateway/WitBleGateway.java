@@ -188,8 +188,6 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         if (placement == null || device == null) {
             return;
         }
-        BluetoothDevice bluetoothDevice = discoveredDevices.get(address);
-
         long now = System.currentTimeMillis();
         Long last = lastSampleAt.get(address);
         if (last != null && now - last < MIN_SAMPLE_INTERVAL_MS) {
@@ -199,7 +197,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
 
         SensorSample sample = new SensorSample(
                 "BLE-" + address.replace(":", ""),
-                bluetoothDevice == null || bluetoothDevice.getName() == null ? address : bluetoothDevice.getName(),
+                discoveredDeviceName(address),
                 placement,
                 now,
                 device.GetData("AngX"),
@@ -213,6 +211,21 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
                 device.GetData("AsZ")
         );
         listener.onReading(sample);
+    }
+
+    @SuppressLint("MissingPermission")
+    private String discoveredDeviceName(String address) {
+        BluetoothDevice bluetoothDevice = discoveredDevices.get(address);
+        if (bluetoothDevice == null || !WitBluetoothManager.checkPermissions(activity)) {
+            return address;
+        }
+        try {
+            String name = bluetoothDevice.getName();
+            return name == null ? address : name;
+        } catch (SecurityException ignored) {
+            // Permission can be revoked while a connected device is streaming.
+            return address;
+        }
     }
 
     @Override
