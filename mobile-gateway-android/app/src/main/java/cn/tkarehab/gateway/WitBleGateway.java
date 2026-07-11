@@ -188,6 +188,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         if (placement == null || device == null) {
             return;
         }
+        BluetoothDevice bluetoothDevice = discoveredDevices.get(address);
 
         long now = System.currentTimeMillis();
         Long last = lastSampleAt.get(address);
@@ -198,7 +199,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
 
         SensorSample sample = new SensorSample(
                 "BLE-" + address.replace(":", ""),
-                device.getName() == null ? address : device.getName(),
+                bluetoothDevice == null || bluetoothDevice.getName() == null ? address : bluetoothDevice.getName(),
                 placement,
                 now,
                 device.GetData("AngX"),
