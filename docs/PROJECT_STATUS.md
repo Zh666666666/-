@@ -69,7 +69,7 @@
 - GitHub Actions：通过
 - 云端无密钥时：使用 Demo 模式
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；官方 App 已成功连接一只实物并显示实时运动数据。App 选择 `BWT901BLECL5.0` 档位、广播名以 `WT901BLE` 开头，二者作为待核验的协议/固件信息记录，不改写实体型号。
-- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`；尚未用项目 Android 网关连接实物，也尚未完成双传感器、校准和上传验证
+- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名改为 `cn.tkarehab.gateway.debug` 以便与正式版共存，Release 保持 `cn.tkarehab.gateway`；GitHub Actions 已生成长期证书签名的 v2/v3/v4 Release APK，并以 Android APK 签名库验证 v4 `.idsig`。首个真机 Debug APK 报告启动即退，当前正在加固官方 SDK 初始化失败时的可诊断启动路径；尚未用项目 Android 网关连接实物，也尚未完成双传感器、校准和上传验证
 - 正式服务器：暂不可用，尚未部署生产环境
 - 当前产品性质：可演示、可云端开发；演示数据与真实硬件数据已在来源链上隔离，生产服务器恢复后需先执行新增的传感器样本来源迁移，尚未完成真实硬件与生产部署验收
 - 视觉系统：核心工作台已完成临床化 UI 收敛，其他业务页面继续复用共享卡片、按钮、输入框和导航样式
@@ -120,6 +120,7 @@
 | 2026-07-10 | 使用长期 Release 证书重新构建包含安装自检的 APK | 已生成可下载的正式签名 APK；仍只验证了云端构建，未把真实设备状态伪装为已验证 | 在 Android 手机安装 Release，依次运行安装自检、授权扫描和实际 WT9011DCL-BT50 联调 | `Android Gateway #29087347840` 的 `verify` 与 `signed-release` 均成功 |
 | 2026-07-10 | 修复硬件模拟器将生成值标记为 `HARDWARE` 的来源污染；为会话、样本和康复记录统一传递 `DEMO`，并增加来源解析回归测试 | 已通过本地网关回归、Prisma 生成、Lint、生产构建和 GitHub Build；历史生成记录不应被重新宣称为真实硬件数据，生产库仍待执行迁移 | 服务器恢复后执行 `npm run db:deploy`；传感器到货后用 Android BLE 网关生成首批 `HARDWARE` 实测样本 | `gateway:test`（8/8）、`npm run db:generate`、`npm run lint`、`npm run build`、PR #6 Build 成功 |
 | 2026-07-11 | 读取并归档 WT9011DCL-BT50 官方规格书与 BLE 5.0 协议，记录真实设备已在官方 App 成功连接的证据、协议歧义和项目验收步骤 | 官方 App 已证明一只设备可输出实时数据；项目 Android 网关、两传感器同步、安装轴向、零点校准和真实上传尚未验证 | 按归档中的单设备验收记录采集真实 SDK/原始帧证据，再进行双传感器膝关节校准 | `docs/WITMOTION_WT9011DCL_BT50_REFERENCE.md`；官方规格书与 BLE 协议页面人工核对 |
+| 2026-07-11 | 收到 Android Debug APK 真机启动即退反馈；将官方 WitSDK 启动期初始化改为可隔离、可展示错误原因的路径，防止 SDK 异常直接关闭界面 | 新 APK 尚待同一台 Android 真机安装复测；当前不能声称 BLE 已可用 | 构建新 Debug APK，确认应用可打开并收集安装自检或 SDK 初始化错误信息 | Android 编译、JVM 测试、Lint 与 GitHub Actions 待本次变更完成后验证 |
 
 ## Agent 更新规则
 
