@@ -8,7 +8,7 @@ public final class GatewayReadinessTest {
     @Test
     public void reportsWhenPhoneIsReadyToScanButNeedsPlatformConfiguration() {
         String report = GatewayReadiness.report(
-                "0.2.0",
+                "0.2.1",
                 true,
                 true,
                 true,
@@ -24,7 +24,7 @@ public final class GatewayReadinessTest {
     @Test
     public void reportsBlockedPrerequisites() {
         String report = GatewayReadiness.report(
-                "0.2.0",
+                "0.2.1",
                 false,
                 false,
                 false,
