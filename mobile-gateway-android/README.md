@@ -78,7 +78,7 @@ disable backups and cleartext traffic, and are signed after zip alignment by
 - disable legacy v1 signing because the minimum supported system is Android 7.0
   (API 24);
 - require and verify APK Signature Scheme v2 and v3 in the APK;
-- cryptographically verify the v4 sidecar `TKA-Gateway-v0.2.0.apk.idsig` with
+- cryptographically verify the v4 sidecar `TKA-Gateway-v0.2.1.apk.idsig` with
   Android's APK signature library;
 - read passwords from environment variables so secrets do not appear in command
   arguments or the public repository.
