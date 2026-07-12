@@ -28,20 +28,30 @@ to skip the Git clone attempt on a restricted network.
 ## Implemented contract
 
 - Uses official `WitBluetoothManager`, `DeviceManager`, and `DeviceModel` APIs.
-- Finds `WT*` devices, assigns a device to `THIGH` or `SHANK`, and connects it.
+- Finds `WT*` / `BWT*` / `901` devices, assigns a device to `THIGH` or `SHANK`,
+  and connects it.
 - Reads official `Acc*`, `As*`, and `Ang*` fields without parsing display text.
+- Shows an official-app style live dashboard after connect:
+  - 3D attitude cube driven by Euler angles
+  - Acc / Gyro / Angle numeric X/Y/Z grids
+  - scrolling waveforms for all three series
+- Live visualization does **not** require starting a platform upload session.
 - Sends the official `SetAngle0()` zero-reference command for an assigned sensor.
-- Writes readings to an encrypted local file before network upload.
+- Writes readings to an encrypted local file before network upload when a session
+  is started.
 - Provisions devices, records active placements, opens a hardware session, and
   posts samples to the platform APIs.
 - Continues the first scan after runtime permission approval instead of requiring
   a second tap, and blocks scanning with actionable messages when Bluetooth or
   location services are unavailable.
+- Resumes scanning automatically when returning from system Bluetooth/location
+  settings.
 - Limits SDK callbacks to 10 samples per second per sensor, retries queued
   uploads every 15 seconds, and keeps restored samples bound to their original
   patient ID.
 - Keeps the server URL and patient ID between launches while deliberately never
   storing the optional bearer token.
+- Retains local startup crash diagnostics for no-USB field debugging.
 
 The debug application has been compiled successfully on Windows with JDK 17,
 Android Platform 35, Gradle 8.7, and the downloaded official WitSDK. The output

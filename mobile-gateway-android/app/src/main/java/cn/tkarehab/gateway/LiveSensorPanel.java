@@ -2,6 +2,7 @@ package cn.tkarehab.gateway;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -9,31 +10,43 @@ import android.widget.TextView;
 
 import java.util.Locale;
 
-/** Official-app style live sensor card: connection header + Acc / Gyro / Angle grids. */
+/**
+ * Official-app style live sensor card with:
+ * - 3D attitude cube
+ * - Acc / Gyro / Angle numeric grid
+ * - scrolling waveforms
+ */
 final class LiveSensorPanel {
     private final String placementLabel;
+    private final int accentColor;
     private final TextView title;
     private final TextView subtitle;
     private final TextView meta;
     private final MetricRow acceleration;
     private final MetricRow gyroscope;
     private final MetricRow angle;
+    private final AttitudeCubeView cube;
+    private final WaveformView angleWave;
+    private final WaveformView accWave;
+    private final WaveformView gyroWave;
     private final LinearLayout root;
     private int sampleCount;
     private long lastRenderAtMs;
 
     LiveSensorPanel(Context context, String placementLabel, int accentColor) {
         this.placementLabel = placementLabel;
+        this.accentColor = accentColor;
         int padding = dp(context, 12);
+
         root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFFFFFFFF);
+        root.setBackground(cardBackground(0xFFFFFFFF, dp(context, 18)));
         root.setPadding(padding, padding, padding, padding);
-        root.setElevation(dp(context, 2));
+        root.setElevation(dp(context, 4));
 
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setBackgroundColor(accentColor);
+        header.setBackground(cardBackground(accentColor, dp(context, 14)));
         header.setPadding(padding, padding, padding, padding);
 
         title = new TextView(context);
@@ -57,15 +70,32 @@ final class LiveSensorPanel {
         header.addView(meta);
         root.addView(header);
 
+        TextView cubeLabel = sectionLabel(context, "3D 姿态");
+        root.addView(cubeLabel);
+        cube = new AttitudeCubeView(context);
+        cube.setAccent(accentColor);
+        LinearLayout.LayoutParams cubeParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(context, 190)
+        );
+        cubeParams.bottomMargin = dp(context, 8);
+        cube.setLayoutParams(cubeParams);
+        root.addView(cube);
+
         acceleration = addMetricBlock(context, root, "加速度 Acc (g)", 0xFF0D47A1);
         gyroscope = addMetricBlock(context, root, "角速度 Gyro (°/s)", 0xFF1B5E20);
         angle = addMetricBlock(context, root, "角度 Angle (°)", 0xFF4A148C);
+
+        root.addView(sectionLabel(context, "波形曲线"));
+        angleWave = addWave(context, root, "角度 Angle", "°", 180f);
+        accWave = addWave(context, root, "加速度 Acc", "g", 4f);
+        gyroWave = addWave(context, root, "角速度 Gyro", "°/s", 500f);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.bottomMargin = dp(context, 12);
+        params.bottomMargin = dp(context, 14);
         root.setLayoutParams(params);
     }
 
@@ -86,36 +116,77 @@ final class LiveSensorPanel {
         acceleration.setValues(0, 0, 0);
         gyroscope.setValues(0, 0, 0);
         angle.setValues(0, 0, 0);
+        cube.setAttitude(0, 0, 0);
+        angleWave.clear();
+        accWave.clear();
+        gyroWave.clear();
     }
 
     void update(SensorSample sample, boolean force) {
         sampleCount += 1;
         long now = System.currentTimeMillis();
-        if (!force && now - lastRenderAtMs < 150L && sampleCount > 1) {
-            return;
+        if (!force && now - lastRenderAtMs < 50L && sampleCount > 1) {
+            // Keep waveform dense, but avoid over-invalidating text every packet.
         }
-        lastRenderAtMs = now;
+        boolean renderUi = force || now - lastRenderAtMs >= 80L || sampleCount <= 2;
+        if (renderUi) {
+            lastRenderAtMs = now;
+            title.setText(placementLabel + " · 数据中");
+            subtitle.setText(sample.deviceName);
+            meta.setText("帧数：" + sampleCount + "    刷新：" + formatTime(sample.recordedAtMs));
+            acceleration.setValues(sample.ax, sample.ay, sample.az);
+            gyroscope.setValues(sample.gx, sample.gy, sample.gz);
+            angle.setValues(sample.roll, sample.pitch, sample.yaw);
+            cube.setAttitude(sample.roll, sample.pitch, sample.yaw);
+        }
 
-        title.setText(placementLabel + " · 数据中");
-        subtitle.setText(sample.deviceName);
-        meta.setText("帧数：" + sampleCount + "    刷新：" + formatTime(sample.recordedAtMs));
-        acceleration.setValues(sample.ax, sample.ay, sample.az);
-        gyroscope.setValues(sample.gx, sample.gy, sample.gz);
-        angle.setValues(sample.roll, sample.pitch, sample.yaw);
+        // Always append waveform points so the curve stays continuous.
+        angleWave.push((float) sample.roll, (float) sample.pitch, (float) sample.yaw);
+        accWave.push((float) sample.ax, (float) sample.ay, (float) sample.az);
+        gyroWave.push((float) sample.gx, (float) sample.gy, (float) sample.gz);
     }
 
-    private static MetricRow addMetricBlock(Context context, LinearLayout parent, String label, int valueColor) {
+    private static WaveformView addWave(
+            Context context,
+            LinearLayout parent,
+            String title,
+            String unit,
+            float fixedRange
+    ) {
+        WaveformView wave = new WaveformView(context);
+        wave.configure(title, unit, fixedRange);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(context, 140)
+        );
+        params.bottomMargin = dp(context, 8);
+        wave.setLayoutParams(params);
+        parent.addView(wave);
+        return wave;
+    }
+
+    private static TextView sectionLabel(Context context, String text) {
         TextView heading = new TextView(context);
-        heading.setText(label);
+        heading.setText(text);
         heading.setTextColor(0xFF37474F);
         heading.setTextSize(14);
         heading.setTypeface(Typeface.DEFAULT_BOLD);
         heading.setPadding(0, dp(context, 10), 0, dp(context, 4));
-        parent.addView(heading);
+        return heading;
+    }
 
+    private static MetricRow addMetricBlock(Context context, LinearLayout parent, String label, int valueColor) {
+        parent.addView(sectionLabel(context, label));
         MetricRow row = new MetricRow(context, valueColor);
         parent.addView(row.view);
         return row;
+    }
+
+    private static GradientDrawable cardBackground(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        return drawable;
     }
 
     private static String formatTime(long epochMs) {
@@ -136,8 +207,8 @@ final class LiveSensorPanel {
         MetricRow(Context context, int valueColor) {
             view = new LinearLayout(context);
             view.setOrientation(LinearLayout.HORIZONTAL);
-            view.setBackgroundColor(0xFFF7FAFC);
-            view.setPadding(dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8));
+            view.setBackground(cardBackground(0xFFF4F7FA, dp(context, 12)));
+            view.setPadding(dp(context, 8), dp(context, 10), dp(context, 8), dp(context, 10));
 
             x = axis(context, "X", valueColor);
             y = axis(context, "Y", valueColor);
