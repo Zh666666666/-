@@ -101,6 +101,8 @@ public final class MainActivity extends AppCompatActivity {
         if (bleGateway != null) {
             return true;
         }
+        // Initialize the vendor SDK only after the user asks to scan. Some physical
+        // devices defer Bluetooth service readiness until after activity startup.
         try {
             bleGateway = new WitBleGateway(this, new WitBleGateway.Listener() {
                 @Override
