@@ -392,9 +392,13 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private static String detail(Throwable error) {
-        if (error == null || error.getMessage() == null || error.getMessage().isEmpty()) {
+        if (error == null) {
             return "";
         }
-        return "：" + error.getMessage();
+        String message = error.getMessage();
+        String type = error.getClass().getSimpleName();
+        return message == null || message.isEmpty()
+                ? "：" + type
+                : "：" + type + " - " + message;
     }
 }
