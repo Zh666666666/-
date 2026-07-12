@@ -10,7 +10,7 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $outputDirectory = Join-Path $projectRoot 'app\build\outputs\apk\release'
 $unsignedApk = Join-Path $outputDirectory 'app-release-unsigned.apk'
 $alignedApk = Join-Path $outputDirectory 'app-release-aligned.apk'
-$signedApk = if ($env:SIGNED_APK) { $env:SIGNED_APK } else { Join-Path $outputDirectory 'TKA-Gateway-v0.2.0.apk' }
+$signedApk = if ($env:SIGNED_APK) { $env:SIGNED_APK } else { Join-Path $outputDirectory 'TKA-Gateway-v0.2.1.apk' }
 
 foreach ($required in @($AndroidSdk, $Keystore, $Alias, $env:SIGNING_STORE_PASSWORD, $env:SIGNING_KEY_PASSWORD)) {
     if ([string]::IsNullOrWhiteSpace($required)) {
