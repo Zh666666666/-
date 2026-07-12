@@ -263,15 +263,15 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
                 address,
                 placement,
                 now,
-                device.GetData("AngX"),
-                device.GetData("AngY"),
-                device.GetData("AngZ"),
-                device.GetData("AccX"),
-                device.GetData("AccY"),
-                device.GetData("AccZ"),
-                device.GetData("AsX"),
-                device.GetData("AsY"),
-                device.GetData("AsZ")
+                readKey(device, "AngX"),
+                readKey(device, "AngY"),
+                readKey(device, "AngZ"),
+                readKey(device, "AccX"),
+                readKey(device, "AccY"),
+                readKey(device, "AccZ"),
+                readKey(device, "AsX"),
+                readKey(device, "AsY"),
+                readKey(device, "AsZ")
         );
         listener.onReading(sample);
     }
@@ -283,5 +283,10 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
 
     private static String placementLabel(SensorPlacement placement) {
         return placement == SensorPlacement.THIGH ? "大腿" : "小腿";
+    }
+
+    private static double readKey(DeviceModel device, String key) {
+        Double value = device.GetData(key);
+        return value == null ? 0.0d : value;
     }
 }

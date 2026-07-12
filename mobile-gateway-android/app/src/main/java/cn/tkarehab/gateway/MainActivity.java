@@ -30,6 +30,7 @@ public final class MainActivity extends AppCompatActivity {
     private final Set<String> renderedDevices = new HashSet<>();
     private LinearLayout devices;
     private TextView status;
+    private TextView liveReadings;
     private TextView sessionState;
     private EditText apiUrl;
     private EditText patientId;
@@ -40,6 +41,8 @@ public final class MainActivity extends AppCompatActivity {
     private PlatformGateway platformGateway;
     private SharedPreferences preferences;
     private String bleInitializationFailure;
+    private int liveSampleCount;
+    private long lastLiveRenderAtMs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +89,7 @@ public final class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onReading(SensorSample sample) {
+                    renderLiveReading(sample);
                     if (platformGateway != null) {
                         platformGateway.accept(sample);
                     }
@@ -240,6 +244,21 @@ public final class MainActivity extends AppCompatActivity {
         calibration.addView(zeroShank, weightedButton());
         content.addView(calibration);
 
+        TextView liveLabel = new TextView(this);
+        liveLabel.setText("实时读数（连接后自动显示，无需开始采集）");
+        liveLabel.setTextSize(18);
+        liveLabel.setTextColor(0xFF0F2942);
+        liveLabel.setPadding(0, dp(14), 0, dp(4));
+        content.addView(liveLabel);
+
+        liveReadings = new TextView(this);
+        liveReadings.setText("尚未收到传感器数据。\n连接成功后请轻轻转动传感器；若 5 秒内仍无变化，请反馈。");
+        liveReadings.setTextIsSelectable(true);
+        liveReadings.setTextColor(0xFF0F2942);
+        liveReadings.setBackgroundColor(0xFFE8F5F3);
+        liveReadings.setPadding(dp(12), dp(10), dp(12), dp(10));
+        content.addView(liveReadings);
+
         TextView discoveredLabel = new TextView(this);
         discoveredLabel.setText("扫描到的设备");
         discoveredLabel.setTextSize(18);
@@ -259,7 +278,7 @@ public final class MainActivity extends AppCompatActivity {
         content.addView(statusLabel);
 
         status = new TextView(this);
-        status.setText("先填写平台地址和患者 ID，再开始采集。首次扫描会请求蓝牙和定位权限。");
+        status.setText("可先扫描连接传感器查看实时读数。填写平台地址和患者 ID 后点“开始采集”才会加密保存并上传。");
         status.setTextIsSelectable(true);
         status.setBackgroundColor(0xFFF2F6F8);
         status.setPadding(dp(12), dp(10), dp(12), dp(10));
@@ -409,12 +428,49 @@ public final class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> status.setText(message));
     }
 
+    private void renderLiveReading(SensorSample sample) {
+        liveSampleCount += 1;
+        long now = System.currentTimeMillis();
+        // Keep the UI readable: refresh at most ~5 times per second.
+        if (now - lastLiveRenderAtMs < 200L && liveSampleCount > 1) {
+            return;
+        }
+        lastLiveRenderAtMs = now;
+        String placement = sample.placement == SensorPlacement.THIGH ? "大腿" : "小腿";
+        String text = "已收到 " + liveSampleCount + " 帧真实数据\n"
+                + "部位：" + placement + "\n"
+                + "设备：" + sample.deviceName + "\n"
+                + "角度 AngX/Y/Z："
+                + format(sample.roll) + " / "
+                + format(sample.pitch) + " / "
+                + format(sample.yaw) + "\n"
+                + "加速度 AccX/Y/Z："
+                + format(sample.ax) + " / "
+                + format(sample.ay) + " / "
+                + format(sample.az) + "\n"
+                + "角速度 AsX/Y/Z："
+                + format(sample.gx) + " / "
+                + format(sample.gy) + " / "
+                + format(sample.gz) + "\n"
+                + "提示：转动传感器时角度应变化。未点“开始采集”时只预览，不上传。";
+        runOnUiThread(() -> {
+            liveReadings.setText(text);
+            if (stop.isEnabled()) {
+                sessionState.setText("采集状态：进行中（已收 " + liveSampleCount + " 帧）");
+            }
+        });
+    }
+
     private boolean requireBleGateway() {
         if (bleGateway != null) {
             return true;
         }
         renderStatus("蓝牙 SDK 未就绪，无法执行此操作。请反馈：" + (bleInitializationFailure == null ? "初始化未完成" : bleInitializationFailure));
         return false;
+    }
+
+    private static String format(double value) {
+        return String.format(java.util.Locale.US, "%.2f", value);
     }
 
     private int dp(int value) {
