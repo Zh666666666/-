@@ -63,33 +63,9 @@ public final class MainActivity extends AppCompatActivity {
                         }
                     }
             );
-        } catch (Exception error) {
+        } catch (Throwable error) {
             renderStatus("加密离线队列初始化失败" + detail(error));
         }
-
-        bleGateway = new WitBleGateway(this, new WitBleGateway.Listener() {
-            @Override
-            public void onDeviceFound(String address, String name) {
-                runOnUiThread(() -> addDiscoveredDevice(address, name));
-            }
-
-            @Override
-            public void onConnectionChanged(String address, boolean connected) {
-                renderStatus(address + (connected ? " 已连接" : " 已断开"));
-            }
-
-            @Override
-            public void onReading(SensorSample sample) {
-                if (platformGateway != null) {
-                    platformGateway.accept(sample);
-                }
-            }
-
-            @Override
-            public void onError(String message, Exception error) {
-                renderStatus(message + detail(error));
-            }
-        });
     }
 
     @Override
@@ -119,6 +95,42 @@ public final class MainActivity extends AppCompatActivity {
             granted &= result == PackageManager.PERMISSION_GRANTED;
         }
         bleGateway.onPermissionsResult(granted);
+    }
+
+    private boolean ensureBleGateway() {
+        if (bleGateway != null) {
+            return true;
+        }
+        try {
+            bleGateway = new WitBleGateway(this, new WitBleGateway.Listener() {
+                @Override
+                public void onDeviceFound(String address, String name) {
+                    runOnUiThread(() -> addDiscoveredDevice(address, name));
+                }
+
+                @Override
+                public void onConnectionChanged(String address, boolean connected) {
+                    renderStatus(address + (connected ? " 已连接" : " 已断开"));
+                }
+
+                @Override
+                public void onReading(SensorSample sample) {
+                    if (platformGateway != null) {
+                        platformGateway.accept(sample);
+                    }
+                }
+
+                @Override
+                public void onError(String message, Exception error) {
+                    renderStatus(message + detail(error));
+                }
+            });
+            return true;
+        } catch (Throwable error) {
+            bleGateway = null;
+            renderStatus("官方蓝牙组件初始化失败；应用仍可打开。请发送运行信息。" + detail(error));
+            return false;
+        }
     }
 
     private View createContent() {
@@ -188,7 +200,9 @@ public final class MainActivity extends AppCompatActivity {
         scan.setOnClickListener(view -> {
             renderedDevices.clear();
             devices.removeAllViews();
-            bleGateway.requestPermissionsAndScan();
+            if (ensureBleGateway()) {
+                bleGateway.requestPermissionsAndScan();
+            }
         });
         content.addView(scan);
 
@@ -196,11 +210,19 @@ public final class MainActivity extends AppCompatActivity {
         calibration.setOrientation(LinearLayout.HORIZONTAL);
         Button zeroThigh = new Button(this);
         zeroThigh.setText("大腿归零");
-        zeroThigh.setOnClickListener(view -> bleGateway.setAngleZero(SensorPlacement.THIGH));
+        zeroThigh.setOnClickListener(view -> {
+            if (ensureBleGateway()) {
+                bleGateway.setAngleZero(SensorPlacement.THIGH);
+            }
+        });
         calibration.addView(zeroThigh, weightedButton());
         Button zeroShank = new Button(this);
         zeroShank.setText("小腿归零");
-        zeroShank.setOnClickListener(view -> bleGateway.setAngleZero(SensorPlacement.SHANK));
+        zeroShank.setOnClickListener(view -> {
+            if (ensureBleGateway()) {
+                bleGateway.setAngleZero(SensorPlacement.SHANK);
+            }
+        });
         calibration.addView(zeroShank, weightedButton());
         content.addView(calibration);
 
@@ -367,7 +389,7 @@ public final class MainActivity extends AppCompatActivity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
-    private static String detail(Exception error) {
+    private static String detail(Throwable error) {
         if (error == null || error.getMessage() == null || error.getMessage().isEmpty()) {
             return "";
         }
