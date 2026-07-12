@@ -3,6 +3,7 @@ package cn.tkarehab.gateway;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.bluetooth.BluetoothAdapter;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -20,9 +21,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.wit.witsdk.Bluetooth.WitBluetoothManager;
 
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
-/** Operational screen for pairing, collection, and no-USB field diagnostics. */
+/**
+ * Field gateway screen styled closer to the official WitMotion data page:
+ * live Acc / Gyro / Angle cards update as soon as a sensor is connected.
+ */
 public final class MainActivity extends AppCompatActivity {
     private static final int WIT_PERMISSION_REQUEST = 1001;
     private static final String PREFERENCES = "gateway-config";
@@ -30,19 +35,23 @@ public final class MainActivity extends AppCompatActivity {
     private final Set<String> renderedDevices = new HashSet<>();
     private LinearLayout devices;
     private TextView status;
-    private TextView liveReadings;
+    private TextView linkState;
+    private TextView sampleSummary;
     private TextView sessionState;
     private EditText apiUrl;
     private EditText patientId;
     private EditText apiToken;
     private Button start;
     private Button stop;
+    private LiveSensorPanel thighPanel;
+    private LiveSensorPanel shankPanel;
     private WitBleGateway bleGateway;
     private PlatformGateway platformGateway;
     private SharedPreferences preferences;
     private String bleInitializationFailure;
     private int liveSampleCount;
-    private long lastLiveRenderAtMs;
+    private String connectedThighAddress = "";
+    private String connectedShankAddress = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,7 +93,7 @@ public final class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onConnectionChanged(String address, boolean connected) {
-                    renderStatus(address + (connected ? " 已连接" : " 已断开"));
+                    runOnUiThread(() -> handleConnectionChanged(address, connected));
                 }
 
                 @Override
@@ -154,25 +163,79 @@ public final class MainActivity extends AppCompatActivity {
         int padding = dp(16);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(0xFFF0F4F8);
         content.setPadding(padding, padding, padding, padding);
 
         TextView title = new TextView(this);
-        title.setText("TKA 康复传感器网关");
+        title.setText("TKA 实时传感器看板");
         title.setTextSize(24);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(0xFF0F2942);
         content.addView(title);
 
         TextView description = new TextView(this);
-        description.setText("连接大腿与小腿 WT9011DCL-BT50，数据先加密保存在手机，网络恢复后自动补传。");
+        description.setText("风格参考官方维特数据页：连接后自动显示加速度、角速度、角度。上传平台前也可先看实时数据。");
         description.setTextColor(0xFF496579);
         description.setPadding(0, dp(6), 0, dp(10));
         content.addView(description);
 
-        sessionState = new TextView(this);
-        sessionState.setText("采集状态：未开始");
-        sessionState.setTextColor(0xFF7A4E00);
-        sessionState.setBackgroundColor(0xFFFFF4D6);
-        sessionState.setPadding(dp(12), dp(10), dp(12), dp(10));
+        linkState = banner(
+                "连接状态：未连接传感器",
+                0xFF7A4E00,
+                0xFFFFF4D6
+        );
+        content.addView(linkState);
+
+        sampleSummary = banner(
+                "实时帧数：0\n转动传感器后，下方 X/Y/Z 数值应持续变化。",
+                0xFF0F2942,
+                0xFFE3F2FD
+        );
+        content.addView(sampleSummary);
+
+        thighPanel = new LiveSensorPanel(this, "大腿", 0xFF00695C);
+        shankPanel = new LiveSensorPanel(this, "小腿", 0xFF1565C0);
+        content.addView(thighPanel.view());
+        content.addView(shankPanel.view());
+
+        content.addView(sectionTitle("设备扫描与校准"));
+
+        Button readiness = actionButton("运行安装自检", view -> runReadinessCheck());
+        content.addView(readiness);
+
+        Button scan = actionButton("授权并扫描 WT 设备", view -> {
+            if (!requireBleGateway()) {
+                return;
+            }
+            renderedDevices.clear();
+            devices.removeAllViews();
+            bleGateway.requestPermissionsAndScan();
+        });
+        content.addView(scan);
+
+        LinearLayout calibration = new LinearLayout(this);
+        calibration.setOrientation(LinearLayout.HORIZONTAL);
+        Button zeroThigh = actionButton("大腿归零", view -> {
+            if (requireBleGateway()) {
+                bleGateway.setAngleZero(SensorPlacement.THIGH);
+            }
+        });
+        calibration.addView(zeroThigh, weightedButton());
+        Button zeroShank = actionButton("小腿归零", view -> {
+            if (requireBleGateway()) {
+                bleGateway.setAngleZero(SensorPlacement.SHANK);
+            }
+        });
+        calibration.addView(zeroShank, weightedButton());
+        content.addView(calibration);
+
+        content.addView(sectionTitle("扫描到的设备"));
+        devices = new LinearLayout(this);
+        devices.setOrientation(LinearLayout.VERTICAL);
+        content.addView(devices);
+
+        content.addView(sectionTitle("平台上传（可选）"));
+        sessionState = banner("采集状态：未开始（仅预览实时数据）", 0xFF7A4E00, 0xFFFFF4D6);
         content.addView(sessionState);
 
         apiUrl = labeledInput(
@@ -196,111 +259,80 @@ public final class MainActivity extends AppCompatActivity {
 
         LinearLayout sessionActions = new LinearLayout(this);
         sessionActions.setOrientation(LinearLayout.HORIZONTAL);
-        start = new Button(this);
-        start.setText("开始采集");
-        start.setOnClickListener(view -> startSession());
+        start = actionButton("开始采集上传", view -> startSession());
         sessionActions.addView(start, weightedButton());
-        stop = new Button(this);
-        stop.setText("停止");
+        stop = actionButton("停止上传", view -> stopSession());
         stop.setEnabled(false);
-        stop.setOnClickListener(view -> stopSession());
         sessionActions.addView(stop, weightedButton());
         content.addView(sessionActions);
 
-        Button readiness = new Button(this);
-        readiness.setText("运行安装自检");
-        readiness.setOnClickListener(view -> runReadinessCheck());
-        content.addView(readiness);
-
-        Button scan = new Button(this);
-        scan.setText("授权并扫描 WT 设备");
-        scan.setOnClickListener(view -> {
-            if (!requireBleGateway()) {
-                return;
-            }
-            renderedDevices.clear();
-            devices.removeAllViews();
-            bleGateway.requestPermissionsAndScan();
-        });
-        content.addView(scan);
-
-        LinearLayout calibration = new LinearLayout(this);
-        calibration.setOrientation(LinearLayout.HORIZONTAL);
-        Button zeroThigh = new Button(this);
-        zeroThigh.setText("大腿归零");
-        zeroThigh.setOnClickListener(view -> {
-            if (requireBleGateway()) {
-                bleGateway.setAngleZero(SensorPlacement.THIGH);
-            }
-        });
-        calibration.addView(zeroThigh, weightedButton());
-        Button zeroShank = new Button(this);
-        zeroShank.setText("小腿归零");
-        zeroShank.setOnClickListener(view -> {
-            if (requireBleGateway()) {
-                bleGateway.setAngleZero(SensorPlacement.SHANK);
-            }
-        });
-        calibration.addView(zeroShank, weightedButton());
-        content.addView(calibration);
-
-        TextView liveLabel = new TextView(this);
-        liveLabel.setText("实时读数（连接后自动显示，无需开始采集）");
-        liveLabel.setTextSize(18);
-        liveLabel.setTextColor(0xFF0F2942);
-        liveLabel.setPadding(0, dp(14), 0, dp(4));
-        content.addView(liveLabel);
-
-        liveReadings = new TextView(this);
-        liveReadings.setText("尚未收到传感器数据。\n连接成功后请轻轻转动传感器；若 5 秒内仍无变化，请反馈。");
-        liveReadings.setTextIsSelectable(true);
-        liveReadings.setTextColor(0xFF0F2942);
-        liveReadings.setBackgroundColor(0xFFE8F5F3);
-        liveReadings.setPadding(dp(12), dp(10), dp(12), dp(10));
-        content.addView(liveReadings);
-
-        TextView discoveredLabel = new TextView(this);
-        discoveredLabel.setText("扫描到的设备");
-        discoveredLabel.setTextSize(18);
-        discoveredLabel.setTextColor(0xFF0F2942);
-        discoveredLabel.setPadding(0, dp(14), 0, dp(4));
-        content.addView(discoveredLabel);
-
-        devices = new LinearLayout(this);
-        devices.setOrientation(LinearLayout.VERTICAL);
-        content.addView(devices);
-
-        TextView statusLabel = new TextView(this);
-        statusLabel.setText("运行信息");
-        statusLabel.setTextSize(18);
-        statusLabel.setTextColor(0xFF0F2942);
-        statusLabel.setPadding(0, dp(14), 0, dp(4));
-        content.addView(statusLabel);
-
-        status = new TextView(this);
-        status.setText("可先扫描连接传感器查看实时读数。填写平台地址和患者 ID 后点“开始采集”才会加密保存并上传。");
-        status.setTextIsSelectable(true);
-        status.setBackgroundColor(0xFFF2F6F8);
-        status.setPadding(dp(12), dp(10), dp(12), dp(10));
+        content.addView(sectionTitle("运行信息"));
+        status = banner(
+                "先扫描连接传感器查看实时看板。填写平台地址和患者 ID 后点“开始采集上传”才会加密保存并上传。",
+                0xFF0F2942,
+                0xFFFFFFFF
+        );
         content.addView(status);
 
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
+        scrollView.setBackgroundColor(0xFFF0F4F8);
         scrollView.addView(content);
         return scrollView;
+    }
+
+    private TextView sectionTitle(String text) {
+        TextView title = new TextView(this);
+        title.setText(text);
+        title.setTextSize(18);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextColor(0xFF0F2942);
+        title.setPadding(0, dp(16), 0, dp(6));
+        return title;
+    }
+
+    private TextView banner(String text, int textColor, int background) {
+        TextView view = new TextView(this);
+        view.setText(text);
+        view.setTextColor(textColor);
+        view.setBackgroundColor(background);
+        view.setTextIsSelectable(true);
+        view.setPadding(dp(12), dp(10), dp(12), dp(10));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.bottomMargin = dp(8);
+        view.setLayoutParams(params);
+        return view;
+    }
+
+    private Button actionButton(String text, View.OnClickListener listener) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setOnClickListener(listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.bottomMargin = dp(6);
+        button.setLayoutParams(params);
+        return button;
     }
 
     private EditText labeledInput(LinearLayout container, String label, String hint, int inputType) {
         TextView text = new TextView(this);
         text.setText(label);
         text.setTextColor(0xFF2D4A5E);
-        text.setPadding(0, dp(10), 0, dp(2));
+        text.setPadding(0, dp(8), 0, dp(2));
         container.addView(text);
 
         EditText input = new EditText(this);
         input.setHint(hint);
         input.setInputType(inputType);
         input.setSingleLine(true);
+        input.setBackgroundColor(0xFFFFFFFF);
+        input.setPadding(dp(10), dp(10), dp(10), dp(10));
         container.addView(input);
         return input;
     }
@@ -331,10 +363,10 @@ public final class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         start.setEnabled(false);
         stop.setEnabled(true);
-        sessionState.setText("采集状态：已开始（等待传感器）");
+        sessionState.setText("采集状态：已开始上传（实时看板同时刷新）");
         sessionState.setTextColor(0xFF00695C);
         sessionState.setBackgroundColor(0xFFE0F2F1);
-        renderStatus("采集已启动。现在扫描设备，并分别分配为大腿和小腿传感器。");
+        renderStatus("采集上传已启动。传感器数据会显示在上方看板，并写入加密队列。");
     }
 
     private void stopSession() {
@@ -344,10 +376,10 @@ public final class MainActivity extends AppCompatActivity {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         start.setEnabled(true);
         stop.setEnabled(false);
-        sessionState.setText("采集状态：已停止");
+        sessionState.setText("采集状态：已停止上传（仍可继续看实时数据）");
         sessionState.setTextColor(0xFF7A4E00);
         sessionState.setBackgroundColor(0xFFFFF4D6);
-        renderStatus("采集已停止。未上传的数据仍保存在手机的加密队列中。");
+        renderStatus("上传已停止。实时看板仍会刷新；未上传数据仍在手机加密队列中。");
     }
 
     private void restoreConfiguration() {
@@ -387,11 +419,20 @@ public final class MainActivity extends AppCompatActivity {
         }
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
-        row.setPadding(0, dp(8), 0, dp(8));
+        row.setBackgroundColor(0xFFFFFFFF);
+        row.setPadding(dp(10), dp(10), dp(10), dp(10));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        rowParams.bottomMargin = dp(8);
+        row.setLayoutParams(rowParams);
 
         TextView label = new TextView(this);
         label.setText(name + "\n" + address);
         label.setTextIsSelectable(true);
+        label.setTextColor(0xFF0F2942);
+        label.setTypeface(Typeface.DEFAULT_BOLD);
         row.addView(label);
 
         LinearLayout actions = new LinearLayout(this);
@@ -402,8 +443,11 @@ public final class MainActivity extends AppCompatActivity {
             if (!requireBleGateway()) {
                 return;
             }
+            connectedThighAddress = address;
+            thighPanel.markConnected(name, address);
+            updateLinkState();
             bleGateway.assignAndConnect(address, SensorPlacement.THIGH);
-            renderStatus(name + " 正在连接为大腿传感器。");
+            renderStatus(name + " 正在连接为大腿传感器。连接后上方绿色看板应开始刷新。");
         });
         actions.addView(thigh, weightedButton());
         Button shank = new Button(this);
@@ -412,16 +456,64 @@ public final class MainActivity extends AppCompatActivity {
             if (!requireBleGateway()) {
                 return;
             }
+            connectedShankAddress = address;
+            shankPanel.markConnected(name, address);
+            updateLinkState();
             bleGateway.assignAndConnect(address, SensorPlacement.SHANK);
-            renderStatus(name + " 正在连接为小腿传感器。");
+            renderStatus(name + " 正在连接为小腿传感器。连接后上方蓝色看板应开始刷新。");
         });
         actions.addView(shank, weightedButton());
         row.addView(actions);
         devices.addView(row);
     }
 
+    private void handleConnectionChanged(String address, boolean connected) {
+        if (address.equals(connectedThighAddress)) {
+            if (connected) {
+                thighPanel.markConnected("大腿传感器", address);
+            } else {
+                thighPanel.markDisconnected();
+                connectedThighAddress = "";
+            }
+        }
+        if (address.equals(connectedShankAddress)) {
+            if (connected) {
+                shankPanel.markConnected("小腿传感器", address);
+            } else {
+                shankPanel.markDisconnected();
+                connectedShankAddress = "";
+            }
+        }
+        updateLinkState();
+        renderStatus(address + (connected ? " 已连接，等待实时数据…" : " 已断开"));
+    }
+
+    private void updateLinkState() {
+        boolean thigh = !connectedThighAddress.isEmpty();
+        boolean shank = !connectedShankAddress.isEmpty();
+        if (thigh && shank) {
+            linkState.setText("连接状态：大腿 + 小腿 均已连接");
+            linkState.setTextColor(0xFF1B5E20);
+            linkState.setBackgroundColor(0xFFE8F5E9);
+        } else if (thigh) {
+            linkState.setText("连接状态：大腿已连接，小腿未连接");
+            linkState.setTextColor(0xFF00695C);
+            linkState.setBackgroundColor(0xFFE0F2F1);
+        } else if (shank) {
+            linkState.setText("连接状态：小腿已连接，大腿未连接");
+            linkState.setTextColor(0xFF0D47A1);
+            linkState.setBackgroundColor(0xFFE3F2FD);
+        } else {
+            linkState.setText("连接状态：未连接传感器");
+            linkState.setTextColor(0xFF7A4E00);
+            linkState.setBackgroundColor(0xFFFFF4D6);
+        }
+    }
+
     private LinearLayout.LayoutParams weightedButton() {
-        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        params.rightMargin = dp(4);
+        return params;
     }
 
     private void renderStatus(String message) {
@@ -430,33 +522,31 @@ public final class MainActivity extends AppCompatActivity {
 
     private void renderLiveReading(SensorSample sample) {
         liveSampleCount += 1;
-        long now = System.currentTimeMillis();
-        // Keep the UI readable: refresh at most ~5 times per second.
-        if (now - lastLiveRenderAtMs < 200L && liveSampleCount > 1) {
-            return;
-        }
-        lastLiveRenderAtMs = now;
-        String placement = sample.placement == SensorPlacement.THIGH ? "大腿" : "小腿";
-        String text = "已收到 " + liveSampleCount + " 帧真实数据\n"
-                + "部位：" + placement + "\n"
-                + "设备：" + sample.deviceName + "\n"
-                + "角度 AngX/Y/Z："
-                + format(sample.roll) + " / "
-                + format(sample.pitch) + " / "
-                + format(sample.yaw) + "\n"
-                + "加速度 AccX/Y/Z："
-                + format(sample.ax) + " / "
-                + format(sample.ay) + " / "
-                + format(sample.az) + "\n"
-                + "角速度 AsX/Y/Z："
-                + format(sample.gx) + " / "
-                + format(sample.gy) + " / "
-                + format(sample.gz) + "\n"
-                + "提示：转动传感器时角度应变化。未点“开始采集”时只预览，不上传。";
         runOnUiThread(() -> {
-            liveReadings.setText(text);
+            if (sample.placement == SensorPlacement.THIGH) {
+                if (connectedThighAddress.isEmpty()) {
+                    connectedThighAddress = sample.deviceName;
+                }
+                thighPanel.markConnected("大腿传感器", sample.deviceName);
+                thighPanel.update(sample, false);
+            } else {
+                if (connectedShankAddress.isEmpty()) {
+                    connectedShankAddress = sample.deviceName;
+                }
+                shankPanel.markConnected("小腿传感器", sample.deviceName);
+                shankPanel.update(sample, false);
+            }
+            updateLinkState();
+            sampleSummary.setText(
+                    "实时帧数：" + liveSampleCount
+                            + "\n最新设备：" + sample.deviceName
+                            + "\n部位：" + (sample.placement == SensorPlacement.THIGH ? "大腿" : "小腿")
+                            + "\n角度(°)：X " + format(sample.roll)
+                            + "  Y " + format(sample.pitch)
+                            + "  Z " + format(sample.yaw)
+            );
             if (stop.isEnabled()) {
-                sessionState.setText("采集状态：进行中（已收 " + liveSampleCount + " 帧）");
+                sessionState.setText("采集状态：上传中（已收 " + liveSampleCount + " 帧）");
             }
         });
     }
@@ -470,7 +560,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private static String format(double value) {
-        return String.format(java.util.Locale.US, "%.2f", value);
+        return String.format(Locale.US, "%+.2f", value);
     }
 
     private int dp(int value) {
