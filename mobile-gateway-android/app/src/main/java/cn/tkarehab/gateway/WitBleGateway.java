@@ -5,7 +5,6 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
-import android.location.LocationManager;
 import android.provider.Settings;
 
 import com.wit.witsdk.Bluetooth.WitBluetoothManager;
@@ -30,6 +29,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         void onConnectionChanged(String address, boolean connected);
         void onReading(SensorSample sample);
         void onError(String message, Exception error);
+        void onStatus(String message);
     }
 
     private final Activity activity;
@@ -39,6 +39,8 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private final Map<String, SensorPlacement> placements = new HashMap<>();
     private final Map<String, Long> lastSampleAt = new HashMap<>();
     private boolean waitingForPermissions;
+    private boolean resumeScanWhenReady;
+    private boolean scanning;
     private boolean stopped;
 
     WitBleGateway(Activity activity, Listener listener) {
@@ -52,12 +54,15 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         if (stopped) {
             return;
         }
+        resumeScanWhenReady = true;
+
         if (!WitBluetoothManager.checkPermissions(activity)) {
             waitingForPermissions = true;
+            listener.onStatus("正在申请蓝牙和定位权限；允许后会自动继续扫描。");
             WitBluetoothManager.requestPermissions(activity);
-            listener.onError("请允许蓝牙和定位权限；授权后应用会自动开始扫描。", null);
             return;
         }
+
         startScanWhenReady();
     }
 
@@ -66,8 +71,32 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
             return;
         }
         waitingForPermissions = false;
+
+        // Always re-check the real permission state. Some OEMs report a partial
+        // grantResult array while ContextCompat still sees the permission as denied.
         if (!granted || !WitBluetoothManager.checkPermissions(activity)) {
-            listener.onError("扫描需要蓝牙和定位权限，请在系统设置中允许后重试。", null);
+            resumeScanWhenReady = false;
+            listener.onError(
+                    "扫描需要蓝牙和定位权限。请在系统设置 → 应用 → TKA Hardware Gateway → 权限中全部允许后重试。",
+                    null
+            );
+            return;
+        }
+
+        if (resumeScanWhenReady) {
+            startScanWhenReady();
+        }
+    }
+
+    /**
+     * Called when the activity returns to the foreground, for example after the
+     * user enables location services or Bluetooth in system settings.
+     */
+    void onHostResumed() {
+        if (stopped || waitingForPermissions || !resumeScanWhenReady || scanning) {
+            return;
+        }
+        if (!WitBluetoothManager.checkPermissions(activity)) {
             return;
         }
         startScanWhenReady();
@@ -77,29 +106,52 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private void startScanWhenReady() {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter == null) {
+            resumeScanWhenReady = false;
             listener.onError("此手机不支持蓝牙，无法连接 WT 传感器。", null);
             return;
         }
         if (!adapter.isEnabled()) {
-            activity.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-            listener.onError("请先开启蓝牙，然后再次点击扫描。", null);
+            listener.onStatus("请先开启蓝牙；开启后返回本应用会自动继续扫描。");
+            try {
+                activity.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
+            } catch (Exception error) {
+                listener.onError("无法打开蓝牙开关页面。", error);
+            }
             return;
         }
 
-        LocationManager location = (LocationManager) activity.getSystemService(Activity.LOCATION_SERVICE);
-        if (location != null && !location.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            activity.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-            listener.onError("官方 SDK 需要开启系统定位服务；开启后请再次点击扫描。", null);
+        if (!LocationServices.isEnabled(activity)) {
+            listener.onStatus(
+                    "请开启系统定位服务（很多手机不开定位就扫不到蓝牙设备名）。"
+                            + "开启后直接返回本应用，会自动继续扫描。"
+            );
+            try {
+                activity.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+            } catch (Exception error) {
+                listener.onError("无法打开定位设置页面，请手动开启定位后重试。", error);
+            }
             return;
         }
 
         try {
             WitBluetoothManager manager = WitBluetoothManager.getInstance(activity);
-            manager.stopScan();
+            try {
+                manager.stopScan();
+            } catch (Exception ignored) {
+                // First scan has no active callback.
+            }
             discoveredDevices.clear();
+            scanning = true;
+            resumeScanWhenReady = false;
             manager.startScan();
-            listener.onError("正在扫描 WT 蓝牙设备，扫描会在 10 秒后自动停止。", null);
+            listener.onStatus(
+                    "正在扫描 WT 蓝牙设备（约 10 秒）。"
+                            + "请确认传感器已开机，指示灯闪烁，并靠近手机。"
+            );
         } catch (Exception error) {
+            scanning = false;
+            // Keep resume armed so a later permission/location fix can continue.
+            resumeScanWhenReady = true;
             listener.onError("无法启动蓝牙扫描。请确认权限、蓝牙和定位均已开启。", error);
         }
     }
@@ -107,7 +159,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     void assignAndConnect(String address, SensorPlacement placement) {
         BluetoothDevice device = discoveredDevices.get(address);
         if (device == null) {
-            listener.onError("The selected device is no longer available. Scan again.", null);
+            listener.onError("所选设备已失效，请重新扫描。", null);
             return;
         }
 
@@ -133,8 +185,9 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         deviceManager.AddDevice(address, deviceModel);
         try {
             deviceModel.Connect(activity);
+            listener.onStatus(placementLabel(placement) + " 传感器连接中：" + address);
         } catch (Exception error) {
-            listener.onError("Could not connect " + address, error);
+            listener.onError("无法连接 " + address, error);
         }
     }
 
@@ -144,15 +197,18 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
                 DeviceModel device = deviceManager.GetDevice(entry.getKey());
                 if (device != null) {
                     device.SetAngle0();
+                    listener.onStatus(placementLabel(placement) + " 已发送归零命令。");
                     return;
                 }
             }
         }
-        listener.onError("Assign and connect the " + placement.name() + " sensor first.", null);
+        listener.onError("请先把 " + placementLabel(placement) + " 传感器扫描并连接。", null);
     }
 
     void stop() {
         stopped = true;
+        resumeScanWhenReady = false;
+        scanning = false;
         try {
             WitBluetoothManager.getInstance(activity).stopScan();
         } catch (Exception ignored) {
@@ -170,7 +226,12 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     @SuppressLint("MissingPermission")
     public void onDeviceFound(BluetoothDevice device) {
         String name = device.getName();
-        if (name == null || !name.toUpperCase(Locale.ROOT).startsWith("WT")) {
+        if (name == null || name.trim().isEmpty()) {
+            // Without location services many phones hide the advertised name.
+            return;
+        }
+        String normalized = name.toUpperCase(Locale.ROOT);
+        if (!(normalized.startsWith("WT") || normalized.startsWith("BWT") || normalized.contains("901"))) {
             return;
         }
         String address = device.getAddress();
@@ -179,6 +240,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         }
         discoveredDevices.put(address, device);
         listener.onDeviceFound(address, name);
+        listener.onStatus("已发现设备：" + name + "（" + address + "）");
     }
 
     @Override
@@ -217,5 +279,9 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     @Override
     public void OnStatusChange(String address, boolean connected) {
         listener.onConnectionChanged(address, connected);
+    }
+
+    private static String placementLabel(SensorPlacement placement) {
+        return placement == SensorPlacement.THIGH ? "大腿" : "小腿";
     }
 }

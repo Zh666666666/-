@@ -3,7 +3,6 @@ package cn.tkarehab.gateway;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.bluetooth.BluetoothAdapter;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -46,8 +45,13 @@ public final class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
+
+        // Render the operational UI first so a later SDK/keystore failure cannot
+        // blank the process before the user sees anything. Then clear the
+        // incomplete-launch flag so the next cold start does not false-alarm.
         setContentView(createContent());
         restoreConfiguration();
+        TkaApplication.markLaunchSucceeded(this);
 
         try {
             platformGateway = new PlatformGateway(
@@ -91,10 +95,23 @@ public final class MainActivity extends AppCompatActivity {
                 public void onError(String message, Exception error) {
                     renderStatus(message + detail(error));
                 }
+
+                @Override
+                public void onStatus(String message) {
+                    renderStatus(message);
+                }
             });
         } catch (Throwable error) {
             bleInitializationFailure = describe(error);
             renderStatus("蓝牙 SDK 初始化失败。应用仍可打开，请保存此信息并反馈：" + bleInitializationFailure);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (bleGateway != null) {
+            bleGateway.onHostResumed();
         }
     }
 
@@ -120,6 +137,8 @@ public final class MainActivity extends AppCompatActivity {
         if (requestCode != WIT_PERMISSION_REQUEST || bleGateway == null) {
             return;
         }
+        // Some OEM permission dialogs return empty grantResults when the user leaves
+        // through settings. Re-check the real permission state inside the gateway.
         boolean granted = grantResults.length > 0;
         for (int result : grantResults) {
             granted &= result == PackageManager.PERMISSION_GRANTED;
@@ -327,8 +346,7 @@ public final class MainActivity extends AppCompatActivity {
         } catch (Throwable error) {
             bleInitializationFailure = describe(error);
         }
-        LocationManager location = (LocationManager) getSystemService(LOCATION_SERVICE);
-        boolean locationEnabled = location == null || location.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        boolean locationEnabled = LocationServices.isEnabled(this);
         GatewayConfig.Validation configuration = GatewayConfig.validate(
                 apiUrl.getText().toString(),
                 patientId.getText().toString()
