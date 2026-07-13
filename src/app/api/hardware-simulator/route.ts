@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { addDemoDevice, addDemoDeviceBinding, addDemoSensorSample, addDemoSensorSession } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { calculateKneeAngleFromPitch } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 import { seedPatients } from "@/lib/rehab";
@@ -40,12 +41,39 @@ export async function POST(request: Request) {
   const simulated = makeSimulatedAngles();
   const now = new Date().toISOString();
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     const thigh = addDemoDevice({ serialNo: SIMULATED_THIGH_SERIAL, name: "Simulated WT9011DCL-BT50 thigh sensor", model: "WT9011DCL-BT50" });
     const shank = addDemoDevice({ serialNo: SIMULATED_SHANK_SERIAL, name: "Simulated WT9011DCL-BT50 shank sensor", model: "WT9011DCL-BT50" });
     addDemoDeviceBinding({ deviceId: thigh.id, patientId, placement: "THIGH" });
     addDemoDeviceBinding({ deviceId: shank.id, patientId, placement: "SHANK" });
     const activeSession = addDemoSensorSession({ patientId, source: SIMULATED_SOURCE });
+    const t = Date.now() / 1000;
+    addDemoSensorSample({
+      sessionId: activeSession.id,
+      deviceId: thigh.id,
+      patientId,
+      source: SIMULATED_SOURCE,
+      placement: "THIGH",
+      recordedAt: now,
+      roll: Math.sin(t / 3) * 4,
+      pitch: simulated.thighPitch,
+      yaw: Math.cos(t / 5) * 2,
+      ax: 0.02 + Math.sin(t) * 0.03,
+      ay: 0.01,
+      az: 0.98,
+      gx: Math.sin(t * 2) * 8,
+      gy: Math.cos(t * 1.5) * 5,
+      gz: Math.sin(t) * 3,
+      flexionAngle: simulated.flexionAngle,
+      extensionAngle: simulated.extensionAngle,
+      confidence: simulated.confidence,
+      batteryLevel: 89,
+      signalStrength: 95,
+      raw: { origin: "HARDWARE_SIMULATOR", kneeAngleMode: "DUAL_SENSOR", ...simulated },
+    });
     const result = addDemoSensorSample({
       sessionId: activeSession.id,
       deviceId: shank.id,
@@ -53,13 +81,21 @@ export async function POST(request: Request) {
       source: SIMULATED_SOURCE,
       placement: "SHANK",
       recordedAt: now,
+      roll: Math.sin(t / 2.5) * 6,
       pitch: simulated.shankPitch,
+      yaw: Math.cos(t / 4) * 3,
+      ax: 0.03 + Math.cos(t) * 0.04,
+      ay: -0.02,
+      az: 0.96,
+      gx: Math.cos(t * 2) * 10,
+      gy: Math.sin(t * 1.2) * 7,
+      gz: Math.cos(t) * 4,
       flexionAngle: simulated.flexionAngle,
       extensionAngle: simulated.extensionAngle,
       confidence: simulated.confidence,
-      batteryLevel: 89,
-      signalStrength: 95,
-      raw: { origin: "HARDWARE_SIMULATOR", ...simulated },
+      batteryLevel: 91,
+      signalStrength: 96,
+      raw: { origin: "HARDWARE_SIMULATOR", kneeAngleMode: "DUAL_SENSOR", ...simulated },
     });
 
     return NextResponse.json({ source: SIMULATED_SOURCE, session: activeSession, simulated, ...result });

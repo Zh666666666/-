@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { addDemoDeviceBinding, getDemoDeviceBindings } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { serializeDeviceBinding } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 
@@ -17,7 +18,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const patientId = url.searchParams.get("patientId") ?? undefined;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(getDemoDeviceBindings(patientId));
   }
 
@@ -42,7 +46,10 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     const binding = addDemoDeviceBinding(body);
     return binding ? NextResponse.json(binding) : NextResponse.json({ error: "Device not found" }, { status: 404 });
   }

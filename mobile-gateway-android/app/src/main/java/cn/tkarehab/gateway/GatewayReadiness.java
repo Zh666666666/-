@@ -32,7 +32,7 @@ final class GatewayReadiness {
                 "平台配置",
                 configuration.valid,
                 "已填写",
-                configuration.message.isEmpty() ? "填写 HTTPS 地址和患者 ID 后可上传" : configuration.message
+                configuration.message.isEmpty() ? "填写平台地址和患者 ID 后可上传" : configuration.message
         );
 
         if (readyToScan) {

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { addDemoNursingRecord } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { encodeNursingNotes, serializeNursingRecord } from "@/lib/rehab";
 
@@ -32,7 +33,10 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(addDemoNursingRecord(body));
   }
 

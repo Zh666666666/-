@@ -68,40 +68,43 @@
 
 ## 当前状态
 
-- 默认分支：`main`
+- 工作分支：`claude/milestone-0-data-boundary`（本地进行中）
 - GitHub 仓库：`https://github.com/Zh666666666/-`
-- 本地 `npm run lint`：通过
-- 本地 `npm run build`：通过
-- GitHub Actions：通过
-- 云端无密钥时：使用 Demo 模式
+- 运行时边界：已引入 `APP_MODE`（`demo` / `production` / `invalid`）。Demo 始终走内存数据；生产缺库或缺 Supabase 配置时 fail-closed（503）。
+- 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
+- 本地验证：`npm run test:runtime` 8/8、`lint`、`build` 通过；网站实时看板与分析 API 冒烟通过。
+- 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；官方 App 与项目 Android 网关均已成功发现/连接一只实物。App 选择 `BWT901BLECL5.0` 档位；项目网关实机扫描到广播名 `WT901BLE67`、地址 `D7:0F:8A:DA:BE:DB` 并显示已连接。地址与广播名仍不能当作已验证的厂商序列号。
-- Android 网关：v0.2 最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。真机已确认可启动、安装自检、扫描并连接单只实物 `WT901BLE67`。界面已升级为 3D 姿态 + 波形 + 数值看板；待用户安装最新可视化 APK 确认立方体与曲线随转动变化。后续阻塞：双传感器校准、平台上传与生产部署。
-- 正式服务器：暂不可用，尚未部署生产环境
-- 当前产品性质：可演示、可云端开发；项目网关已完成单只真实传感器连接验收，但尚未验证双传感器同步、归零校准、膝关节角度、加密离线补传和生产上传。演示数据与真实硬件数据已在来源链上隔离，生产服务器恢复后需先执行新增的传感器样本来源迁移。
-- 视觉系统：核心工作台已完成临床化 UI 收敛，其他业务页面继续复用共享卡片、按钮、输入框和导航样式
+- Android 网关：v0.3（`versionCode=3`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`，应用名 `TKA网关 v0.3 局域网上传版`。Debug 允许局域网 HTTP，Release 继续禁止明文 HTTP。
+- Android v0.3 首次启动会清理旧版测试队列一次；运行验证已确认 3 条旧文件清为 0，界面提示“新采集将从 0 开始”。
+- 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
+- 网站实时看板：`/sensor-live` 每 1.5 秒轮询 `GET /api/sensor-samples?patientId=...`，展示大腿/小腿 Acc/Gyro/Angle、帧时间、来源、单/双传感器模式、原始波形与临床趋势；内置 `POST /api/ai-analyses` 优先使用 HARDWARE 临床记录并标注来源边界。
+- 本机联调地址：`http://192.168.31.203:3000`；Demo 患者 ID：`demo-patient-1`。
+- Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
+- 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
+- 正式服务器：暂不可用，尚未部署生产环境。
+- 已知生产安全缺口：`supabase/realtime.sql` 仍是 Demo 级 anon 全表策略，不能当作正式 RLS；API 层尚未做会话级鉴权。
+- 仓库结构缺口：外层仓库将 `tka-rehab-platform` 记为 gitlink，且缺少 `.gitmodules`，交付时需固定到应用仓库提交。
+- 当前产品性质：可演示；真机连接与平台连通已确认，网站已可显示与网关同口径的实时原始样本；双传感器临床分析仍待第二只传感器。
 
 ## 下一步任务
 
 按优先级从上到下执行：
 
-1. **P0 - 单传感器实时可视化与归零验收**
-   - 安装含 3D 姿态/波形的 Debug APK，连接后确认数值、立方体、曲线同步变化，并与官方 App 对照。
-   - 验证“大腿/小腿归零”命令与安装轴向。
-2. **P0 - 双传感器膝关节联调**
+1. **P0 - 真机上传 + 网站实时看板验收**
+   - 手机继续上传到 `http://192.168.31.203:3000`，患者 ID `demo-patient-1`。
+   - 打开 `/sensor-live`，确认 Acc/Gyro/Angle、帧时间、来源与 App 一致刷新。
+   - 单传感器时仅见原始帧；有临床趋势后点“运行内置分析”。
+2. **P0 - 单传感器归零与轴向验收**
+   - 验证大腿/小腿归零命令与安装轴向；单传感器角度仅作为低置信原始样本，不进入临床趋势。
+3. **P0 - 双传感器膝关节联调**
    - 第二只 WT9011DCL-BT50 扫描、分配大腿/小腿并同时连接。
-   - 完成零点校准和膝关节角度算法验证。
-3. **P0 - 采集上传与离线补传**
-   - 恢复正式服务器或临时 HTTPS 环境后填写平台地址与患者 ID。
-   - 开始采集，确认样本写入加密队列并上传；断网后恢复网络验证补传。
-4. **P1 - 自动化测试**
-   - 为硬件 API、数据校验、重复样本和离线补传增加测试。
-   - 增加家属端与护士端关键流程的浏览器回归测试。
-5. **P1 - 正式服务器部署**
-   - 恢复服务器后配置数据库、环境变量、HTTPS、迁移和备份。
-   - 验证家属端、护士端、Realtime 和硬件上传链路。
-6. **P1 - 产品安全与交付**
-   - 完善真实账号权限、审计日志、患者隐私和告警升级规则。
-   - 编写安装、校准、使用、故障处理和交付验收文档。
+   - 完成零点校准和双传感器膝角算法验证；可信角进入临床趋势与分析 API。
+4. **P0 - 离线补传**
+   - 断网采集后恢复网络，确认加密队列补传。
+5. **P1 - 正式服务器与安全交付**
+   - 配置数据库、环境变量、HTTPS、迁移、备份；替换 Demo RLS；补真实账号权限与审计。
+   - 修正仓库交付结构，确保 GitHub 可稳定构建核心应用。
 
 ## Agent 工作记录
 
@@ -131,6 +134,12 @@
 | 2026-07-13 | 修复连接后无持续数据可见：实时读数改为连接后直接渲染，不依赖“开始采集”；新增角度/加速度/角速度预览区 | 新预览 APK 待真机确认读数随转动变化 | 用户安装后反馈是否看到持续变化的 Ang/Acc/As | 代码已改；待重新编译 Debug APK |
 | 2026-07-13 | 主界面改为官方 App 风格实时看板：大腿/小腿双卡片，Acc/Gyro/Angle 三行 X/Y/Z 大字刷新，连接状态与帧数摘要置顶 | 看板 APK 待真机安装确认 | 用户安装后确认转动时 X/Y/Z 是否实时变化 | 待 `build-debug.ps1` 产出 |
 | 2026-07-13 | 增加 3D 姿态立方体、Acc/Gyro/Angle 波形曲线，并美化圆角临床风 UI；更新状态文档并推送 GitHub | 可视化 APK 待真机安装确认立方体与曲线 | 用户安装最新 APK，转动传感器验证 3D/波形/数值同步 | 待本地编译与 push |
+| 2026-07-13 | 收口运行时数据边界：`APP_MODE` fail-closed、生产不再自动注入 Demo、API 统一 readiness 分流、健康检查 live/ready、家属端仅 Demo 自动上传且来源标记 `DEMO`、补 `test:runtime` 与 env 模板；Demo API 冒烟通过上传→预警→处理→SOAP→预约 | 本地分支 `claude/milestone-0-data-boundary` 已通过静态/网关/API 冒烟；生产部署、RLS、API 鉴权、真实硬件闭环未完成 | 推进浏览器角色闭环回归与硬件验收 | `test:runtime` 3/3、`lint`、`build`、`check:status`、`gateway:test` 8/8；Demo API 闭环 200 |
+| 2026-07-13 | 打通真机上传准备：网关允许局域网 HTTP、Debug cleartext、单传感器临时膝角、样本显式 `HARDWARE`；设备页展示可复制患者 ID；本地 platform 上传冒烟与 Debug APK 已产出 | 待用户安装 `TKA-Gateway-debug-upload-ready.apk` 完成手机实机上传；双传感器/归零/离线补传未验收 | 用户真机上传验收后推进双传感器与离线补传 | 本地 API 冒烟 device→session→sample→dashboard `HARDWARE 48.6`；`build-debug.ps1` 成功；APK 已复制到桌面 |
+| 2026-07-13 | 真机反馈“上传暂缓/队列积压”：服务端无任何手机 POST，判定为 Windows 防火墙/局域网入站阻断；网关增加连通性探测、真实错误回显、上传降采样与批量冲刷；提供管理员防火墙脚本 | 需用户管理员放行 3000 端口后重装新 APK 再测；队列中旧数据会在连通后自动补传 | 用户执行防火墙脚本 + 安装新 APK + 点“测试平台连接” | 服务仅有本机访问日志；防火墙改规则需提升权限 |
+| 2026-07-13 | 防火墙与手机浏览器 health 已通，但 App 报 Cleartext HTTP not permitted；修复 Debug `network_security_config` 允许局域网 HTTP（`networkSecurityConfig` 会覆盖 `usesCleartextTraffic`）并重建 APK | 待用户安装最新桌面 APK 后点“测试平台连接/开始采集上传” | 用户重装 APK 验收上传；队列旧数据应自动补传 | Debug APK 已重建到桌面 `TKA-Gateway-debug-upload-ready.apk` |
+| 2026-07-13 | 完成 Android v0.3 局域网上传发布候选：Debug/Release 网络策略分离、App 内连接/启动上传实测、旧测试队列一次性清理、低置信单传感器与临床趋势隔离、高置信双传感器 10 秒聚合及告警冷却；新增 Windows 中文路径 Android 验证脚本 | 唯一桌面 APK 待用户真机覆盖安装；真实单传感器上传结果待回传，双传感器仍未联调 | 真机安装 v0.3 并验证新采集上传；之后推进双传感器 | Android 35：连接与开始上传 PASS、旧队列 3→0；HTTP 781 条低置信无临床记录/告警；runtime 8/8、gateway 8/8、Android JVM/Lint、Debug/Release、Next build/lint 全通过 |
+| 2026-07-13 | 网站实时看板闭环：Demo 持久化完整 Acc/Gyro/Angle 原始样本；`GET /api/sensor-samples` 返回 live snapshot；新增 `/sensor-live` 实时页（1.5s 轮询、大腿/小腿分卡、原始波形与临床趋势分离）；`/api/ai-analyses` 优先 HARDWARE 临床记录并标注来源边界；导航与设备页入口已接通 | 用户确认平台连接成功；网站已可显示与 App 同口径实时原始数据；双传感器临床分析仍待第二只传感器 | 真机持续上传时打开 `/sensor-live` 验收；推进双传感器 | runtime 8/8、lint、build；HTTP 冒烟：低置信 raw-only、高置信生成临床+告警、live snapshot dualActive、ai-analyses 标明真实硬件、`/sensor-live` 200 |
 
 ## Agent 更新规则
 

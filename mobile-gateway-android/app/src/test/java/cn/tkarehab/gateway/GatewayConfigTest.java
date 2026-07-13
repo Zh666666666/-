@@ -17,7 +17,9 @@ public final class GatewayConfigTest {
     }
 
     @Test
-    public void rejectsCleartextAndEmbeddedCredentials() {
+    public void acceptsLocalDevelopmentHttpButRejectsPublicCleartext() {
+        assertTrue(GatewayConfig.validate("http://192.168.1.20:3000", "patient-1").valid);
+        assertTrue(GatewayConfig.validate("http://10.0.0.8:3000/", "patient-1").valid);
         assertFalse(GatewayConfig.validate("http://care.example.com", "patient-1").valid);
         assertFalse(GatewayConfig.validate("https://user:pass@care.example.com", "patient-1").valid);
     }

@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:label="TKA网关 v0.3 局域网上传版"
+        android:usesCleartextTraffic="true"
+        tools:replace="android:label,android:usesCleartextTraffic" />
+</manifest>

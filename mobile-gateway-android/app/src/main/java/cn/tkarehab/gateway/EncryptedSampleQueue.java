@@ -87,6 +87,26 @@ final class EncryptedSampleQueue {
         return files().length;
     }
 
+    synchronized int discardLegacyTestData() {
+        File[] legacyFiles = directory.listFiles((file, name) ->
+                name.endsWith(".payload") || name.endsWith(".corrupt")
+        );
+        if (legacyFiles == null) {
+            return 0;
+        }
+
+        int removed = 0;
+        for (File legacyFile : legacyFiles) {
+            if (!legacyFile.delete()) {
+                throw new IllegalStateException(
+                        "Could not remove legacy test queue item: " + legacyFile.getName()
+                );
+            }
+            removed += 1;
+        }
+        return removed;
+    }
+
     private EncryptedFile encrypted(File destination) throws GeneralSecurityException, IOException {
         return new EncryptedFile.Builder(
                 context,

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { updateDemoAppointment } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 const appointmentUpdateSchema = z.object({
@@ -22,7 +23,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     const appointment = updateDemoAppointment(id, body);
 
     if (!appointment) {

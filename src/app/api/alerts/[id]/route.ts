@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 
 import { resolveDemoAlert } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     const alert = resolveDemoAlert(id);
 
     if (!alert) {

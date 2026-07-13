@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { addDemoCalibrationRecord, getDemoCalibrationRecords } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { serializeCalibrationRecord } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 
@@ -26,7 +27,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "patientId is required" }, { status: 400 });
   }
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(getDemoCalibrationRecords(patientId));
   }
 
@@ -48,7 +52,10 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(addDemoCalibrationRecord(body));
   }
 

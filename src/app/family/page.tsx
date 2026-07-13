@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 type UploadState = "idle" | "syncing" | "synced" | "error";
 type FamilyWorkspace = "today" | "data" | "nurse" | "care";
+const isClientDemoMode = process.env.NEXT_PUBLIC_APP_MODE === "demo";
 
 async function fetchDashboard() {
   const response = await fetch("/api/dashboard", { cache: "no-store" });
@@ -158,7 +159,7 @@ export default function FamilyPage() {
   }, [patient]);
 
   useEffect(() => {
-    if (!patient) {
+    if (!patient || !isClientDemoMode) {
       return;
     }
 

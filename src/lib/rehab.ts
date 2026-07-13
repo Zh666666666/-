@@ -117,6 +117,32 @@ export type SensorSessionItem = {
   sampleCount: number;
 };
 
+export type SensorSampleItem = {
+  id: string;
+  patientId: string;
+  deviceId: string | null;
+  sessionId: string | null;
+  placement: DevicePlacement;
+  source: KneeDataPoint["source"];
+  recordedAt: string;
+  roll: number | null;
+  pitch: number | null;
+  yaw: number | null;
+  ax: number | null;
+  ay: number | null;
+  az: number | null;
+  gx: number | null;
+  gy: number | null;
+  gz: number | null;
+  flexionAngle: number | null;
+  extensionAngle: number | null;
+  confidence: number | null;
+  batteryLevel: number | null;
+  signalStrength: number | null;
+  kneeAngleMode: "DUAL_SENSOR" | "SINGLE_SENSOR_PROVISIONAL" | "UNKNOWN" | null;
+  clinicalEligible: boolean;
+};
+
 export type CalibrationRecordItem = {
   id: string;
   patientId: string;
@@ -375,7 +401,7 @@ export function createDemoRecord(patientId = seedPatients[0].id): KneeDataPoint 
     painScore: anomaly ? 7 : Math.floor(Math.random() * 5),
     batteryLevel: 86 + Math.floor(Math.random() * 12),
     signalStrength: 88 + Math.floor(Math.random() * 10),
-    source: "SMART_BRACE",
+    source: "DEMO",
     recordedAt: now.toISOString(),
   };
 }

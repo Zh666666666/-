@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { addDemoAiAnalysis } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { type AiAnalysisItem, type KneeDataPoint, type PatientSummary } from "@/lib/rehab";
 
@@ -11,6 +12,21 @@ const analysisRequestSchema = z.object({
 });
 
 type AnalysisDraft = Pick<AiAnalysisItem, "provider" | "report" | "recommendation">;
+
+function sourceLabel(source: KneeDataPoint["source"]) {
+  switch (source) {
+    case "HARDWARE":
+      return "真实硬件";
+    case "DEMO":
+      return "演示数据";
+    case "SMART_BRACE":
+      return "智能护具";
+    case "MANUAL":
+      return "人工录入";
+    default:
+      return source;
+  }
+}
 
 function localAnalysis(patient: PatientSummary, record: KneeDataPoint): AnalysisDraft {
   const risks = [
@@ -21,10 +37,11 @@ function localAnalysis(patient: PatientSummary, record: KneeDataPoint): Analysis
   ].filter(Boolean);
 
   const riskText = risks.length ? risks.join("；") : "当前关键指标未触发高危阈值";
+  const provenance = `数据来源：${sourceLabel(record.source)}；仅使用已进入临床趋势的膝角记录（置信度≥0.7 的双传感器聚合）。单传感器临时读数不参与分析。`;
 
   return {
     provider: "local-rule",
-    report: `${patient.name} 当前屈曲 ${record.flexionAngle.toFixed(0)}°，训练 ${record.activityFrequency} 次、累计 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。${riskText}。`,
+    report: `${patient.name} 当前屈曲 ${record.flexionAngle.toFixed(0)}°，训练 ${record.activityFrequency} 次、累计 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。${riskText}。${provenance}`,
     recommendation: record.flexionAngle < 78 || record.painScore >= 7
       ? "建议护士优先远程复核疼痛、肿胀、动作质量和家属照护压力；先安抚再解释风险，今日训练改为短时多组，必要时安排线下评估。"
       : "建议维持主动屈膝与股四头肌训练，继续观察角度趋势、训练依从性和家属陪练反馈；疼痛升高时及时暂停并同步护士。",
@@ -77,7 +94,7 @@ async function callOpenAi(patient: PatientSummary, record: KneeDataPoint): Promi
         },
         {
           role: "user",
-          content: `患者：${patient.name}，术后目标屈曲 ${patient.targetFlexion}°。最新数据：屈曲 ${record.flexionAngle}°，伸直 ${record.extensionAngle}°，训练频次 ${record.activityFrequency} 次，训练时长 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。请生成关节康复分析和建议。`,
+          content: `患者：${patient.name}，术后目标屈曲 ${patient.targetFlexion}°。数据来源：${sourceLabel(record.source)}（仅临床趋势记录，不含单传感器临时读数）。最新数据：屈曲 ${record.flexionAngle}°，伸直 ${record.extensionAngle}°，训练频次 ${record.activityFrequency} 次，训练时长 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。请生成关节康复分析和建议，并在 report 中点明数据来源与可信边界。`,
         },
       ],
       temperature: 0.3,
@@ -107,14 +124,14 @@ async function callAnthropic(patient: PatientSummary, record: KneeDataPoint): Pr
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-8",
       max_tokens: 600,
       temperature: 0.3,
-      system: "你是骨科 TKA 术后康复护士助手。只返回 JSON，字段为 report 和 recommendation，内容用中文，面向护士、患者和家属都能理解。建议必须体现先安抚、再评估、再干预，并说明家属如何安全陪伴。",
+      system: "你是骨科 TKA 术后康复护士助手。只返回 JSON，字段为 report 和 recommendation，内容用中文，面向护士、患者和家属都能理解。建议必须体现先安抚、再评估、再干预，并说明家属如何安全陪伴。分析仅基于已进入临床趋势的膝角记录，不得把单传感器临时读数当临床结论。",
       messages: [
         {
           role: "user",
-          content: `患者：${patient.name}，术后目标屈曲 ${patient.targetFlexion}°。最新数据：屈曲 ${record.flexionAngle}°，伸直 ${record.extensionAngle}°，训练频次 ${record.activityFrequency} 次，训练时长 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。请生成关节康复分析和建议。`,
+          content: `患者：${patient.name}，术后目标屈曲 ${patient.targetFlexion}°。数据来源：${sourceLabel(record.source)}（仅临床趋势记录，不含单传感器临时读数）。最新数据：屈曲 ${record.flexionAngle}°，伸直 ${record.extensionAngle}°，训练频次 ${record.activityFrequency} 次，训练时长 ${record.activityDuration} 分钟，疼痛 ${record.painScore}/10。请生成关节康复分析和建议，并在 report 中点明数据来源与可信边界。`,
         },
       ],
     }),
@@ -161,14 +178,22 @@ export async function POST(request: Request) {
 
   const { patientId } = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     const { getDemoDashboardData } = await import("@/lib/demo-store");
     const dashboard = getDemoDashboardData();
     const patient = dashboard.patients.find((item) => item.id === patientId);
-    const record = dashboard.records.filter((item) => item.patientId === patientId).at(-1);
+    const patientRecords = dashboard.records.filter((item) => item.patientId === patientId);
+    // Prefer real hardware clinical records when present; fall back to latest clinical trend.
+    const record = [...patientRecords].reverse().find((item) => item.source === "HARDWARE")
+      ?? patientRecords.at(-1);
 
     if (!patient || !record) {
-      return NextResponse.json({ error: "Patient or knee record not found" }, { status: 404 });
+      return NextResponse.json({
+        error: "暂无可用于分析的临床膝角记录。请先上传置信度≥0.7 的双传感器样本，或使用已有临床趋势数据。",
+      }, { status: 404 });
     }
 
     const draft = await generateAnalysis(patient, record);
@@ -185,12 +210,17 @@ export async function POST(request: Request) {
 
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
   const record = await prisma.kneeDataRecord.findFirst({
+    where: { patientId, source: "HARDWARE" },
+    orderBy: { recordedAt: "desc" },
+  }) ?? await prisma.kneeDataRecord.findFirst({
     where: { patientId },
     orderBy: { recordedAt: "desc" },
   });
 
   if (!patient || !record) {
-    return NextResponse.json({ error: "Patient or knee record not found" }, { status: 404 });
+    return NextResponse.json({
+      error: "暂无可用于分析的临床膝角记录。请先上传置信度≥0.7 的双传感器样本。",
+    }, { status: 404 });
   }
 
   const patientSummary: PatientSummary = {

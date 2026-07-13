@@ -1,46 +1,27 @@
 import { getDemoDashboardData } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { getRuntimeReadiness, isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { assessKneeRecord, createInitialRecords, seedPatients, serializeNursingRecord, type DashboardData } from "@/lib/rehab";
+import { serializeNursingRecord, type DashboardData } from "@/lib/rehab";
 
 const includePatientOrder = {
   orderBy: { createdAt: "desc" as const },
 };
 
 export async function ensureDemoPatients() {
-  if (!hasUsableDatabaseUrl()) {
-    return;
-  }
-
-  const count = await prisma.patient.count();
-
-  if (count > 0) {
-    return;
-  }
-
-  for (const patient of seedPatients) {
-    await prisma.patient.create({
-      data: {
-        medicalRecordNo: patient.medicalRecordNo,
-        name: patient.name,
-        age: patient.age,
-        roomNumber: patient.roomNumber,
-        surgeryDate: new Date(patient.surgeryDate),
-        surgicalSide: patient.surgicalSide,
-        targetFlexion: patient.targetFlexion,
-        status: patient.status,
-        riskLevel: patient.riskLevel,
-      },
-    });
-  }
+  // Compatibility shim for existing routes. Production patient creation must be explicit.
+  return;
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  if (!hasUsableDatabaseUrl()) {
-    return getDemoDashboardData();
+  const readiness = getRuntimeReadiness();
+
+  if (!readiness.ready) {
+    throw new Error(readiness.issues.join(" ") || "Runtime configuration is not ready.");
   }
 
-  await ensureDemoPatients();
+  if (isDemoMode()) {
+    return getDemoDashboardData();
+  }
 
   const [patients, records, alerts, nursingRecords, aiAnalyses, familyProfile] = await Promise.all([
     prisma.patient.findMany({
@@ -50,7 +31,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       ],
     }),
     prisma.kneeDataRecord.findMany({
-      orderBy: { recordedAt: "asc" },
+      orderBy: { recordedAt: "desc" },
       take: 80,
     }),
     prisma.alertLog.findMany({
@@ -68,52 +49,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     prisma.profile.findFirst({ where: { role: "patient" } }),
   ]);
 
-  if (records.length === 0) {
-    const patientByMedicalNo = new Map(patients.map((patient) => [patient.medicalRecordNo, patient.id]));
-    const demoRecords = createInitialRecords().map((record) => {
-      const medicalNo = seedPatients.find((patient) => patient.id === record.patientId)?.medicalRecordNo;
-      return {
-        ...record,
-        patientId: medicalNo ? patientByMedicalNo.get(medicalNo) ?? patients[0].id : patients[0].id,
-      };
-    });
-
-    await prisma.kneeDataRecord.createMany({
-      data: demoRecords.map((record) => ({
-        patientId: record.patientId,
-        flexionAngle: record.flexionAngle,
-        extensionAngle: record.extensionAngle,
-        activityFrequency: record.activityFrequency,
-        activityDuration: record.activityDuration,
-        painScore: record.painScore,
-        batteryLevel: record.batteryLevel,
-        signalStrength: record.signalStrength,
-        source: "DEMO",
-        recordedAt: new Date(record.recordedAt),
-      })),
-    });
-
-    const latest = demoRecords.at(-1);
-    const alert = latest ? assessKneeRecord(latest) : null;
-
-    if (latest && alert) {
-      await prisma.alertLog.create({
-        data: {
-          patientId: latest.patientId,
-          type: alert.type,
-          severity: alert.severity,
-          title: alert.title,
-          message: alert.message,
-          metric: alert.metric,
-          value: alert.value,
-          threshold: alert.threshold,
-        },
-      });
-    }
-
-    return getDashboardData();
-  }
-
   return {
     patients: patients.map((patient, index) => ({
       ...patient,
@@ -124,7 +59,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       createdAt: undefined,
       updatedAt: undefined,
     })) as DashboardData["patients"],
-    records: records.map((record) => ({
+    records: records.toReversed().map((record) => ({
       id: record.id,
       patientId: record.patientId,
       flexionAngle: record.flexionAngle,

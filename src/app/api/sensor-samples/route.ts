@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { addDemoSensorSample } from "@/lib/demo-store";
+import { addDemoSensorSample, getDemoSensorLiveSnapshot } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { assessKneeRecord } from "@/lib/rehab";
+import { assessKneeRecord, type SensorSampleItem } from "@/lib/rehab";
 import { resolveSensorDataSource, sensorDataSources } from "@/lib/sample-provenance";
+import {
+  alertCooldownMs,
+  clinicalRecordIntervalMs,
+  isClinicalKneeAngle,
+} from "@/lib/sensor-ingestion";
 
 const sensorSampleSchema = z.object({
   sessionId: z.string().optional().nullable(),
@@ -64,6 +70,121 @@ function serializeKneeRecord(record: {
   };
 }
 
+function resolveKneeAngleMode(raw: unknown, confidence: number | null | undefined): SensorSampleItem["kneeAngleMode"] {
+  if (raw && typeof raw === "object" && "kneeAngleMode" in raw) {
+    const mode = (raw as { kneeAngleMode?: unknown }).kneeAngleMode;
+    if (mode === "DUAL_SENSOR" || mode === "SINGLE_SENSOR_PROVISIONAL" || mode === "UNKNOWN") {
+      return mode;
+    }
+  }
+
+  if (typeof confidence === "number") {
+    return isClinicalKneeAngle(confidence) ? "DUAL_SENSOR" : "SINGLE_SENSOR_PROVISIONAL";
+  }
+
+  return null;
+}
+
+function serializeSensorSample(sample: {
+  id: string;
+  patientId: string;
+  deviceId: string | null;
+  sessionId: string | null;
+  placement: SensorSampleItem["placement"];
+  source: SensorSampleItem["source"];
+  recordedAt: Date;
+  roll: number | null;
+  pitch: number | null;
+  yaw: number | null;
+  ax: number | null;
+  ay: number | null;
+  az: number | null;
+  gx: number | null;
+  gy: number | null;
+  gz: number | null;
+  flexionAngle: number | null;
+  extensionAngle: number | null;
+  confidence: number | null;
+  raw: unknown;
+}): SensorSampleItem {
+  return {
+    id: sample.id,
+    patientId: sample.patientId,
+    deviceId: sample.deviceId,
+    sessionId: sample.sessionId,
+    placement: sample.placement,
+    source: sample.source,
+    recordedAt: sample.recordedAt.toISOString(),
+    roll: sample.roll,
+    pitch: sample.pitch,
+    yaw: sample.yaw,
+    ax: sample.ax,
+    ay: sample.ay,
+    az: sample.az,
+    gx: sample.gx,
+    gy: sample.gy,
+    gz: sample.gz,
+    flexionAngle: sample.flexionAngle,
+    extensionAngle: sample.extensionAngle,
+    confidence: sample.confidence,
+    batteryLevel: null,
+    signalStrength: null,
+    kneeAngleMode: resolveKneeAngleMode(sample.raw, sample.confidence),
+    clinicalEligible: isClinicalKneeAngle(sample.confidence),
+  };
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const patientId = url.searchParams.get("patientId");
+  const limit = Number(url.searchParams.get("limit") ?? "40");
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(Math.trunc(limit), 200)) : 40;
+
+  if (!patientId) {
+    return NextResponse.json({ error: "patientId is required" }, { status: 400 });
+  }
+
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
+    return NextResponse.json(getDemoSensorLiveSnapshot(patientId));
+  }
+
+  const samples = await prisma.sensorSample.findMany({
+    where: { patientId },
+    orderBy: { recordedAt: "desc" },
+    take: safeLimit,
+  });
+
+  const serialized = samples.map(serializeSensorSample);
+  const latestByPlacement = {
+    THIGH: serialized.find((sample) => sample.placement === "THIGH") ?? null,
+    SHANK: serialized.find((sample) => sample.placement === "SHANK") ?? null,
+    BRACE: serialized.find((sample) => sample.placement === "BRACE") ?? null,
+    UNKNOWN: serialized.find((sample) => sample.placement === "UNKNOWN") ?? null,
+  };
+  const latest = serialized[0] ?? null;
+  const dualActive = Boolean(latestByPlacement.THIGH && latestByPlacement.SHANK);
+  const clinicalRecords = await prisma.kneeDataRecord.findMany({
+    where: { patientId },
+    orderBy: { recordedAt: "desc" },
+    take: 12,
+  });
+
+  return NextResponse.json({
+    patientId,
+    updatedAt: latest?.recordedAt ?? new Date().toISOString(),
+    sampleCount: serialized.length,
+    dualActive,
+    mode: latest?.kneeAngleMode ?? (dualActive ? "DUAL_SENSOR" : latest ? "SINGLE_SENSOR_PROVISIONAL" : "UNKNOWN"),
+    latest,
+    latestByPlacement,
+    samples: serialized,
+    clinicalRecords: clinicalRecords.map(serializeKneeRecord).reverse(),
+  });
+}
+
 export async function POST(request: Request) {
   const parsed = sensorSampleSchema.safeParse(await request.json());
 
@@ -73,7 +194,10 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(addDemoSensorSample(body));
   }
 
@@ -141,11 +265,29 @@ export async function POST(request: Request) {
     });
   }
 
-  const kneeRecord = typeof body.flexionAngle === "number"
+  const nearbyClinicalRecord = typeof body.flexionAngle === "number" && isClinicalKneeAngle(body.confidence)
+    ? await prisma.kneeDataRecord.findFirst({
+        where: {
+          patientId: body.patientId,
+          source,
+          recordedAt: {
+            gt: new Date(recordedAt.getTime() - clinicalRecordIntervalMs),
+            lt: new Date(recordedAt.getTime() + clinicalRecordIntervalMs),
+          },
+        },
+        select: { id: true },
+      })
+    : null;
+
+  const shouldCreateKneeRecord = typeof body.flexionAngle === "number"
+    && isClinicalKneeAngle(body.confidence)
+    && !nearbyClinicalRecord;
+
+  const kneeRecord = shouldCreateKneeRecord
     ? await prisma.kneeDataRecord.create({
         data: {
           patientId: body.patientId,
-          flexionAngle: body.flexionAngle,
+          flexionAngle: body.flexionAngle!,
           extensionAngle: body.extensionAngle ?? 0,
           activityFrequency: 1,
           activityDuration: 1,
@@ -158,8 +300,26 @@ export async function POST(request: Request) {
       })
     : null;
 
-  const assessment = kneeRecord ? assessKneeRecord(kneeRecord) : null;
-  const alert = kneeRecord && assessment
+  const assessment = kneeRecord && kneeRecord.flexionAngle < 78
+    ? assessKneeRecord({
+        flexionAngle: kneeRecord.flexionAngle,
+        activityFrequency: 99,
+        activityDuration: 99,
+        painScore: 0,
+      })
+    : null;
+  const recentDuplicateAlert = kneeRecord && assessment
+    ? await prisma.alertLog.findFirst({
+        where: {
+          patientId: kneeRecord.patientId,
+          type: assessment.type,
+          status: { not: "RESOLVED" },
+          createdAt: { gte: new Date(Date.now() - alertCooldownMs) },
+        },
+        select: { id: true },
+      })
+    : null;
+  const alert = kneeRecord && assessment && !recentDuplicateAlert
     ? await prisma.alertLog.create({
         data: {
           patientId: kneeRecord.patientId,

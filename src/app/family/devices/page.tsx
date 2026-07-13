@@ -272,10 +272,13 @@ export default function FamilyDevicesPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="lg" variant="elder">
-                <Link href="/hardware-demo">
+                <Link href="/sensor-live">
                   <Radio className="size-5" />
-                  打开硬件演示
+                  打开实时看板
                 </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/hardware-demo">硬件演示</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href="/family">返回家属端</Link>
@@ -299,6 +302,31 @@ export default function FamilyDevicesPage() {
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-500">当前患者</p>
                 <p className="mt-1 text-2xl font-black">{patientName}</p>
+                <div className="mt-3 rounded-2xl border border-dashed border-emerald-300 bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Android 网关患者 ID</p>
+                  <p className="mt-1 break-all font-mono text-sm font-bold text-slate-900">{patientId ?? "读取中..."}</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    手机端填写：平台地址 `http://192.168.31.203:3000`，患者 ID 复制下面这一串，再点“开始采集上传”。
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-3"
+                    disabled={!patientId}
+                    onClick={async () => {
+                      if (!patientId) return;
+                      try {
+                        await navigator.clipboard.writeText(patientId);
+                        setMessage(`患者 ID 已复制：${patientId}`);
+                      } catch {
+                        setError("复制失败，请长按患者 ID 手动复制");
+                      }
+                    }}
+                  >
+                    复制患者 ID
+                  </Button>
+                </div>
               </div>
 
               <label className="block space-y-2">

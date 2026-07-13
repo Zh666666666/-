@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { addDemoSensorSession } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { serializeSensorSession } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 
@@ -21,7 +22,10 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(addDemoSensorSession(body));
   }
 
