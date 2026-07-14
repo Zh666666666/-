@@ -4,7 +4,7 @@ import test from "node:test";
 import { addDemoSensorSession, getDemoDashboardData, getDemoSensorLiveSnapshot } from "@/lib/demo-store";
 import { seedPatients } from "@/lib/rehab";
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 function resetDemoStore() {
   delete (globalThis as { rehabDemoState?: unknown }).rehabDemoState;
@@ -46,4 +46,42 @@ test("accepts a queued hardware upload exactly once", async () => {
   assert.equal(session.sampleCount, 1);
   assert.equal(getDemoSensorLiveSnapshot(patientId).sampleCount, 1);
   assert.equal(getDemoDashboardData().records.length, initialRecordCount + 1);
+});
+
+test("returns the explainable rehab metrics contract after eligible dual-sensor uploads", async () => {
+  resetDemoStore();
+  const patientId = seedPatients[0].id;
+  const angles = [5, 25, 70, 95, 65, 8];
+  const startedAt = Date.now() - angles.length * 1_000;
+
+  for (let index = 0; index < angles.length; index += 1) {
+    const response = await upload({
+      gatewaySampleId: `metrics-contract-${index}`,
+      patientId,
+      source: "HARDWARE",
+      placement: "SHANK",
+      recordedAt: new Date(startedAt + index * 1_000).toISOString(),
+      flexionAngle: angles[index],
+      confidence: 0.92,
+      raw: { kneeAngleMode: "DUAL_SENSOR" },
+    });
+    assert.equal(response.status, 200);
+  }
+
+  const response = await GET(new Request(`http://localhost/api/sensor-samples?patientId=${patientId}&limit=60`));
+  const snapshot = await response.json() as {
+    metrics: {
+      clinicalEligible: boolean;
+      rom: { value: number | null; formula: string };
+      risk: { score: number | null; factors: unknown[] };
+      safetyBoundary: string[];
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(snapshot.metrics.clinicalEligible, true);
+  assert.ok((snapshot.metrics.rom.value ?? 0) > 70);
+  assert.match(snapshot.metrics.rom.formula, /P95/);
+  assert.equal(typeof snapshot.metrics.risk.score, "number");
+  assert.ok(snapshot.metrics.safetyBoundary.length >= 3);
 });

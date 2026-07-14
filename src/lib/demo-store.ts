@@ -21,6 +21,7 @@ import {
   type ProfileItem,
   type UserRole,
 } from "@/lib/rehab";
+import { calculateRehabMetrics } from "@/lib/rehab-metrics";
 import { resolveSensorDataSource } from "@/lib/sample-provenance";
 import {
   alertCooldownMs,
@@ -811,9 +812,16 @@ export function getDemoSensorLiveSnapshot(patientId: string) {
   };
   const latest = samples[0] ?? null;
   const dualActive = Boolean(latestByPlacement.THIGH && latestByPlacement.SHANK);
-  const clinicalRecords = getDemoDashboardData().records
+  const dashboard = getDemoDashboardData();
+  const clinicalRecords = dashboard.records
     .filter((record) => record.patientId === patientId)
     .slice(-12);
+  const patient = dashboard.patients.find((item) => item.id === patientId);
+  const metrics = calculateRehabMetrics({
+    samples,
+    clinicalRecords,
+    targetFlexion: patient?.targetFlexion,
+  });
 
   return {
     patientId,
@@ -825,6 +833,7 @@ export function getDemoSensorLiveSnapshot(patientId: string) {
     latestByPlacement,
     samples,
     clinicalRecords,
+    metrics,
   };
 }
 

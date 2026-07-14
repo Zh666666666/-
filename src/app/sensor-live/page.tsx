@@ -6,11 +6,14 @@ import {
   Activity,
   AlertTriangle,
   BrainCircuit,
+  Calculator,
   Gauge,
   Loader2,
   Radio,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
+  Timer,
   Wifi,
 } from "lucide-react";
 import {
@@ -28,6 +31,7 @@ import { StatusNotice } from "@/components/status-notice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { RehabMetrics } from "@/lib/rehab-metrics";
 import type {
   AiAnalysisItem,
   DashboardData,
@@ -46,6 +50,7 @@ type LiveSnapshot = {
   latestByPlacement: Partial<Record<DevicePlacement, SensorSampleItem | null>>;
   samples: SensorSampleItem[];
   clinicalRecords: KneeDataPoint[];
+  metrics: RehabMetrics;
 };
 
 const placementLabels: Record<DevicePlacement, string> = {
@@ -80,6 +85,20 @@ function modeLabel(mode: string | null | undefined, dualActive: boolean) {
   if (mode === "DUAL_SENSOR" || dualActive) return "双传感器可信";
   if (mode === "SINGLE_SENSOR_PROVISIONAL") return "单传感器临时";
   return "等待样本";
+}
+
+function riskLabel(level: RehabMetrics["risk"]["level"]) {
+  if (level === "HIGH") return "高风险复核";
+  if (level === "WATCH") return "需要关注";
+  if (level === "STABLE") return "当前稳定";
+  return "数据不足";
+}
+
+function riskVariant(level: RehabMetrics["risk"]["level"]): "destructive" | "warning" | "success" | "outline" {
+  if (level === "HIGH") return "destructive";
+  if (level === "WATCH") return "warning";
+  if (level === "STABLE") return "success";
+  return "outline";
 }
 
 function AxisGrid({
@@ -268,6 +287,7 @@ export default function SensorLivePage() {
   const latest = live?.latest ?? null;
   const dualActive = Boolean(live?.dualActive);
   const clinicalReady = (live?.clinicalRecords.length ?? 0) > 0;
+  const metrics = live?.metrics ?? null;
 
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
@@ -356,6 +376,138 @@ export default function SensorLivePage() {
             </p>
           </div>
         ) : null}
+
+        <section className="space-y-4" aria-labelledby="rehab-metrics-title">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold text-emerald-700">实时评估引擎</p>
+              <h2 id="rehab-metrics-title" className="mt-1 text-2xl font-bold text-[#12304a]">ROM、训练质量与安全预警</h2>
+            </div>
+            {metrics ? (
+              <div className="flex items-center gap-2">
+                <Badge variant={metrics.provenance === "HARDWARE" ? "success" : "warning"}>
+                  {metrics.provenance === "HARDWARE" ? "真实硬件数据" : metrics.provenance === "DEMO" ? "演示数据" : "混合/未知来源"}
+                </Badge>
+                <Badge variant={riskVariant(metrics.risk.level)}>{riskLabel(metrics.risk.level)}</Badge>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            {[
+              { label: "本次 ROM", value: metrics?.rom.value, suffix: "°", note: "P95 - P05", icon: Calculator },
+              { label: "峰值屈曲", value: metrics?.rom.peakFlexion, suffix: "°", note: `目标 ${metrics?.rom.targetFlexion ?? "--"}°`, icon: Gauge },
+              { label: "伸直缺失", value: metrics?.rom.extensionDeficit, suffix: "°", note: "越接近 0 越好", icon: Activity },
+              { label: "完整重复", value: metrics?.training.repetitions, suffix: " 次", note: `${formatNumber(metrics?.training.cadencePerMinute)} 次/分`, icon: RefreshCw },
+              { label: "有效活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "排除静止与长断帧", icon: Timer },
+              { label: "数据质量", value: metrics?.dataQuality.score, suffix: " 分", note: `${metrics?.dataQuality.eligibleSamples ?? 0} 个合格样本`, icon: ShieldCheck },
+            ].map((item) => (
+              <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 text-slate-500">
+                    <p className="text-sm font-semibold">{item.label}</p>
+                    <item.icon className="size-4 text-emerald-700" />
+                  </div>
+                  <p className="mt-3 text-2xl font-black tabular-nums text-[#12304a]">
+                    {typeof item.value === "number" ? formatNumber(item.value, Number.isInteger(item.value) ? 0 : 1) : "--"}
+                    <span className="ml-1 text-sm font-bold text-slate-500">{item.suffix}</span>
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">{item.note}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+            <Card className="border-[#d9e2e9] bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                  <ShieldAlert className="size-5 text-amber-700" />
+                  风险构成与处置
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-end justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">综合监测分</p>
+                    <p className="mt-1 text-4xl font-black tabular-nums text-[#12304a]">
+                      {typeof metrics?.risk.score === "number" ? metrics.risk.score : "--"}
+                      <span className="ml-1 text-base text-slate-400">/100</span>
+                    </p>
+                  </div>
+                  <Badge variant={metrics ? riskVariant(metrics.risk.level) : "outline"} className="px-3 py-1">
+                    {metrics ? riskLabel(metrics.risk.level) : "等待计算"}
+                  </Badge>
+                </div>
+                {(metrics?.risk.factors.length ?? 0) > 0 ? metrics?.risk.factors.map((factor) => (
+                  <div key={factor.name} className="flex items-center justify-between gap-3 text-sm">
+                    <div>
+                      <p className="font-bold text-slate-800">{factor.name}</p>
+                      <p className="text-xs text-slate-500">{factor.evidence}</p>
+                    </div>
+                    <span className="font-mono font-bold text-amber-700">+{factor.points}</span>
+                  </div>
+                )) : (
+                  <p className="text-sm leading-6 text-slate-500">
+                    {metrics?.clinicalEligible ? "当前没有风险加分项。" : "质量门限未通过，系统拒绝生成临床风险分。"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-[#d9e2e9] bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                  <AlertTriangle className="size-5 text-red-600" />
+                  当前预警
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(metrics?.warnings.length ?? 0) > 0 ? metrics?.warnings.map((warning) => (
+                  <div key={warning.code} className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-amber-950">{warning.title}</p>
+                      <Badge variant={warning.severity === "HIGH" ? "destructive" : "warning"}>{warning.severity}</Badge>
+                      {warning.requiresHumanConfirmation ? <Badge variant="outline">需人工确认</Badge> : null}
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-amber-950">{warning.evidence}</p>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-slate-700">处置：{warning.action}</p>
+                  </div>
+                )) : (
+                  <div className="flex min-h-36 flex-col items-center justify-center text-center">
+                    <ShieldCheck className="size-8 text-emerald-700" />
+                    <p className="mt-3 font-bold text-[#12304a]">当前无规则预警</p>
+                    <p className="mt-1 text-sm text-slate-500">仍需结合患者主诉和护士评估。</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <Calculator className="size-5 text-emerald-700" />
+                公式与安全边界
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-sm leading-6 lg:grid-cols-2">
+              <div className="space-y-3">
+                {[metrics?.rom.formula, metrics?.training.formula, metrics?.trend.formula, metrics?.risk.formula]
+                  .filter(Boolean)
+                  .map((formula) => <p key={formula} className="border-l-2 border-emerald-600 pl-3 text-slate-700">{formula}</p>)}
+              </div>
+              <div className="space-y-2 bg-slate-50 p-4">
+                {(metrics?.safetyBoundary ?? ["等待评估引擎返回数据边界。"]).map((boundary) => (
+                  <p key={boundary} className="flex gap-2 text-slate-600">
+                    <span className="font-bold text-amber-700">•</span>
+                    <span>{boundary}</span>
+                  </p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
         <div className="grid gap-5 xl:grid-cols-2">
           <SensorCard placement="THIGH" sample={live?.latestByPlacement?.THIGH} />

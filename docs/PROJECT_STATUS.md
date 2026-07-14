@@ -53,6 +53,7 @@
 - 已为 Android 与共享网关生成稳定 `gatewaySampleId`，并在数据库增加唯一约束；样本、会话计数、设备心跳、临床聚合和预警在同一事务中提交，断网重试不会重复入库或重复计数。
 - 已增加生产网关 Bearer Token 边界：`APP_MODE=production` 必须配置至少 24 字符的 `GATEWAY_API_TOKEN`，采集会话与样本写接口会拒绝未授权上传；Demo/LAN 联调保持无令牌可用。
 - 已将运行时、网关、样本幂等与临床数据边界测试纳入 `npm test` 和 GitHub Build 门禁。
+- 已新增 Web 康复指标引擎：以双传感器质量门为前提，计算鲁棒 ROM、峰值屈曲、伸直缺失、完整屈伸次数、有效活动时间、目标完成度、近期趋势与可解释风险分；疑似跌倒/强冲击仅作为实验性人工复核提示，公式与临床安全边界归档于 `docs/REHAB_METRICS_SPEC.md`。
 
 ### Agent 与云端开发
 
@@ -71,7 +72,7 @@
 
 ## 当前状态
 
-- 默认分支：`main`；本次整合候选：`codex/integrate-hardware-loop`（基于 PR #15）。
+- 默认分支：`main`；当前指标开发分支：`codex/rehab-metrics-engine`。
 - GitHub 仓库：`https://github.com/Zh666666666/-`
 - 运行时边界：已引入 `APP_MODE`（`demo` / `production` / `invalid`）。Demo 始终走内存数据；生产缺数据库、Supabase 配置或 `GATEWAY_API_TOKEN` 时 fail-closed（503）。
 - 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
@@ -82,6 +83,7 @@
 - Android v0.3 保留升级前的加密离线队列并继续补传；不得因无法区分测试/真实数据而自动删除旧样本。新采集样本使用稳定幂等 ID。
 - 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
 - 网站实时看板：`/sensor-live` 每 1.5 秒轮询 `GET /api/sensor-samples?patientId=...`，展示大腿/小腿 Acc/Gyro/Angle、帧时间、来源、单/双传感器模式、原始波形与临床趋势；内置 `POST /api/ai-analyses` 优先使用 HARDWARE 临床记录并标注来源边界。
+- Web 指标公式：`GET /api/sensor-samples` 同步返回 `metrics`；至少 5 个置信度不低于 0.7 的双传感器角度且质量分不低于 55 时才输出 ROM 和风险分。当前阈值已完成软件测试，尚未完成第二只实物传感器、量角器和真实 ADL/跌倒误报验证。
 - 本机联调地址：`http://192.168.31.203:3000`；Demo 患者 ID：`demo-patient-1`。
 - Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
@@ -102,6 +104,7 @@
 3. **P0 - 双传感器膝关节联调**
    - 购买并准备第二只同型号 WT9011DCL-BT50，扫描、分配大腿/小腿并同时连接。
    - 完成零点校准和双传感器膝角算法验证；可信角进入临床趋势与分析 API。
+   - 用实测数据核验 Web ROM、重复次数、质量分和风险构成；将当前 Pitch 差过渡算法升级为校准后的四元数相对姿态。
 4. **P0 - 量角器对照验收**
    - 在直腿及 30/60/90 度姿态重复测量，记录误差、回零和重复性；未通过前不得把相对角宣称为临床有效。
 5. **P1 - 正式服务器与安全交付**
@@ -143,6 +146,7 @@
 | 2026-07-13 | 完成 Android v0.3 局域网上传发布候选：Debug/Release 网络策略分离、App 内连接/启动上传实测、旧测试队列一次性清理、低置信单传感器与临床趋势隔离、高置信双传感器 10 秒聚合及告警冷却；新增 Windows 中文路径 Android 验证脚本 | 唯一桌面 APK 待用户真机覆盖安装；真实单传感器上传结果待回传，双传感器仍未联调 | 真机安装 v0.3 并验证新采集上传；之后推进双传感器 | Android 35：连接与开始上传 PASS、旧队列 3→0；HTTP 781 条低置信无临床记录/告警；runtime 8/8、gateway 8/8、Android JVM/Lint、Debug/Release、Next build/lint 全通过 |
 | 2026-07-13 | 网站实时看板闭环：Demo 持久化完整 Acc/Gyro/Angle 原始样本；`GET /api/sensor-samples` 返回 live snapshot；新增 `/sensor-live` 实时页（1.5s 轮询、大腿/小腿分卡、原始波形与临床趋势分离）；`/api/ai-analyses` 优先 HARDWARE 临床记录并标注来源边界；导航与设备页入口已接通 | 用户确认平台连接成功；网站已可显示与 App 同口径实时原始数据；双传感器临床分析仍待第二只传感器 | 真机持续上传时打开 `/sensor-live` 验收；推进双传感器 | runtime 8/8、lint、build；HTTP 冒烟：低置信 raw-only、高置信生成临床+告警、live snapshot dualActive、ai-analyses 标明真实硬件、`/sensor-live` 200 |
 | 2026-07-14 | 审查并整合 PR #15；加入稳定样本 ID、数据库唯一约束和事务化幂等；生产网关要求 Bearer Token；移除会误删真实离线样本的 v0.3 自动清队列逻辑；统一 v0.3.0 签名产物名称；新增回归测试并接入 CI | 本地软件验证全绿，正式服务器和整合 APK 真机上传仍待验收；单传感器不能形成临床膝角 | 推送整合 PR 并通过 CI；真机验证断网补传与幂等后，购买第二只同型号传感器推进双传感器量角器对照 | `npm test` 21/21、`npm run lint`、`npm run build`、`npm run db:generate`、Android Debug `BUILD SUCCESSFUL` |
+| 2026-07-14 | 建立 Web 康复指标与预警引擎：鲁棒 ROM、伸直缺失、重复计数、活动时长、质量门、趋势、疼痛与实验性冲击筛查均由统一 API 输出，并在 `/sensor-live` 展示公式、证据和人工处置要求 | 单传感器会 fail-closed；软件公式与边界已测试，真实双传感器精度、重复计数和冲击误报率尚未临床验证 | 第二只传感器到位后完成四元数相对姿态、量角器误差与真实 ADL 阈值验证 | 全量测试、Lint、生产 Build、状态门禁通过；桌面/390px 手机视口无横向溢出，浏览器控制台 0 错误 |
 
 ## Agent 更新规则
 
