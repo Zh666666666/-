@@ -8,6 +8,7 @@ import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { calculateRehabMetrics } from "@/lib/rehab-metrics";
 import { assessKneeRecord, type SensorSampleItem } from "@/lib/rehab";
 import { resolveSensorDataSource, sensorDataSources } from "@/lib/sample-provenance";
 import {
@@ -154,11 +155,22 @@ export async function GET(request: Request) {
     return NextResponse.json(getDemoSensorLiveSnapshot(patientId));
   }
 
-  const samples = await prisma.sensorSample.findMany({
-    where: { patientId },
-    orderBy: { recordedAt: "desc" },
-    take: safeLimit,
-  });
+  const [samples, clinicalRecords, patient] = await Promise.all([
+    prisma.sensorSample.findMany({
+      where: { patientId },
+      orderBy: { recordedAt: "desc" },
+      take: safeLimit,
+    }),
+    prisma.kneeDataRecord.findMany({
+      where: { patientId },
+      orderBy: { recordedAt: "desc" },
+      take: 12,
+    }),
+    prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { targetFlexion: true },
+    }),
+  ]);
 
   const serialized = samples.map(serializeSensorSample);
   const latestByPlacement = {
@@ -169,10 +181,11 @@ export async function GET(request: Request) {
   };
   const latest = serialized[0] ?? null;
   const dualActive = Boolean(latestByPlacement.THIGH && latestByPlacement.SHANK);
-  const clinicalRecords = await prisma.kneeDataRecord.findMany({
-    where: { patientId },
-    orderBy: { recordedAt: "desc" },
-    take: 12,
+  const serializedClinicalRecords = clinicalRecords.map(serializeKneeRecord).reverse();
+  const metrics = calculateRehabMetrics({
+    samples: serialized,
+    clinicalRecords: serializedClinicalRecords,
+    targetFlexion: patient?.targetFlexion,
   });
 
   return NextResponse.json({
@@ -184,7 +197,8 @@ export async function GET(request: Request) {
     latest,
     latestByPlacement,
     samples: serialized,
-    clinicalRecords: clinicalRecords.map(serializeKneeRecord).reverse(),
+    clinicalRecords: serializedClinicalRecords,
+    metrics,
   });
 }
 
