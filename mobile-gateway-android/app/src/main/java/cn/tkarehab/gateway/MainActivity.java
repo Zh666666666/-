@@ -1,6 +1,7 @@
 package cn.tkarehab.gateway;
 
 import android.content.SharedPreferences;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.bluetooth.BluetoothAdapter;
 import android.graphics.Typeface;
@@ -18,9 +19,11 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
 import com.wit.witsdk.Bluetooth.WitBluetoothManager;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -39,15 +42,18 @@ public final class MainActivity extends AppCompatActivity {
     private TextView linkState;
     private TextView sampleSummary;
     private TextView sessionState;
+    private TextView localEvidenceState;
     private EditText apiUrl;
     private EditText patientId;
     private EditText apiToken;
     private Button start;
     private Button stop;
+    private Button exportEvidence;
     private LiveSensorPanel thighPanel;
     private LiveSensorPanel shankPanel;
     private WitBleGateway bleGateway;
     private PlatformGateway platformGateway;
+    private LocalEvidenceStore evidenceStore;
     private SharedPreferences preferences;
     private String bleInitializationFailure;
     private int liveSampleCount;
@@ -65,6 +71,13 @@ public final class MainActivity extends AppCompatActivity {
         setContentView(createContent());
         restoreConfiguration();
         TkaApplication.markLaunchSucceeded(this);
+
+        try {
+            evidenceStore = new LocalEvidenceStore(this);
+            renderEvidenceSummary(evidenceStore.latestSummary());
+        } catch (Exception error) {
+            renderStatus("本地证据存储初始化失败" + detail(error));
+        }
 
         try {
             EncryptedSampleQueue queue = new EncryptedSampleQueue(this);
@@ -101,6 +114,13 @@ public final class MainActivity extends AppCompatActivity {
                 @Override
                 public void onReading(SensorSample sample) {
                     renderLiveReading(sample);
+                    if (evidenceStore != null) {
+                        try {
+                            renderEvidenceSummary(evidenceStore.accept(sample));
+                        } catch (Exception error) {
+                            renderStatus("真实样本无法写入本地证据包" + detail(error));
+                        }
+                    }
                     if (platformGateway != null) {
                         platformGateway.accept(sample);
                     }
@@ -246,9 +266,31 @@ public final class MainActivity extends AppCompatActivity {
         devices.setOrientation(LinearLayout.VERTICAL);
         content.addView(devices);
 
-        content.addView(sectionTitle("平台上传（可选）"));
+        content.addView(sectionTitle("本地闭环采集（无需服务器）"));
         sessionState = banner("采集状态：未开始（仅预览实时数据）", 0xFF7A4E00, 0xFFFFF8E1);
         content.addView(sessionState);
+
+        localEvidenceState = banner(
+                "本地证据：暂无任务。连接 BT50 后即可开始，样本会加密保存在手机。",
+                0xFF0F2942,
+                0xFFFFFFFF
+        );
+        content.addView(localEvidenceState);
+
+        LinearLayout sessionActions = new LinearLayout(this);
+        sessionActions.setOrientation(LinearLayout.HORIZONTAL);
+        start = actionButton("开始本地采集", 0xFF2E7D32, view -> startSession());
+        sessionActions.addView(start, weightedButton());
+        stop = actionButton("结束本地任务", 0xFFC62828, view -> stopSession());
+        stop.setEnabled(false);
+        sessionActions.addView(stop, weightedButton());
+        content.addView(sessionActions);
+
+        exportEvidence = actionButton("导出最近证据包", 0xFF455A64, view -> exportLatestEvidence());
+        exportEvidence.setEnabled(false);
+        content.addView(exportEvidence);
+
+        content.addView(sectionTitle("平台上传（可选旁路）"));
 
         apiUrl = labeledInput(
                 content,
@@ -258,8 +300,8 @@ public final class MainActivity extends AppCompatActivity {
         );
         patientId = labeledInput(
                 content,
-                "患者 ID",
-                "从家属端设备页复制，例如 demo-patient-1",
+                "对象 ID（本地可选，上传时必填）",
+                "未填写时本地任务使用 local-subject",
                 InputType.TYPE_CLASS_TEXT
         );
         apiToken = labeledInput(
@@ -272,18 +314,9 @@ public final class MainActivity extends AppCompatActivity {
         Button testConnection = actionButton("测试平台连接", 0xFF1565C0, view -> testPlatformConnection());
         content.addView(testConnection);
 
-        LinearLayout sessionActions = new LinearLayout(this);
-        sessionActions.setOrientation(LinearLayout.HORIZONTAL);
-        start = actionButton("开始采集上传", 0xFF2E7D32, view -> startSession());
-        sessionActions.addView(start, weightedButton());
-        stop = actionButton("停止上传", 0xFFC62828, view -> stopSession());
-        stop.setEnabled(false);
-        sessionActions.addView(stop, weightedButton());
-        content.addView(sessionActions);
-
         content.addView(sectionTitle("运行信息"));
         status = banner(
-                "先扫描连接传感器查看 3D 姿态与波形。填写平台地址和患者 ID 后点“开始采集上传”才会加密保存并上传。",
+                "先扫描并连接 BT50，再点“开始本地采集”。平台配置为空时仍会完整保存、结束和导出证据包。",
                 0xFF0F2942,
                 0xFFFFFFFF
         );
@@ -381,48 +414,102 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void startSession() {
+        if (evidenceStore == null) {
+            renderStatus("本地证据存储不可用，已阻止采集，避免产生不可追溯数据。");
+            return;
+        }
+        if (connectedThighAddress.isEmpty() && connectedShankAddress.isEmpty()) {
+            renderStatus("请先扫描并连接至少一只真实 BT50 传感器，再开始本地采集。");
+            return;
+        }
+        try {
+            LocalEvidenceStore.Summary summary = evidenceStore.start(
+                    patientId.getText().toString(),
+                    BuildConfig.VERSION_NAME
+            );
+            renderEvidenceSummary(summary);
+        } catch (Exception error) {
+            renderStatus("无法开始本地采集" + detail(error));
+            return;
+        }
+
         GatewayConfig.Validation validation = GatewayConfig.validate(
                 apiUrl.getText().toString(),
                 patientId.getText().toString()
         );
-        if (!validation.valid) {
-            renderStatus(validation.message);
-            return;
+        boolean uploadEnabled = validation.valid && platformGateway != null;
+        if (uploadEnabled) {
+            preferences.edit()
+                    .putString("apiUrl", validation.baseUrl)
+                    .putString("patientId", validation.patientId)
+                    .apply();
+            platformGateway.start(
+                    validation.baseUrl,
+                    validation.patientId,
+                    apiToken.getText().toString().trim()
+            );
         }
-        if (platformGateway == null) {
-            renderStatus("加密队列不可用，已阻止采集，避免丢失数据。");
-            return;
-        }
-
-        preferences.edit()
-                .putString("apiUrl", validation.baseUrl)
-                .putString("patientId", validation.patientId)
-                .apply();
-        platformGateway.start(
-                validation.baseUrl,
-                validation.patientId,
-                apiToken.getText().toString().trim()
-        );
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         start.setEnabled(false);
         stop.setEnabled(true);
-        sessionState.setText("采集状态：已开始上传（3D/波形同时刷新）");
+        exportEvidence.setEnabled(false);
+        sessionState.setText(uploadEnabled
+                ? "采集状态：本地记录中 + 平台上传旁路"
+                : "采集状态：本地记录中（无需服务器）");
         sessionState.setTextColor(0xFF1B5E20);
         sessionState.setBackground(rounded(0xFFE8F5E9, dp(14)));
-        renderStatus("采集上传已启动。上方可视化继续刷新，数据同时写入加密队列。");
+        renderStatus(uploadEnabled
+                ? "本地闭环任务已启动；真实样本加密保存，同时尝试上传平台。"
+                : "本地闭环任务已启动；真实样本正在手机加密保存，结束后可导出 JSON 证据包。");
     }
 
     private void stopSession() {
         if (platformGateway != null) {
             platformGateway.stop();
         }
+        if (evidenceStore == null) {
+            renderStatus("本地证据存储不可用，无法封存任务。");
+            return;
+        }
+        try {
+            renderEvidenceSummary(evidenceStore.finish("USER_FINISHED"));
+        } catch (Exception error) {
+            exportEvidence.setEnabled(false);
+            sessionState.setText("采集状态：封存失败，请再次点击结束本地任务");
+            sessionState.setTextColor(0xFFC62828);
+            sessionState.setBackground(rounded(0xFFFFEBEE, dp(14)));
+            renderStatus("结束任务时封存证据失败，数据仍保留在加密存储中，请重试" + detail(error));
+            return;
+        }
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         start.setEnabled(true);
         stop.setEnabled(false);
-        sessionState.setText("采集状态：已停止上传（仍可继续看实时数据）");
+        exportEvidence.setEnabled(true);
+        sessionState.setText("采集状态：本地任务已结束（仍可预览实时数据）");
         sessionState.setTextColor(0xFF7A4E00);
         sessionState.setBackground(rounded(0xFFFFF8E1, dp(14)));
-        renderStatus("上传已停止。3D 姿态与波形仍会刷新；未上传数据仍在手机加密队列中。");
+        renderStatus("本地任务已封存。可导出证据包到微信、文件或电脑，再由 Web 回放和处理异常事件。");
+    }
+
+    private void exportLatestEvidence() {
+        if (evidenceStore == null) {
+            renderStatus("本地证据存储不可用，无法导出。");
+            return;
+        }
+        try {
+            File file = evidenceStore.exportLatest();
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("application/json");
+            share.putExtra(
+                    Intent.EXTRA_STREAM,
+                    FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", file)
+            );
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share, "导出 TKA 本地证据包"));
+            renderStatus("证据包已生成：" + file.getName());
+        } catch (Exception error) {
+            renderStatus("证据包导出失败" + detail(error));
+        }
     }
 
     private void restoreConfiguration() {
@@ -508,6 +595,13 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void handleConnectionChanged(String address, boolean connected) {
+        if (evidenceStore != null && evidenceStore.isActive()) {
+            try {
+                renderEvidenceSummary(evidenceStore.recordConnectionEvent(address, connected));
+            } catch (Exception error) {
+                renderStatus("连接事件无法写入证据包" + detail(error));
+            }
+        }
         if (address.equals(connectedThighAddress)) {
             if (connected) {
                 thighPanel.markConnected("大腿传感器", address);
@@ -587,8 +681,26 @@ public final class MainActivity extends AppCompatActivity {
                             + "\n3D 姿态与波形应随转动变化"
             );
             if (stop.isEnabled()) {
-                sessionState.setText("采集状态：上传中（已收 " + liveSampleCount + " 帧）");
+                sessionState.setText("采集状态：本地记录中（实时帧 " + liveSampleCount + "）");
             }
+        });
+    }
+
+    private void renderEvidenceSummary(LocalEvidenceStore.Summary summary) {
+        runOnUiThread(() -> {
+            if (localEvidenceState == null) return;
+            if (summary == null) {
+                localEvidenceState.setText("本地证据：暂无任务。连接 BT50 后即可开始。");
+                exportEvidence.setEnabled(false);
+                return;
+            }
+            localEvidenceState.setText(
+                    "本地证据：" + summary.status
+                            + "\n任务：" + summary.sessionId
+                            + "\n已保存样本：" + summary.sampleCount
+                            + " · 事件：" + summary.eventCount
+            );
+            exportEvidence.setEnabled(!"ACTIVE".equals(summary.status));
         });
     }
 

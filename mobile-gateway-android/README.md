@@ -1,6 +1,6 @@
 # TKA Android BLE Gateway
 
-This native Android application is the near-device gateway for two
+This native Android application is the near-device gateway for one or two
 `WT9011DCL-BT50` sensors. It deliberately owns BLE communication; a server or
 Codespace cannot connect to a patient's nearby BLE devices.
 
@@ -11,8 +11,8 @@ Codespace cannot connect to a patient's nearby BLE devices.
 2. From this directory, run `powershell -ExecutionPolicy Bypass -File scripts/sync-wit-sdk.ps1` on Windows or `scripts/sync-wit-sdk.sh` on Linux.
 3. Run `powershell -ExecutionPolicy Bypass -File scripts/build-debug.ps1`, or
    open this directory in Android Studio and let Gradle sync.
-4. Set a production HTTPS API URL, patient ID, and the server's
-   `GATEWAY_API_TOKEN` in the app before starting a production session.
+4. A platform URL is optional. A single connected sensor can complete a local
+   evidence session without any server.
 
 The sync scripts download the Android `WitSDK` source module from WitMotion's
 official sample repository into `vendor/WitSDK`. They pin commit
@@ -37,6 +37,12 @@ to skip the Git clone attempt on a restricted network.
   - Acc / Gyro / Angle numeric X/Y/Z grids
   - scrolling waveforms for all three series
 - Live visualization does **not** require starting a platform upload session.
+- Starts and ends a server-independent local evidence session after at least one
+  real sensor connects.
+- Encrypts local task samples and events at rest, recovers interrupted tasks,
+  and exports a `tka-local-evidence/v1` JSON package through Android sharing.
+- Records disconnects, long data gaps, long stillness and strong-motion events
+  for later human review; these are engineering events, not diagnoses.
 - Sends the official `SetAngle0()` zero-reference command for an assigned sensor.
 - Writes readings to an encrypted local file before network upload when a session
   is started.
@@ -56,10 +62,10 @@ to skip the Git clone attempt on a restricted network.
 
 The debug application has been compiled successfully on Windows with JDK 17,
 Android Platform 35, Gradle 8.7, and the downloaded official WitSDK. The output
-is `app/build/outputs/apk/debug/app-debug.apk`. It has not been installed on a
-physical Android phone or validated with a sensor yet. Do not call a reading
-real hardware data until it arrives through the official SDK callback on a
-physical phone.
+is `app/build/outputs/apk/debug/app-debug.apk`. A physical Android phone has
+already discovered and connected one device advertised as `WT901BLE67`; the
+new local evidence export flow still requires physical acceptance with that
+device before it is marked field-verified.
 
 ## No-USB build and test
 
@@ -89,7 +95,7 @@ disable backups and cleartext traffic, and are signed after zip alignment by
 - disable legacy v1 signing because the minimum supported system is Android 7.0
   (API 24);
 - require and verify APK Signature Scheme v2 and v3 in the APK;
-- cryptographically verify the v4 sidecar `TKA-Gateway-v0.3.0.apk.idsig` with
+- cryptographically verify the v4 sidecar `TKA-Gateway-v0.4.0.apk.idsig` with
   Android's APK signature library;
 - read passwords from environment variables so secrets do not appear in command
   arguments or the public repository.

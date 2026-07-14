@@ -82,6 +82,25 @@ final class SensorSample {
         return payload;
     }
 
+    JSONObject toEvidenceJson() throws JSONException {
+        JSONObject payload = new JSONObject();
+        payload.put("id", gatewaySampleId);
+        payload.put("recordedAt", formatRecordedAt(recordedAtMs));
+        payload.put("deviceId", gatewayDeviceId);
+        payload.put("deviceName", deviceName);
+        payload.put("placement", placement.name());
+        payload.put("roll", roll);
+        payload.put("pitch", pitch);
+        payload.put("yaw", yaw);
+        payload.put("ax", ax);
+        payload.put("ay", ay);
+        payload.put("az", az);
+        payload.put("gx", gx);
+        payload.put("gy", gy);
+        payload.put("gz", gz);
+        return payload;
+    }
+
     static String formatRecordedAt(long recordedAtMs) {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
         formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
