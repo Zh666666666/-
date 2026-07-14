@@ -54,6 +54,7 @@
 - 已增加生产网关 Bearer Token 边界：`APP_MODE=production` 必须配置至少 24 字符的 `GATEWAY_API_TOKEN`，采集会话与样本写接口会拒绝未授权上传；Demo/LAN 联调保持无令牌可用。
 - 已将运行时、网关、样本幂等与临床数据边界测试纳入 `npm test` 和 GitHub Build 门禁。
 - 已新增 Web 康复指标引擎：以双传感器质量门为前提，计算鲁棒 ROM、峰值屈曲、伸直缺失、完整屈伸次数、有效活动时间、目标完成度、近期趋势与可解释风险分；疑似跌倒/强冲击仅作为实验性人工复核提示，公式与临床安全边界归档于 `docs/REHAB_METRICS_SPEC.md`。
+- 已建立无需服务器的单传感器证据闭环：Android v0.4 可在连接真实 BT50 后独立开始/结束本地任务，以 2Hz 将真实 Acc/Gyro/Angle 与连接、数据间断、长时间静止、强运动等工程事件加密持久化；中断任务会在下次启动恢复并封存，用户可显式导出标准 JSON 证据包。Web `/evidence` 可严格校验 `HARDWARE` 证据包、回放姿态、核对统计、确认/处理事件，并导出带处理记录的闭环报告。契约、阈值与验收流程归档于 `docs/LOCAL_EVIDENCE_LOOP.md`。
 
 ### Agent 与云端开发
 
@@ -72,14 +73,14 @@
 
 ## 当前状态
 
-- 默认分支：`main`；当前指标开发分支：`codex/rehab-metrics-engine`。
+- 默认分支：`main`；当前本地闭环开发分支：`codex/local-evidence-loop`。
 - GitHub 仓库：`https://github.com/Zh666666666/-`
 - 运行时边界：已引入 `APP_MODE`（`demo` / `production` / `invalid`）。Demo 始终走内存数据；生产缺数据库、Supabase 配置或 `GATEWAY_API_TOKEN` 时 fail-closed（503）。
 - 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
-- 本地验证：`npm test` 共 21 项通过（运行时/鉴权 11、网关 9、API 幂等 1），`lint`、`build`、Prisma 生成与 Android Debug 构建通过；网站实时看板与分析 API 冒烟通过。
+- 本地验证：既有运行时、网关、API 与新增证据包测试通过；`lint`、生产 `build` 与 Android JVM/Lint/Debug 构建通过。最终测试计数和浏览器闭环结果在本轮 Agent 工作记录中更新。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；官方 App 与项目 Android 网关均已成功发现/连接一只实物。App 选择 `BWT901BLECL5.0` 档位；项目网关实机扫描到广播名 `WT901BLE67`、地址 `D7:0F:8A:DA:BE:DB` 并显示已连接。地址与广播名仍不能当作已验证的厂商序列号。
-- Android 网关：v0.3（`versionCode=3`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`，应用名 `TKA网关 v0.3 局域网上传版`。Debug 允许局域网 HTTP，Release 继续禁止明文 HTTP。
+- Android 网关：v0.4.0（`versionCode=4`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。本地证据任务不要求平台配置；Debug 仍允许可选的局域网 HTTP 上传，Release 继续禁止明文 HTTP。
 - Android v0.3 保留升级前的加密离线队列并继续补传；不得因无法区分测试/真实数据而自动删除旧样本。新采集样本使用稳定幂等 ID。
 - 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
 - 网站实时看板：`/sensor-live` 每 1.5 秒轮询 `GET /api/sensor-samples?patientId=...`，展示大腿/小腿 Acc/Gyro/Angle、帧时间、来源、单/双传感器模式、原始波形与临床趋势；内置 `POST /api/ai-analyses` 优先使用 HARDWARE 临床记录并标注来源边界。
@@ -90,26 +91,22 @@
 - 正式服务器：暂不可用，尚未部署生产环境。
 - 已知生产安全缺口：网关样本和采集会话写入已有独立 Bearer Token；`supabase/realtime.sql` 仍是 Demo 级 anon 全表策略，患者/护士业务 API 尚未完成会话级授权和行级隔离。
 - 仓库结构缺口：外层仓库将 `tka-rehab-platform` 记为 gitlink，且缺少 `.gitmodules`，交付时需固定到应用仓库提交。
-- 当前产品性质：可演示；真机连接与平台连通已确认，网站已可显示与网关同口径的实时原始样本；双传感器临床分析仍待第二只传感器。
+- 当前产品性质：已具备单传感器、无服务器的软件闭环能力；真机扫描、连接和实时读数已由用户确认，新版“采集→加密封存→导出→Web 回放→事件处理→报告”仍需在用户现有实物上完成一次端到端验收。该闭环只输出工程事件和原始姿态证据，不宣称临床 ROM、跌倒诊断或医疗预警有效性。
 
 ## 下一步任务
 
 按优先级从上到下执行：
 
-1. **P0 - 最新整合 APK 真机上传验收**
-   - 安装由整合分支 CI 生成的 APK，手机上传到局域网服务，确认 App 与 `/sensor-live` 的 Acc/Gyro/Angle、帧时间和 `HARDWARE` 来源一致刷新。
-   - 断网采集后恢复网络，确认队列清空；重复同一 `gatewaySampleId` 时服务端返回成功但样本与会话计数只增加一次。
-2. **P0 - 单传感器归零与轴向验收**
-   - 验证大腿/小腿归零命令与安装轴向；单传感器角度仅作为低置信原始样本，不进入临床趋势。
-3. **P0 - 双传感器膝关节联调**
-   - 购买并准备第二只同型号 WT9011DCL-BT50，扫描、分配大腿/小腿并同时连接。
-   - 完成零点校准和双传感器膝角算法验证；可信角进入临床趋势与分析 API。
-   - 用实测数据核验 Web ROM、重复次数、质量分和风险构成；将当前 Pitch 差过渡算法升级为校准后的四元数相对姿态。
-4. **P0 - 量角器对照验收**
-   - 在直腿及 30/60/90 度姿态重复测量，记录误差、回零和重复性；未通过前不得把相对角宣称为临床有效。
-5. **P1 - 正式服务器与安全交付**
-   - 修复正式域名服务，配置数据库、环境变量、HTTPS、迁移、备份、`GATEWAY_API_TOKEN` 和 AI Key；替换 Demo RLS；补真实账号权限与审计。
-   - 修正仓库交付结构，确保 GitHub 可稳定构建核心应用。
+1. **P0 - 单传感器本地证据闭环真机验收**
+   - 安装 Android v0.4 Debug APK，连接现有 `WT901BLE67`，不填写平台地址也能开始本地采集；转动传感器、断开并重连一次，然后结束任务并分享 JSON 文件。
+   - 检查导出包的 `source=HARDWARE`、型号、时间、样本数、事件数和数据变化，确认没有 Demo 样本混入；App 被强制关闭时还需确认下次启动能封存中断任务。
+2. **P0 - Web 证据处理闭环真机验收**
+   - 在 `/evidence` 导入手机导出的 JSON，核对曲线、统计和工程事件；为需要处理的事件填写说明并标记已处理，确认闭环状态变化后导出复核报告。
+   - 刷新页面验证处理记录仍保留；保存原始证据包与复核报告的 SHA256，形成可重复验收样例。
+3. **P1 - 单机任务管理与交付易用性**
+   - 增加本机历史任务列表、存储占用、删除确认和导出失败提示；整理一页式安装/采集/导入说明，避免交付时依赖开发人员口头指导。
+4. **暂缓 - 服务器与第二只传感器**
+   - 按用户当前决定，正式服务器、双传感器临床 ROM、量角器对照和真实 ADL/跌倒阈值验证暂不阻塞本地工程闭环；恢复这些工作前不得把单传感器工程事件改称临床结论。
 
 ## Agent 工作记录
 
@@ -147,6 +144,7 @@
 | 2026-07-13 | 网站实时看板闭环：Demo 持久化完整 Acc/Gyro/Angle 原始样本；`GET /api/sensor-samples` 返回 live snapshot；新增 `/sensor-live` 实时页（1.5s 轮询、大腿/小腿分卡、原始波形与临床趋势分离）；`/api/ai-analyses` 优先 HARDWARE 临床记录并标注来源边界；导航与设备页入口已接通 | 用户确认平台连接成功；网站已可显示与 App 同口径实时原始数据；双传感器临床分析仍待第二只传感器 | 真机持续上传时打开 `/sensor-live` 验收；推进双传感器 | runtime 8/8、lint、build；HTTP 冒烟：低置信 raw-only、高置信生成临床+告警、live snapshot dualActive、ai-analyses 标明真实硬件、`/sensor-live` 200 |
 | 2026-07-14 | 审查并整合 PR #15；加入稳定样本 ID、数据库唯一约束和事务化幂等；生产网关要求 Bearer Token；移除会误删真实离线样本的 v0.3 自动清队列逻辑；统一 v0.3.0 签名产物名称；新增回归测试并接入 CI | 本地软件验证全绿，正式服务器和整合 APK 真机上传仍待验收；单传感器不能形成临床膝角 | 推送整合 PR 并通过 CI；真机验证断网补传与幂等后，购买第二只同型号传感器推进双传感器量角器对照 | `npm test` 21/21、`npm run lint`、`npm run build`、`npm run db:generate`、Android Debug `BUILD SUCCESSFUL` |
 | 2026-07-14 | 建立 Web 康复指标与预警引擎：鲁棒 ROM、伸直缺失、重复计数、活动时长、质量门、趋势、疼痛与实验性冲击筛查均由统一 API 输出，并在 `/sensor-live` 展示公式、证据和人工处置要求 | 单传感器会 fail-closed；软件公式与边界已测试，真实双传感器精度、重复计数和冲击误报率尚未临床验证 | 第二只传感器到位后完成四元数相对姿态、量角器误差与真实 ADL 阈值验证 | 全量测试、Lint、生产 Build、状态门禁通过；桌面/390px 手机视口无横向溢出，浏览器控制台 0 错误 |
+| 2026-07-14 | 建立 Android v0.4 无服务器本地证据任务：加密样本/事件持久化、中断恢复、标准 JSON 导出；新增 Web `/evidence` 严格导入、姿态回放、事件确认/处理和复核报告导出；补契约测试与闭环验收文档 | 软件闭环已通过自动化和浏览器验收；真实 BT50 导出包尚待用户手机完成一次端到端验收 | 安装 CI APK，用现有传感器采集并导出真实包，再在 `/evidence` 完成处理和报告验收 | `npm test` 29/29、`npm run lint`、`npm run build`、`npm run check:status`；Android JVM/Lint/Debug `BUILD SUCCESSFUL`；浏览器完成导入→处理→刷新持久化，桌面/390px 无横向溢出 |
 
 ## Agent 更新规则
 
