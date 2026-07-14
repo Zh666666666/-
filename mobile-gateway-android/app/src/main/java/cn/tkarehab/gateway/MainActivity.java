@@ -32,7 +32,6 @@ import java.util.Set;
 public final class MainActivity extends AppCompatActivity {
     private static final int WIT_PERMISSION_REQUEST = 1001;
     private static final String PREFERENCES = "gateway-config";
-    private static final String V3_QUEUE_RESET_COMPLETE = "v3-queue-reset-complete";
 
     private final Set<String> renderedDevices = new HashSet<>();
     private LinearLayout devices;
@@ -51,7 +50,6 @@ public final class MainActivity extends AppCompatActivity {
     private PlatformGateway platformGateway;
     private SharedPreferences preferences;
     private String bleInitializationFailure;
-    private int discardedLegacyQueueCount;
     private int liveSampleCount;
     private String connectedThighAddress = "";
     private String connectedShankAddress = "";
@@ -70,13 +68,6 @@ public final class MainActivity extends AppCompatActivity {
 
         try {
             EncryptedSampleQueue queue = new EncryptedSampleQueue(this);
-            if (!preferences.getBoolean(V3_QUEUE_RESET_COMPLETE, false)) {
-                discardedLegacyQueueCount = queue.discardLegacyTestData();
-                if (!preferences.edit().putBoolean(V3_QUEUE_RESET_COMPLETE, true).commit()) {
-                    throw new IllegalStateException("Could not persist the v0.3 queue reset marker.");
-                }
-            }
-
             platformGateway = new PlatformGateway(
                     queue,
                     new PlatformGateway.Listener() {
@@ -130,12 +121,6 @@ public final class MainActivity extends AppCompatActivity {
             renderStatus("蓝牙 SDK 初始化失败。应用仍可打开，请保存此信息并反馈：" + bleInitializationFailure);
         }
 
-        if (discardedLegacyQueueCount > 0) {
-            renderStatus(
-                    "v0.3 已清理旧版测试队列 " + discardedLegacyQueueCount
-                            + " 条。新采集将从 0 开始，不会补传旧测试数据。"
-            );
-        }
     }
 
     @Override
@@ -279,7 +264,7 @@ public final class MainActivity extends AppCompatActivity {
         );
         apiToken = labeledInput(
                 content,
-                "Bearer Token（可选，不保存）",
+                "Bearer Token（生产必填，不保存）",
                 "正式鉴权启用后填写",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );

@@ -3,6 +3,7 @@ type RuntimeEnvironment = Partial<Pick<NodeJS.ProcessEnv,
   | "NEXT_PUBLIC_APP_MODE"
   | "NODE_ENV"
   | "DATABASE_URL"
+  | "GATEWAY_API_TOKEN"
   | "NEXT_PUBLIC_SUPABASE_URL"
   | "NEXT_PUBLIC_SUPABASE_ANON_KEY"
 >>;
@@ -42,6 +43,10 @@ export function hasSupabaseAuthConfiguration(env: RuntimeEnvironment = process.e
   return Boolean(env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+export function hasGatewayApiToken(env: RuntimeEnvironment = process.env) {
+  return Boolean(env.GATEWAY_API_TOKEN && env.GATEWAY_API_TOKEN.length >= 24);
+}
+
 export function getRuntimeReadiness(env: RuntimeEnvironment = process.env) {
   const mode = resolveAppMode(env);
   const issues: string[] = [];
@@ -58,6 +63,10 @@ export function getRuntimeReadiness(env: RuntimeEnvironment = process.env) {
     if (!hasSupabaseAuthConfiguration(env)) {
       issues.push("Supabase URL and anonymous key are required in production mode.");
     }
+
+    if (!hasGatewayApiToken(env)) {
+      issues.push("A GATEWAY_API_TOKEN of at least 24 characters is required in production mode.");
+    }
   }
 
   return {
@@ -65,6 +74,7 @@ export function getRuntimeReadiness(env: RuntimeEnvironment = process.env) {
     ready: issues.length === 0,
     durableStorage: mode === "production" && hasUsableDatabaseUrl(env),
     authentication: mode === "production" && hasSupabaseAuthConfiguration(env),
+    gatewayAuthentication: mode === "production" && hasGatewayApiToken(env),
     issues,
   };
 }

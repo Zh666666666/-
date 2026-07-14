@@ -38,6 +38,7 @@ type DemoState = Omit<DashboardData, "nursingRecords"> & {
   deviceBindings: DeviceBindingItem[];
   sensorSessions: SensorSessionItem[];
   sensorSamples: SensorSampleItem[];
+  gatewaySampleIds: Set<string>;
   calibrationRecords: CalibrationRecordItem[];
 };
 
@@ -130,6 +131,7 @@ type SensorSessionInput = {
 };
 
 type SensorSampleInput = {
+  gatewaySampleId?: string | null;
   sessionId?: string | null;
   deviceId?: string | null;
   patientId: string;
@@ -321,6 +323,7 @@ function initialState(): DemoState {
     ],
     sensorSessions: [],
     sensorSamples: [],
+    gatewaySampleIds: new Set(),
     calibrationRecords: [
       {
         id: "demo-calibration-1",
@@ -379,6 +382,9 @@ function getState() {
   // Hot reload / long-lived demo process may keep an older shape.
   if (!Array.isArray(state.sensorSamples)) {
     state.sensorSamples = [];
+  }
+  if (!(state.gatewaySampleIds instanceof Set)) {
+    state.gatewaySampleIds = new Set();
   }
   return state;
 }
@@ -703,10 +709,18 @@ export function finishDemoSensorSession(id: string, status: "COMPLETED" | "ABORT
 
 export function addDemoSensorSample(input: SensorSampleInput) {
   const state = getState();
+  if (input.gatewaySampleId && state.gatewaySampleIds.has(input.gatewaySampleId)) {
+    return { sample: null, record: null, alert: null, duplicate: true };
+  }
+
   const session = input.sessionId ? state.sensorSessions.find((item) => item.id === input.sessionId) : null;
   const device = input.deviceId ? state.devices.find((item) => item.id === input.deviceId) : null;
   const now = input.recordedAt ?? new Date().toISOString();
   const source = resolveSensorDataSource(session?.source, input.source);
+
+  if (input.gatewaySampleId) {
+    state.gatewaySampleIds.add(input.gatewaySampleId);
+  }
 
   if (session) {
     session.sampleCount += 1;
@@ -772,11 +786,11 @@ export function addDemoSensorSample(input: SensorSampleInput) {
         assessmentScope: "rom-only",
       });
 
-      return { sample, record: knee.record, alert: knee.alert };
+      return { sample, record: knee.record, alert: knee.alert, duplicate: false };
     }
   }
 
-  return { sample, record: null, alert: null };
+  return { sample, record: null, alert: null, duplicate: false };
 }
 
 export function getDemoSensorSamples(patientId: string, limit = 40) {

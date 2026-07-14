@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run runtime, gateway, and ingestion regression tests
+        run: npm test
+
       - name: Lint application
         run: npm run lint
 

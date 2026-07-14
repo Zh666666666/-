@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { addDemoSensorSample, getDemoSensorLiveSnapshot } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { assessKneeRecord, type SensorSampleItem } from "@/lib/rehab";
@@ -15,6 +17,7 @@ import {
 } from "@/lib/sensor-ingestion";
 
 const sensorSampleSchema = z.object({
+  gatewaySampleId: z.string().min(8).max(128).optional(),
   sessionId: z.string().optional().nullable(),
   deviceId: z.string().optional().nullable(),
   patientId: z.string().min(1),
@@ -197,6 +200,9 @@ export async function POST(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
 
+  const unauthorized = gatewayUnauthorizedResponse(request);
+  if (unauthorized) return unauthorized;
+
   if (isDemoMode()) {
     return NextResponse.json(addDemoSensorSample(body));
   }
@@ -218,123 +224,151 @@ export async function POST(request: Request) {
 
   const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
 
-  const sample = await prisma.sensorSample.create({
-    data: {
-      sessionId: body.sessionId ?? null,
-      deviceId: body.deviceId ?? null,
-      patientId: body.patientId,
-      source,
-      placement: body.placement,
-      recordedAt,
-      roll: body.roll ?? null,
-      pitch: body.pitch ?? null,
-      yaw: body.yaw ?? null,
-      q0: body.q0 ?? null,
-      q1: body.q1 ?? null,
-      q2: body.q2 ?? null,
-      q3: body.q3 ?? null,
-      ax: body.ax ?? null,
-      ay: body.ay ?? null,
-      az: body.az ?? null,
-      gx: body.gx ?? null,
-      gy: body.gy ?? null,
-      gz: body.gz ?? null,
-      flexionAngle: body.flexionAngle ?? null,
-      extensionAngle: body.extensionAngle ?? null,
-      confidence: body.confidence ?? null,
-      raw: body.raw == null ? undefined : body.raw,
-    },
+  const sampleData: Prisma.SensorSampleCreateManyInput = {
+    gatewaySampleId: body.gatewaySampleId ?? null,
+    sessionId: body.sessionId ?? null,
+    deviceId: body.deviceId ?? null,
+    patientId: body.patientId,
+    source,
+    placement: body.placement,
+    recordedAt,
+    roll: body.roll ?? null,
+    pitch: body.pitch ?? null,
+    yaw: body.yaw ?? null,
+    q0: body.q0 ?? null,
+    q1: body.q1 ?? null,
+    q2: body.q2 ?? null,
+    q3: body.q3 ?? null,
+    ax: body.ax ?? null,
+    ay: body.ay ?? null,
+    az: body.az ?? null,
+    gx: body.gx ?? null,
+    gy: body.gy ?? null,
+    gz: body.gz ?? null,
+    flexionAngle: body.flexionAngle ?? null,
+    extensionAngle: body.extensionAngle ?? null,
+    confidence: body.confidence ?? null,
+    raw: body.raw == null ? undefined : body.raw as Prisma.InputJsonValue,
+  };
+
+  const result = await prisma.$transaction(async (transaction) => {
+    const duplicate = Boolean(body.gatewaySampleId) && (
+      await transaction.sensorSample.createMany({ data: sampleData, skipDuplicates: true })
+    ).count === 0;
+    const sample = body.gatewaySampleId
+      ? await transaction.sensorSample.findUniqueOrThrow({ where: { gatewaySampleId: body.gatewaySampleId } })
+      : await transaction.sensorSample.create({ data: sampleData });
+
+    if (duplicate) {
+      return { sample, kneeRecord: null, alert: null, duplicate: true };
+    }
+
+    if (body.sessionId) {
+      await transaction.sensorSession.update({
+        where: { id: body.sessionId },
+        data: { sampleCount: { increment: 1 } },
+      });
+    }
+
+    if (body.deviceId) {
+      await transaction.device.update({
+        where: { id: body.deviceId },
+        data: {
+          batteryLevel: body.batteryLevel ?? undefined,
+          signalStrength: body.signalStrength ?? undefined,
+          lastSeenAt: recordedAt,
+          status: typeof body.batteryLevel === "number" && body.batteryLevel <= 20 ? "LOW_BATTERY" : "ONLINE",
+        },
+      });
+    }
+
+    const nearbyClinicalRecord = typeof body.flexionAngle === "number" && isClinicalKneeAngle(body.confidence)
+      ? await transaction.kneeDataRecord.findFirst({
+          where: {
+            patientId: body.patientId,
+            source,
+            recordedAt: {
+              gt: new Date(recordedAt.getTime() - clinicalRecordIntervalMs),
+              lt: new Date(recordedAt.getTime() + clinicalRecordIntervalMs),
+            },
+          },
+          select: { id: true },
+        })
+      : null;
+
+    const shouldCreateKneeRecord = typeof body.flexionAngle === "number"
+      && isClinicalKneeAngle(body.confidence)
+      && !nearbyClinicalRecord;
+
+    const kneeRecord = shouldCreateKneeRecord
+      ? await transaction.kneeDataRecord.create({
+          data: {
+            patientId: body.patientId,
+            flexionAngle: body.flexionAngle!,
+            extensionAngle: body.extensionAngle ?? 0,
+            activityFrequency: 1,
+            activityDuration: 1,
+            painScore: 0,
+            batteryLevel: body.batteryLevel ?? 92,
+            signalStrength: body.signalStrength ?? 96,
+            source,
+            recordedAt,
+          },
+        })
+      : null;
+
+    const assessment = kneeRecord && kneeRecord.flexionAngle < 78
+      ? assessKneeRecord({
+          flexionAngle: kneeRecord.flexionAngle,
+          activityFrequency: 99,
+          activityDuration: 99,
+          painScore: 0,
+        })
+      : null;
+    const recentDuplicateAlert = kneeRecord && assessment
+      ? await transaction.alertLog.findFirst({
+          where: {
+            patientId: kneeRecord.patientId,
+            type: assessment.type,
+            status: { not: "RESOLVED" },
+            createdAt: { gte: new Date(Date.now() - alertCooldownMs) },
+          },
+          select: { id: true },
+        })
+      : null;
+    const alert = kneeRecord && assessment && !recentDuplicateAlert
+      ? await transaction.alertLog.create({
+          data: {
+            patientId: kneeRecord.patientId,
+            type: assessment.type,
+            severity: assessment.severity,
+            title: assessment.title,
+            message: assessment.message,
+            metric: assessment.metric,
+            value: assessment.value,
+            threshold: assessment.threshold,
+          },
+        })
+      : null;
+
+    return { sample, kneeRecord, alert, duplicate: false };
   });
 
-  if (body.sessionId) {
-    await prisma.sensorSession.update({
-      where: { id: body.sessionId },
-      data: { sampleCount: { increment: 1 } },
-    });
+  const { sample, kneeRecord, alert, duplicate } = result;
+
+  if (duplicate && (
+    sample.patientId !== body.patientId
+    || sample.placement !== body.placement
+    || sample.recordedAt.getTime() !== recordedAt.getTime()
+  )) {
+    return NextResponse.json(
+      { error: "gatewaySampleId was already used for a different sample", code: "SAMPLE_ID_CONFLICT" },
+      { status: 409 },
+    );
   }
-
-  if (body.deviceId) {
-    await prisma.device.update({
-      where: { id: body.deviceId },
-      data: {
-        batteryLevel: body.batteryLevel ?? undefined,
-        signalStrength: body.signalStrength ?? undefined,
-        lastSeenAt: recordedAt,
-        status: typeof body.batteryLevel === "number" && body.batteryLevel <= 20 ? "LOW_BATTERY" : "ONLINE",
-      },
-    });
-  }
-
-  const nearbyClinicalRecord = typeof body.flexionAngle === "number" && isClinicalKneeAngle(body.confidence)
-    ? await prisma.kneeDataRecord.findFirst({
-        where: {
-          patientId: body.patientId,
-          source,
-          recordedAt: {
-            gt: new Date(recordedAt.getTime() - clinicalRecordIntervalMs),
-            lt: new Date(recordedAt.getTime() + clinicalRecordIntervalMs),
-          },
-        },
-        select: { id: true },
-      })
-    : null;
-
-  const shouldCreateKneeRecord = typeof body.flexionAngle === "number"
-    && isClinicalKneeAngle(body.confidence)
-    && !nearbyClinicalRecord;
-
-  const kneeRecord = shouldCreateKneeRecord
-    ? await prisma.kneeDataRecord.create({
-        data: {
-          patientId: body.patientId,
-          flexionAngle: body.flexionAngle!,
-          extensionAngle: body.extensionAngle ?? 0,
-          activityFrequency: 1,
-          activityDuration: 1,
-          painScore: 0,
-          batteryLevel: body.batteryLevel ?? 92,
-          signalStrength: body.signalStrength ?? 96,
-          source,
-          recordedAt,
-        },
-      })
-    : null;
-
-  const assessment = kneeRecord && kneeRecord.flexionAngle < 78
-    ? assessKneeRecord({
-        flexionAngle: kneeRecord.flexionAngle,
-        activityFrequency: 99,
-        activityDuration: 99,
-        painScore: 0,
-      })
-    : null;
-  const recentDuplicateAlert = kneeRecord && assessment
-    ? await prisma.alertLog.findFirst({
-        where: {
-          patientId: kneeRecord.patientId,
-          type: assessment.type,
-          status: { not: "RESOLVED" },
-          createdAt: { gte: new Date(Date.now() - alertCooldownMs) },
-        },
-        select: { id: true },
-      })
-    : null;
-  const alert = kneeRecord && assessment && !recentDuplicateAlert
-    ? await prisma.alertLog.create({
-        data: {
-          patientId: kneeRecord.patientId,
-          type: assessment.type,
-          severity: assessment.severity,
-          title: assessment.title,
-          message: assessment.message,
-          metric: assessment.metric,
-          value: assessment.value,
-          threshold: assessment.threshold,
-        },
-      })
-    : null;
 
   return NextResponse.json({
+    duplicate,
     sample: {
       id: sample.id,
       patientId: sample.patientId,
