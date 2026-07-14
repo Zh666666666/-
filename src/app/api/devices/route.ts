@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { addDemoDevice, getDemoDevices } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { normalizeDeviceStatus, serializeDevice } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 
@@ -18,7 +19,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const patientId = url.searchParams.get("patientId") ?? undefined;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(getDemoDevices(patientId));
   }
 
@@ -45,7 +49,10 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(addDemoDevice(body));
   }
 

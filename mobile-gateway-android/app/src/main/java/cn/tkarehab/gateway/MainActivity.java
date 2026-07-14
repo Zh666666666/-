@@ -67,8 +67,9 @@ public final class MainActivity extends AppCompatActivity {
         TkaApplication.markLaunchSucceeded(this);
 
         try {
+            EncryptedSampleQueue queue = new EncryptedSampleQueue(this);
             platformGateway = new PlatformGateway(
-                    new EncryptedSampleQueue(this),
+                    queue,
                     new PlatformGateway.Listener() {
                         @Override
                         public void onStatus(String message) {
@@ -119,6 +120,7 @@ public final class MainActivity extends AppCompatActivity {
             bleInitializationFailure = describe(error);
             renderStatus("蓝牙 SDK 初始化失败。应用仍可打开，请保存此信息并反馈：" + bleInitializationFailure);
         }
+
     }
 
     @Override
@@ -250,22 +252,25 @@ public final class MainActivity extends AppCompatActivity {
 
         apiUrl = labeledInput(
                 content,
-                "平台 HTTPS 地址",
-                "https://your-server.example.com",
+                "平台地址",
+                "生产填 HTTPS；本机联调可填 http://192.168.x.x:3000",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
         );
         patientId = labeledInput(
                 content,
                 "患者 ID",
-                "从平台患者资料复制",
+                "从家属端设备页复制，例如 demo-patient-1",
                 InputType.TYPE_CLASS_TEXT
         );
         apiToken = labeledInput(
                 content,
-                "Bearer Token（可选，不保存）",
+                "Bearer Token（生产必填，不保存）",
                 "正式鉴权启用后填写",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
+
+        Button testConnection = actionButton("测试平台连接", 0xFF1565C0, view -> testPlatformConnection());
+        content.addView(testConnection);
 
         LinearLayout sessionActions = new LinearLayout(this);
         sessionActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -355,6 +360,24 @@ public final class MainActivity extends AppCompatActivity {
         input.setLayoutParams(params);
         container.addView(input);
         return input;
+    }
+
+    private void testPlatformConnection() {
+        GatewayConfig.Validation validation = GatewayConfig.validate(
+                apiUrl.getText().toString(),
+                patientId.getText().toString().isEmpty() ? "demo-patient-1" : patientId.getText().toString()
+        );
+        if (!validation.valid) {
+            renderStatus(validation.message);
+            return;
+        }
+        if (platformGateway == null) {
+            renderStatus("加密队列不可用，无法测试上传。");
+            return;
+        }
+        preferences.edit().putString("apiUrl", validation.baseUrl).apply();
+        renderStatus("正在测试平台连接：" + validation.baseUrl + "/api/health/ready");
+        platformGateway.testConnection(validation.baseUrl, apiToken.getText().toString().trim());
     }
 
     private void startSession() {

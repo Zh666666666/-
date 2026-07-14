@@ -12,6 +12,7 @@ import {
   type DeviceItem,
   type DevicePlacement,
   type KneeDataPoint,
+  type SensorSampleItem,
   type SensorSessionItem,
   encodeNursingNotes,
   serializeNursingRecord,
@@ -21,6 +22,11 @@ import {
   type UserRole,
 } from "@/lib/rehab";
 import { resolveSensorDataSource } from "@/lib/sample-provenance";
+import {
+  alertCooldownMs,
+  isClinicalKneeAngle,
+  shouldMaterializeClinicalRecord,
+} from "@/lib/sensor-ingestion";
 
 type DemoNursingRecord = Omit<NursingRecordItem, "soap">;
 
@@ -31,8 +37,27 @@ type DemoState = Omit<DashboardData, "nursingRecords"> & {
   devices: DeviceItem[];
   deviceBindings: DeviceBindingItem[];
   sensorSessions: SensorSessionItem[];
+  sensorSamples: SensorSampleItem[];
+  gatewaySampleIds: Set<string>;
   calibrationRecords: CalibrationRecordItem[];
 };
+
+const MAX_DEMO_SENSOR_SAMPLES = 500;
+
+function resolveKneeAngleMode(raw: unknown, confidence: number | null | undefined): SensorSampleItem["kneeAngleMode"] {
+  if (raw && typeof raw === "object" && "kneeAngleMode" in raw) {
+    const mode = (raw as { kneeAngleMode?: unknown }).kneeAngleMode;
+    if (mode === "DUAL_SENSOR" || mode === "SINGLE_SENSOR_PROVISIONAL" || mode === "UNKNOWN") {
+      return mode;
+    }
+  }
+
+  if (typeof confidence === "number") {
+    return isClinicalKneeAngle(confidence) ? "DUAL_SENSOR" : "SINGLE_SENSOR_PROVISIONAL";
+  }
+
+  return null;
+}
 
 type AiAnalysisInput = Omit<AiAnalysisItem, "id" | "createdAt">;
 
@@ -47,6 +72,7 @@ type KneeRecordInput = {
   signalStrength?: number;
   source?: KneeDataPoint["source"];
   recordedAt?: string;
+  assessmentScope?: "full" | "rom-only";
 };
 
 type NursingRecordInput = {
@@ -105,6 +131,7 @@ type SensorSessionInput = {
 };
 
 type SensorSampleInput = {
+  gatewaySampleId?: string | null;
   sessionId?: string | null;
   deviceId?: string | null;
   patientId: string;
@@ -150,10 +177,35 @@ function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-function createAlert(record: Pick<KneeDataPoint, "patientId" | "flexionAngle" | "activityFrequency" | "activityDuration" | "painScore">) {
-  const assessment = assessKneeRecord(record);
+function createAlert(
+  record: Pick<KneeDataPoint, "patientId" | "flexionAngle" | "activityFrequency" | "activityDuration" | "painScore">,
+  existingAlerts: AlertItem[] = [],
+  assessmentScope: "full" | "rom-only" = "full",
+) {
+  const assessment = assessmentScope === "rom-only"
+    ? record.flexionAngle < 78
+      ? assessKneeRecord({
+          flexionAngle: record.flexionAngle,
+          activityFrequency: 99,
+          activityDuration: 99,
+          painScore: 0,
+        })
+      : null
+    : assessKneeRecord(record);
 
   if (!assessment) {
+    return null;
+  }
+
+  const cooldownStartedAt = Date.now() - alertCooldownMs;
+  const duplicate = existingAlerts.some((alert) => (
+    alert.patientId === record.patientId
+    && alert.type === assessment.type
+    && alert.status !== "RESOLVED"
+    && new Date(alert.createdAt).getTime() >= cooldownStartedAt
+  ));
+
+  if (duplicate) {
     return null;
   }
 
@@ -270,6 +322,8 @@ function initialState(): DemoState {
       },
     ],
     sensorSessions: [],
+    sensorSamples: [],
+    gatewaySampleIds: new Set(),
     calibrationRecords: [
       {
         id: "demo-calibration-1",
@@ -324,7 +378,15 @@ function initialState(): DemoState {
 
 function getState() {
   globalForDemo.rehabDemoState ??= initialState();
-  return globalForDemo.rehabDemoState;
+  const state = globalForDemo.rehabDemoState;
+  // Hot reload / long-lived demo process may keep an older shape.
+  if (!Array.isArray(state.sensorSamples)) {
+    state.sensorSamples = [];
+  }
+  if (!(state.gatewaySampleIds instanceof Set)) {
+    state.gatewaySampleIds = new Set();
+  }
+  return state;
 }
 
 export function getDemoDashboardData(): DashboardData {
@@ -457,7 +519,7 @@ export function addDemoKneeRecord(input: KneeRecordInput) {
     recordedAt: input.recordedAt ?? new Date().toISOString(),
   } satisfies KneeDataPoint;
 
-  const alert = createAlert(record);
+  const alert = createAlert(record, state.alerts, input.assessmentScope ?? "full");
   state.records = [...state.records, record].slice(-160);
 
   if (alert) {
@@ -647,10 +709,18 @@ export function finishDemoSensorSession(id: string, status: "COMPLETED" | "ABORT
 
 export function addDemoSensorSample(input: SensorSampleInput) {
   const state = getState();
+  if (input.gatewaySampleId && state.gatewaySampleIds.has(input.gatewaySampleId)) {
+    return { sample: null, record: null, alert: null, duplicate: true };
+  }
+
   const session = input.sessionId ? state.sensorSessions.find((item) => item.id === input.sessionId) : null;
   const device = input.deviceId ? state.devices.find((item) => item.id === input.deviceId) : null;
   const now = input.recordedAt ?? new Date().toISOString();
   const source = resolveSensorDataSource(session?.source, input.source);
+
+  if (input.gatewaySampleId) {
+    state.gatewaySampleIds.add(input.gatewaySampleId);
+  }
 
   if (session) {
     session.sampleCount += 1;
@@ -664,22 +734,98 @@ export function addDemoSensorSample(input: SensorSampleInput) {
     device.updatedAt = now;
   }
 
-  if (typeof input.flexionAngle === "number") {
-    return addDemoKneeRecord({
-      patientId: input.patientId,
-      flexionAngle: input.flexionAngle,
-      extensionAngle: input.extensionAngle ?? 0,
-      activityFrequency: 1,
-      activityDuration: 1,
-      painScore: 0,
-      batteryLevel: input.batteryLevel ?? device?.batteryLevel ?? 92,
-      signalStrength: input.signalStrength ?? device?.signalStrength ?? 96,
-      source,
-      recordedAt: now,
-    });
+  const confidence = typeof input.confidence === "number" ? input.confidence : null;
+  const kneeAngleMode = resolveKneeAngleMode(input.raw, confidence);
+  const sample: SensorSampleItem = {
+    id: createId("sample"),
+    patientId: input.patientId,
+    deviceId: input.deviceId ?? null,
+    sessionId: input.sessionId ?? null,
+    placement: input.placement ?? "UNKNOWN",
+    source,
+    recordedAt: now,
+    roll: typeof input.roll === "number" ? input.roll : null,
+    pitch: typeof input.pitch === "number" ? input.pitch : null,
+    yaw: typeof input.yaw === "number" ? input.yaw : null,
+    ax: typeof input.ax === "number" ? input.ax : null,
+    ay: typeof input.ay === "number" ? input.ay : null,
+    az: typeof input.az === "number" ? input.az : null,
+    gx: typeof input.gx === "number" ? input.gx : null,
+    gy: typeof input.gy === "number" ? input.gy : null,
+    gz: typeof input.gz === "number" ? input.gz : null,
+    flexionAngle: typeof input.flexionAngle === "number" ? input.flexionAngle : null,
+    extensionAngle: typeof input.extensionAngle === "number" ? input.extensionAngle : null,
+    confidence,
+    batteryLevel: typeof input.batteryLevel === "number" ? input.batteryLevel : device?.batteryLevel ?? null,
+    signalStrength: typeof input.signalStrength === "number" ? input.signalStrength : device?.signalStrength ?? null,
+    kneeAngleMode,
+    clinicalEligible: isClinicalKneeAngle(confidence),
+  };
+
+  state.sensorSamples = [sample, ...state.sensorSamples].slice(0, MAX_DEMO_SENSOR_SAMPLES);
+
+  if (typeof input.flexionAngle === "number" && isClinicalKneeAngle(input.confidence)) {
+    const nearbyRecord = state.records.find((record) => (
+      record.patientId === input.patientId
+      && record.source === source
+      && !shouldMaterializeClinicalRecord(now, record.recordedAt)
+    ));
+
+    if (!nearbyRecord) {
+      const knee = addDemoKneeRecord({
+        patientId: input.patientId,
+        flexionAngle: input.flexionAngle,
+        extensionAngle: input.extensionAngle ?? 0,
+        activityFrequency: 1,
+        activityDuration: 1,
+        painScore: 0,
+        batteryLevel: input.batteryLevel ?? device?.batteryLevel ?? 92,
+        signalStrength: input.signalStrength ?? device?.signalStrength ?? 96,
+        source,
+        recordedAt: now,
+        assessmentScope: "rom-only",
+      });
+
+      return { sample, record: knee.record, alert: knee.alert, duplicate: false };
+    }
   }
 
-  return { record: null, alert: null };
+  return { sample, record: null, alert: null, duplicate: false };
+}
+
+export function getDemoSensorSamples(patientId: string, limit = 40) {
+  const state = getState();
+  const safeLimit = Math.max(1, Math.min(limit, 200));
+  return state.sensorSamples
+    .filter((sample) => sample.patientId === patientId)
+    .slice(0, safeLimit);
+}
+
+export function getDemoSensorLiveSnapshot(patientId: string) {
+  const samples = getDemoSensorSamples(patientId, 80);
+  const latestByPlacement = {
+    THIGH: samples.find((sample) => sample.placement === "THIGH") ?? null,
+    SHANK: samples.find((sample) => sample.placement === "SHANK") ?? null,
+    BRACE: samples.find((sample) => sample.placement === "BRACE") ?? null,
+    UNKNOWN: samples.find((sample) => sample.placement === "UNKNOWN") ?? null,
+  };
+  const latest = samples[0] ?? null;
+  const dualActive = Boolean(latestByPlacement.THIGH && latestByPlacement.SHANK);
+  const clinicalRecords = getDemoDashboardData().records
+    .filter((record) => record.patientId === patientId)
+    .slice(-12);
+
+  return {
+    patientId,
+    updatedAt: latest?.recordedAt ?? new Date().toISOString(),
+    sampleCount: samples.length,
+    dualActive,
+    mode: latest?.kneeAngleMode ?? (dualActive ? "DUAL_SENSOR" : latest ? "SINGLE_SENSOR_PROVISIONAL" : "UNKNOWN"),
+    latest,
+    latestByPlacement,
+    samples,
+    clinicalRecords,
+  };
 }
 
 export function addDemoCalibrationRecord(input: CalibrationInput) {

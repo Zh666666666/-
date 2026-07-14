@@ -7,9 +7,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.UUID;
 
 final class SensorSample {
     final String gatewayDeviceId;
+    final String gatewaySampleId;
     final String deviceName;
     final SensorPlacement placement;
     final long recordedAtMs;
@@ -39,6 +41,7 @@ final class SensorSample {
             double gz
     ) {
         this.gatewayDeviceId = gatewayDeviceId;
+        this.gatewaySampleId = UUID.randomUUID().toString();
         this.deviceName = deviceName;
         this.placement = placement;
         this.recordedAtMs = recordedAtMs;
@@ -62,6 +65,7 @@ final class SensorSample {
 
         JSONObject payload = new JSONObject();
         payload.put("gatewayDeviceId", gatewayDeviceId);
+        payload.put("gatewaySampleId", gatewaySampleId);
         payload.put("patientId", "");
         payload.put("placement", placement.name());
         payload.put("recordedAt", formatRecordedAt(recordedAtMs));

@@ -75,14 +75,15 @@ and are not committed to the public repository.
 
 ## Environment Modes
 
-- Demo mode is selected by `hasUsableDatabaseUrl()` in `src/lib/env.ts`.
-- If `DATABASE_URL` is missing or still contains placeholders, APIs use
-  `demo-store.ts`.
-- Supabase Auth is considered configured when `NEXT_PUBLIC_SUPABASE_URL` and
-  `NEXT_PUBLIC_SUPABASE_ANON_KEY` exist.
-- Be careful with mixed configuration: Supabase public keys without a usable
-  database can make auth behave like production while data APIs still use demo
-  storage.
+- Runtime mode is controlled by `APP_MODE` (`demo` | `production`) via
+  `resolveAppMode()` / `isDemoMode()` / `getRuntimeReadiness()` in
+  `src/lib/env.ts`. Local development defaults to `demo`; production builds
+  without an explicit mode fail closed as `invalid`.
+- Demo mode always uses process-memory data from `demo-store.ts`, even if a
+  `DATABASE_URL` is present. Supabase Auth client is disabled in demo mode.
+- Production mode requires a usable `DATABASE_URL` and Supabase public keys.
+  Missing configuration returns HTTP 503 from readiness and data APIs.
+- Never seed or silently fall back to demo records in production mode.
 - AI analysis uses `OPENAI_API_KEY`, then `ANTHROPIC_API_KEY`, then local rules.
 
 ## Change Rules

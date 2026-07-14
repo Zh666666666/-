@@ -2,6 +2,7 @@ package cn.tkarehab.gateway;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -27,5 +28,15 @@ public final class KneeAngleCalculatorTest {
     public void rejectsNonFiniteSensorValues() {
         assertNull(KneeAngleCalculator.calculate(1_000, Double.NaN, 1_000, 20));
         assertNull(KneeAngleCalculator.calculate(1_000, 10, 1_000, Double.POSITIVE_INFINITY));
+    }
+
+    @Test
+    public void buildsProvisionalSingleSensorEstimate() {
+        KneeAngleCalculator.Result result = KneeAngleCalculator.provisionalFromSingle(-42.37);
+
+        assertEquals(42.4, result.flexion, 0.001);
+        assertEquals(0.35, result.confidence, 0.001);
+        assertTrue(result.provisional);
+        assertNull(KneeAngleCalculator.provisionalFromSingle(Double.NaN));
     }
 }

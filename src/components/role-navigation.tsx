@@ -15,16 +15,16 @@ type RoleResponse = {
 
 const familyLinks = [
   { href: "/family", label: "监测", icon: Home },
-  { href: "/family/guidance", label: "指导", icon: Activity },
+  { href: "/sensor-live", label: "实时", icon: Radio },
   { href: "/family/devices", label: "设备", icon: Activity },
-  { href: "/hardware-demo", label: "硬件", icon: Radio },
+  { href: "/hardware-demo", label: "演示", icon: Activity },
   { href: "/appointments", label: "预约", icon: CalendarClock },
   { href: "/family/profile", label: "资料", icon: UserRound },
 ];
 
 const nurseLinks = [
   { href: "/nurse", label: "工作台", icon: Stethoscope },
-  { href: "/hardware-demo", label: "硬件", icon: Radio },
+  { href: "/sensor-live", label: "实时", icon: Radio },
   { href: "/appointments", label: "预约", icon: CalendarClock },
   { href: "/nurse/profile", label: "资料", icon: UserRound },
 ];

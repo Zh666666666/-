@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { authRoleCookie, isUserRole } from "@/lib/auth";
 import { getDemoProfile, upsertDemoProfile } from "@/lib/demo-store";
-import { hasUsableDatabaseUrl } from "@/lib/env";
+import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import type { ProfileItem, UserRole } from "@/lib/rehab";
 
@@ -68,7 +69,10 @@ export async function GET(request: Request) {
   const role = isUserRole(roleParam) ? roleParam : await currentRole();
   const dbRole = toDatabaseRole(role);
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(getDemoProfile(role));
   }
 
@@ -85,7 +89,10 @@ export async function PUT(request: Request) {
 
   const body = parsed.data;
 
-  if (!hasUsableDatabaseUrl()) {
+  const unavailable = runtimeUnavailableResponse();
+  if (unavailable) return unavailable;
+
+  if (isDemoMode()) {
     return NextResponse.json(upsertDemoProfile(body));
   }
 

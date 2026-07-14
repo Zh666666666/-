@@ -32,6 +32,8 @@ final class PlatformGateway {
     private final Map<String, String> platformDeviceIds = new HashMap<>();
     private final Map<String, String> sessionIds = new HashMap<>();
     private final Map<SensorPlacement, TimedPitch> latestPitch = new EnumMap<>(SensorPlacement.class);
+    private static final long MIN_QUEUE_INTERVAL_MS = 500L;
+    private long lastQueuedAtMs;
 
     private String baseUrl;
     private String patientId;
@@ -56,8 +58,26 @@ final class PlatformGateway {
         sessionIds.remove(patientId);
         latestPitch.clear();
         this.active = true;
-        listener.onStatus("采集会话已就绪；加密队列中有 " + queue.size() + " 条待上传数据。");
-        flush();
+        listener.onStatus("采集会话已就绪；加密队列中有 " + queue.size() + " 条待上传数据。正在探测平台连通性…");
+        worker.execute(this::probeAndFlush);
+    }
+
+    void testConnection(String baseUrl, String bearerToken) {
+        this.baseUrl = stripTrailingSlash(baseUrl);
+        this.bearerToken = bearerToken;
+        worker.execute(() -> {
+            try {
+                JSONObject ready = getJson("/api/health/ready");
+                listener.onStatus(
+                        "平台连通正常：" + ready.optString("status", "ready")
+                                + " / mode=" + ready.optString("mode", "unknown")
+                                + " / storage=" + ready.optString("storage", "unknown")
+                );
+            } catch (Exception error) {
+                listener.onStatus("平台连通失败：" + summarize(error)
+                        + "。请确认手机与电脑同一 Wi-Fi，浏览器能打开 " + this.baseUrl + "/api/health/ready");
+            }
+        });
     }
 
     void stop() {
@@ -80,21 +100,40 @@ final class PlatformGateway {
                 return;
             }
             try {
+                latestPitch.put(sample.placement, new TimedPitch(sample.recordedAtMs, sample.pitch));
+                // Keep live BLE high-rate for UI, but only queue ~2Hz for upload.
+                if (sample.recordedAtMs - lastQueuedAtMs < MIN_QUEUE_INTERVAL_MS) {
+                    return;
+                }
+                lastQueuedAtMs = sample.recordedAtMs;
+
                 JSONObject payload = sample.toUploadJson();
                 payload.put("patientId", targetPatientId);
-                latestPitch.put(sample.placement, new TimedPitch(sample.recordedAtMs, sample.pitch));
+                payload.put("source", "HARDWARE");
                 TimedPitch thigh = latestPitch.get(SensorPlacement.THIGH);
-                if (sample.placement == SensorPlacement.SHANK && thigh != null) {
-                    KneeAngleCalculator.Result angle = KneeAngleCalculator.calculate(
+                TimedPitch shank = latestPitch.get(SensorPlacement.SHANK);
+                KneeAngleCalculator.Result angle = null;
+                if (thigh != null && shank != null) {
+                    angle = KneeAngleCalculator.calculate(
                             thigh.recordedAtMs,
                             thigh.pitch,
-                            sample.recordedAtMs,
-                            sample.pitch
+                            shank.recordedAtMs,
+                            shank.pitch
                     );
-                    if (angle != null) {
-                        payload.put("flexionAngle", angle.flexion);
-                        payload.put("extensionAngle", angle.extension);
-                        payload.put("confidence", angle.confidence);
+                }
+                if (angle == null) {
+                    angle = KneeAngleCalculator.provisionalFromSingle(sample.pitch);
+                }
+                if (angle != null) {
+                    payload.put("flexionAngle", angle.flexion);
+                    payload.put("extensionAngle", angle.extension);
+                    payload.put("confidence", angle.confidence);
+                    JSONObject raw = payload.optJSONObject("raw");
+                    if (raw != null) {
+                        raw.put(
+                                "kneeAngleMode",
+                                angle.provisional ? "SINGLE_SENSOR_PROVISIONAL" : "DUAL_SENSOR"
+                        );
                     }
                 }
                 queue.append(payload);
@@ -111,6 +150,26 @@ final class PlatformGateway {
         }
     }
 
+    private void probeAndFlush() {
+        if (!active) {
+            return;
+        }
+        try {
+            JSONObject ready = getJson("/api/health/ready");
+            listener.onStatus(
+                    "平台已连通（" + ready.optString("mode", "unknown") + "），开始上传队列 "
+                            + queue.size() + " 条…"
+            );
+            flushOnWorker();
+        } catch (Exception error) {
+            listener.onStatus(
+                    "上传暂缓；" + queue.size() + " 条仍在加密队列。"
+                            + " 原因：" + summarize(error)
+                            + "。请用手机浏览器打开 " + baseUrl + "/api/health/ready"
+            );
+        }
+    }
+
     private void flushOnWorker() {
         if (!active) {
             return;
@@ -118,28 +177,52 @@ final class PlatformGateway {
         try {
             int uploaded = 0;
             JSONObject sample;
-            while ((sample = queue.peek()) != null) {
+            // Cap each flush burst so the UI can keep rendering BLE frames.
+            while (uploaded < 40 && (sample = queue.peek()) != null) {
                 String deviceId = ensureDevice(sample);
                 String samplePatientId = sample.getString("patientId");
                 String activeSessionId = ensureSession(samplePatientId);
                 sample.put("deviceId", deviceId);
                 sample.put("sessionId", activeSessionId);
+                // Avoid shipping local-only queue fields to the platform schema.
+                sample.remove("gatewayDeviceId");
                 postJson("/api/sensor-samples", sample);
                 queue.acknowledgeOne();
                 uploaded += 1;
             }
             if (uploaded > 0) {
-                listener.onStatus("已上传 " + uploaded + " 条真实网关采样。");
+                int remaining = queue.size();
+                listener.onStatus(
+                        "已上传 " + uploaded + " 条真实网关采样"
+                                + (remaining > 0 ? "；队列还剩 " + remaining + " 条。" : "；队列已清空。")
+                );
+                if (remaining > 0) {
+                    worker.execute(this::flushOnWorker);
+                }
             }
         } catch (Exception error) {
-            listener.onStatus("上传暂缓；" + queue.size() + " 条数据仍在加密队列中，15 秒后自动重试。");
+            listener.onStatus(
+                    "上传暂缓；" + queue.size() + " 条数据仍在加密队列中，15 秒后自动重试。"
+                            + " 原因：" + summarize(error)
+            );
         }
     }
 
     private void retryQueuedSamples() {
         if (active) {
-            flushOnWorker();
+            probeAndFlush();
         }
+    }
+
+    private static String summarize(Exception error) {
+        String message = error.getMessage();
+        if (message == null || message.trim().isEmpty()) {
+            message = error.getClass().getSimpleName();
+        }
+        if (message.length() > 180) {
+            return message.substring(0, 180) + "…";
+        }
+        return message;
     }
 
     private String ensureDevice(JSONObject sample) throws Exception {
@@ -181,33 +264,62 @@ final class PlatformGateway {
     }
 
     private JSONObject postJson(String path, JSONObject body) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+        HttpURLConnection connection = open(path);
         try {
             connection.setRequestMethod("POST");
-            connection.setConnectTimeout(10_000);
-            connection.setReadTimeout(15_000);
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Accept", "application/json");
-            if (bearerToken != null && !bearerToken.isEmpty()) {
-                connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
-            }
             connection.setDoOutput(true);
             try (OutputStream output = connection.getOutputStream()) {
                 output.write(body.toString().getBytes(StandardCharsets.UTF_8));
             }
-
-            int status = connection.getResponseCode();
-            InputStream stream = status >= 200 && status < 300
-                    ? connection.getInputStream()
-                    : connection.getErrorStream();
-            String response = readFully(stream);
-            if (status < 200 || status >= 300) {
-                throw new IllegalStateException("POST " + path + " failed (" + status + "): " + response);
-            }
-            return new JSONObject(response);
+            return readJsonResponse(connection, "POST " + path);
         } finally {
             connection.disconnect();
         }
+    }
+
+    private JSONObject getJson(String path) throws Exception {
+        HttpURLConnection connection = open(path);
+        try {
+            connection.setRequestMethod("GET");
+            return readJsonResponse(connection, "GET " + path);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private HttpURLConnection open(String path) throws Exception {
+        if (baseUrl == null || baseUrl.isEmpty()) {
+            throw new IllegalStateException("平台地址为空");
+        }
+        HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+        connection.setConnectTimeout(8_000);
+        connection.setReadTimeout(12_000);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Accept", "application/json");
+        if (bearerToken != null && !bearerToken.isEmpty()) {
+            connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
+        }
+        return connection;
+    }
+
+    private JSONObject readJsonResponse(HttpURLConnection connection, String label) throws Exception {
+        int status;
+        try {
+            status = connection.getResponseCode();
+        } catch (Exception error) {
+            throw new IllegalStateException(label + " 无法连接：" + summarize(error), error);
+        }
+        InputStream stream = status >= 200 && status < 300
+                ? connection.getInputStream()
+                : connection.getErrorStream();
+        String response = readFully(stream);
+        if (status < 200 || status >= 300) {
+            throw new IllegalStateException(label + " failed (" + status + "): " + response);
+        }
+        if (response == null || response.trim().isEmpty()) {
+            return new JSONObject();
+        }
+        return new JSONObject(response);
     }
 
     private static String readFully(InputStream stream) throws Exception {
