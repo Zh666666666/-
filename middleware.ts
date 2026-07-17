@@ -2,9 +2,20 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { authRoleCookie, resolveAuthRole, type UserRole } from "@/lib/auth";
+import { resolveAuthMode } from "@/lib/env";
+import { localSessionCookie, secretsEqual, verifyLocalSession } from "@/lib/local-auth";
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase-config";
 
 const protectedPrefixes = ["/family", "/nurse"];
+const localProtectedPrefixes = [...protectedPrefixes, "/appointments", "/sensor-live", "/evidence", "/hardware-demo"];
+const publicApiPrefixes = ["/api/auth", "/api/health"];
+const gatewayApiPrefixes = [
+  "/api/devices",
+  "/api/device-bindings",
+  "/api/device-calibrations",
+  "/api/sensor-sessions",
+  "/api/sensor-samples",
+];
 
 function redirectTo(request: NextRequest, pathname: string) {
   const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host;
@@ -24,6 +35,35 @@ function loginRedirect(request: NextRequest, pathname: string) {
 
 function isProtectedPath(pathname: string) {
   return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function matchesPrefix(pathname: string, prefixes: string[]) {
+  return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+async function localAuthMiddleware(request: NextRequest, pathname: string) {
+  const session = await verifyLocalSession(
+    request.cookies.get(localSessionCookie)?.value,
+    process.env["LOCAL_AUTH_SESSION_SECRET"],
+  );
+
+  if (pathname.startsWith("/api/")) {
+    if (matchesPrefix(pathname, publicApiPrefixes)) return NextResponse.next();
+    if (session) return NextResponse.next();
+
+    if (matchesPrefix(pathname, gatewayApiPrefixes)) {
+      const authorization = request.headers.get("authorization") ?? "";
+      const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+      const expected = process.env["GATEWAY_API_TOKEN"] ?? "";
+      if (expected.length >= 24 && await secretsEqual(token, expected)) return NextResponse.next();
+    }
+
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!matchesPrefix(pathname, localProtectedPrefixes)) return NextResponse.next();
+  if (!session) return unauthorizedRedirect(request, pathname);
+  return redirectForMismatchedRole(request, pathname, session.role) ?? NextResponse.next();
 }
 
 function unauthorizedRedirect(request: NextRequest, pathname: string) {
@@ -46,6 +86,10 @@ function redirectForMismatchedRole(request: NextRequest, pathname: string, role:
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (resolveAuthMode() === "local") {
+    return localAuthMiddleware(request, pathname);
+  }
 
   if (!isSupabaseConfigured) {
     const role = resolveAuthRole(null, request.cookies.get(authRoleCookie)?.value);
@@ -94,5 +138,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/family/:path*", "/nurse/:path*"],
+  matcher: [
+    "/family/:path*",
+    "/nurse/:path*",
+    "/appointments/:path*",
+    "/sensor-live/:path*",
+    "/evidence/:path*",
+    "/hardware-demo/:path*",
+    "/api/:path*",
+  ],
 };

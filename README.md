@@ -37,7 +37,7 @@ npm run dev
 - `http://localhost:3000/family`
 - `http://localhost:3000/nurse`
 
-如果没有配置真实 Supabase 数据库，项目会自动使用内存 Demo 数据，方便先演示页面和接口。
+本地默认使用 `APP_MODE=demo` 的内存数据。生产模式不会回退到 Demo 数据。
 
 ## 配置 Supabase + Prisma
 
@@ -118,6 +118,17 @@ npm run start
 默认监听 `3000` 端口。手机和 PC 端访问同一域名即可，页面已按移动端和桌面端做响应式布局。
 
 ## 部署到域名
+
+### 自托管 Docker（当前生产方案）
+
+服务器使用 `compose.production.yml` 启动私有 PostgreSQL、Next.js 与 Caddy，
+支持本地家属/护士正式账号、网关 Bearer Token、自动 HTTPS、日志轮转与每日备份。
+完整环境变量、部署、验收和备份命令见 [`deploy/README.md`](deploy/README.md)。
+
+```bash
+docker compose -f compose.production.yml up -d --build
+docker compose -f compose.production.yml exec -T app node deploy/verify-production.mjs
+```
 
 ### Vercel
 

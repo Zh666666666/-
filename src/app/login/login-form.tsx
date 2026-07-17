@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { defaultPathForRole, type UserRole } from "@/lib/auth";
+import { isLocalAuthConfigured } from "@/lib/local-auth-config";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [role, setRole] = useState<UserRole | null>(null);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("demo123456");
+  const [password, setPassword] = useState(isLocalAuthConfigured ? "" : "demo123456");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,15 +54,26 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      if (isSupabaseConfigured && supabase) {
+      let authRole: UserRole;
+      if (isLocalAuthConfigured) {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, role }),
+        });
+        const data = (await response.json()) as { role?: UserRole; error?: string };
+        if (!response.ok || !data.role) throw new Error(data.error ?? "登录失败");
+        authRole = data.role;
+      } else if (isSupabaseConfigured && supabase) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
         if (signInError) {
           throw new Error(signInError.message);
         }
+        authRole = await persistRole(role);
+      } else {
+        authRole = await persistRole(role);
       }
-
-      const authRole = await persistRole(role);
       const next = searchParams.get("next");
       const safeNext = next?.startsWith(defaultPathForRole(authRole)) ? next : defaultPathForRole(authRole);
       router.replace(safeNext);
@@ -140,7 +152,9 @@ export function LoginForm() {
                       )}
                       onClick={() => {
                         setRole(option.role);
-                        setEmail(option.role === "family" ? "family@demo.cn" : "nurse@demo.cn");
+                        if (!isLocalAuthConfigured) {
+                          setEmail(option.role === "family" ? "family@demo.cn" : "nurse@demo.cn");
+                        }
                       }}
                     >
                       <span className={cn("flex size-10 items-center justify-center rounded-xl transition md:size-12 md:rounded-2xl", selected ? "bg-[#f2c36b] text-[#17251f]" : "bg-[#edf2e7] text-[#5b876f]") }>
@@ -167,8 +181,11 @@ export function LoginForm() {
                 <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required className="border-[#d8c8ad] bg-[#fffaf2]/80 focus-visible:ring-[#5b876f]/20" />
               </div>
 
-              {!isSupabaseConfigured ? (
+              {!isSupabaseConfigured && !isLocalAuthConfigured ? (
                 <p className="rounded-[1rem] border border-[#e4c47f] bg-[#fff1cf] px-3 py-2 text-xs leading-5 text-[#7a571b] md:rounded-[1.25rem] md:px-4 md:py-3 md:text-sm md:leading-6">当前启用演示登录，选择角色后可直接进入系统。</p>
+              ) : null}
+              {isLocalAuthConfigured ? (
+                <p className="rounded-[1rem] border border-[#bdd8cb] bg-[#edf7f1] px-3 py-2 text-xs leading-5 text-[#285c43] md:rounded-[1.25rem] md:px-4 md:py-3 md:text-sm md:leading-6">当前使用本服务器账号认证。家属与护士账号相互隔离，连续错误登录会被临时限制。</p>
               ) : null}
               {error ? <p className="rounded-[1.25rem] border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-700">{error}</p> : null}
 

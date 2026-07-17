@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the TKA rehabilitation backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=10m
+Unit=tka-backup.service
+
+[Install]
+WantedBy=timers.target

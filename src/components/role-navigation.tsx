@@ -7,6 +7,7 @@ import { Activity, CalendarClock, FileCheck2, HeartPulse, Home, LogOut, Radio, S
 
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/lib/auth";
+import { isLocalAuthConfigured } from "@/lib/local-auth-config";
 import { cn } from "@/lib/utils";
 
 type RoleResponse = {
@@ -119,11 +120,13 @@ export function RoleNavigation() {
         </div>
         {role === "nurse" ? (
           <div className="order-1 grid grid-cols-2 gap-1 md:order-none md:flex md:gap-2">
-            <Button size="sm" variant="outline" onClick={() => switchRole(oppositeRole)} disabled={switching} className="h-8 rounded-md px-2 text-xs md:h-9 md:px-3">
-              <HeartPulse className="size-3.5 md:size-4" />
-              {switching ? "切换中" : oppositeLabel}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={logout} className="h-8 rounded-md px-2 text-xs md:h-9 md:px-3">
+            {!isLocalAuthConfigured ? (
+              <Button size="sm" variant="outline" onClick={() => switchRole(oppositeRole)} disabled={switching} className="h-8 rounded-md px-2 text-xs md:h-9 md:px-3">
+                <HeartPulse className="size-3.5 md:size-4" />
+                {switching ? "切换中" : oppositeLabel}
+              </Button>
+            ) : null}
+            <Button size="sm" variant="secondary" onClick={logout} className={cn("h-8 rounded-md px-2 text-xs md:h-9 md:px-3", isLocalAuthConfigured && "col-span-2")}>
               <LogOut className="size-3.5 md:size-4" />
               退出
             </Button>
