@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { authRoleCookie, defaultPathForRole } from "@/lib/auth";
 import { resolveAuthMode } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
+import { verifyPassword } from "@/lib/registration-auth";
 import {
   createLocalSession,
   localCredentials,
@@ -51,15 +53,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "账号或密码不正确。" }, { status: 400 });
   }
 
+  const normalizedEmail = parsed.data.email.trim().toLowerCase();
   const expected = localCredentials(parsed.data.role);
-  const emailMatches = await secretsEqual(parsed.data.email.trim().toLowerCase(), expected.email.trim().toLowerCase());
+  const emailMatches = await secretsEqual(normalizedEmail, expected.email.trim().toLowerCase());
   const passwordMatches = await secretsEqual(parsed.data.password, expected.password);
+  let accountId: string | undefined;
   if (!emailMatches || !passwordMatches) {
-    return NextResponse.json({ error: "账号或密码不正确。" }, { status: 401 });
+    const expectedRole = parsed.data.role === "family" ? "patient" : "nurse";
+    const account = await prisma.authAccount.findUnique({ where: { email: normalizedEmail } });
+    const registeredPasswordMatches = account ? await verifyPassword(parsed.data.password, account.passwordHash) : false;
+    if (!account || account.status !== "ACTIVE" || account.role !== expectedRole || !registeredPasswordMatches) {
+      return NextResponse.json({ error: "账号或密码不正确。" }, { status: 401 });
+    }
+    accountId = account.id;
   }
 
   const secret = process.env["LOCAL_AUTH_SESSION_SECRET"] ?? "";
-  const token = await createLocalSession(parsed.data.role, secret);
+  const token = await createLocalSession(parsed.data.role, secret, Date.now(), accountId);
   const cookieStore = await cookies();
   const options = {
     httpOnly: true,

@@ -28,10 +28,20 @@ LOCAL_FAMILY_EMAIL=<family-login-email>
 LOCAL_FAMILY_PASSWORD=<random-password-at-least-12-characters>
 LOCAL_NURSE_EMAIL=<nurse-login-email>
 LOCAL_NURSE_PASSWORD=<random-password-at-least-12-characters>
+NEXT_PUBLIC_REGISTRATION_ENABLED=true
+REGISTRATION_INVITE_CODE=<random-care-team-invite-code>
+RESEND_API_KEY=<resend-api-key>
+EMAIL_FROM=TKA Rehab <verify@updates.example.com>
 ```
 
 `ROOT_DOMAIN` receives its own automatic certificate and permanently redirects
 to `DOMAIN`, preserving the request path and query string.
+
+Email registration is optional and fail-closed. Verify a dedicated sending
+subdomain with Resend, set all four registration variables, then rebuild the app
+so `NEXT_PUBLIC_REGISTRATION_ENABLED=true` is included in the client bundle.
+Public registration creates family accounts only and requires the care-team
+invite code; nurse accounts remain administrator-provisioned.
 
 Deploy and initialize without adding fake sensor readings:
 

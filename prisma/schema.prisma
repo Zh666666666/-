@@ -92,6 +92,15 @@ enum UserRole {
   nurse
 }
 
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum VerificationPurpose {
+  REGISTRATION
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -123,6 +132,35 @@ model Profile {
 
   @@index([role])
   @@map("profiles")
+}
+
+model AuthAccount {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         UserRole      @default(patient)
+  status       AccountStatus @default(ACTIVE)
+  verifiedAt   DateTime      @map("verified_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([role, status])
+  @@map("auth_accounts")
+}
+
+model EmailVerification {
+  id         String              @id @default(cuid())
+  email      String
+  purpose    VerificationPurpose @default(REGISTRATION)
+  codeHash   String              @map("code_hash")
+  attempts   Int                 @default(0)
+  expiresAt  DateTime            @map("expires_at")
+  consumedAt DateTime?           @map("consumed_at")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  @@index([email, purpose, createdAt])
+  @@index([expiresAt])
+  @@map("email_verifications")
 }
 
 model AiAnalysis {

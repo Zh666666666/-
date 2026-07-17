@@ -14,6 +14,7 @@ Next.js 15 App Router 全栈项目，面向 TKA 术后家属端智能护膝自�
 
 - `/`：平台首页
 - `/login`：邮箱/密码登录与 family / nurse 角色选择，登录后自动跳转对应端
+- `/register`：家属使用照护邀请码和邮箱验证码注册；护士账号不开放公开注册
 - `/family`：家属端，模拟智能护膝每 5 秒自动上传屈曲角度、活动频次、训练时长、疼痛评分等数据，并显示护士端 AI 分析
 - `/family/profile`：家属信息维护，保存到 `profiles`
 - `/family/guidance`：家属查看护士远程指导历史，支持已读状态和 Realtime 同步

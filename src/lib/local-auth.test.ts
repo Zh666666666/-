@@ -19,6 +19,15 @@ test("rejects tampered and expired local sessions", async () => {
   assert.equal(await verifyLocalSession(token, secret, 1_000 + 12 * 60 * 60 * 1000), null);
 });
 
+test("preserves an optional registered account id in the signed session", async () => {
+  const token = await createLocalSession("family", secret, 1_000, "account-1");
+  assert.deepEqual(await verifyLocalSession(token, secret, 2_000), {
+    role: "family",
+    accountId: "account-1",
+    expiresAt: 1_000 + 12 * 60 * 60 * 1000,
+  });
+});
+
 test("compares local credentials without exposing the original values", async () => {
   assert.equal(await secretsEqual("same-value", "same-value"), true);
   assert.equal(await secretsEqual("same-value", "other-value"), false);

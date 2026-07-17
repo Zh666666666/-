@@ -27,6 +27,7 @@ services:
       args:
         APP_MODE: production
         AUTH_MODE: local
+        NEXT_PUBLIC_REGISTRATION_ENABLED: ${NEXT_PUBLIC_REGISTRATION_ENABLED:-false}
     restart: unless-stopped
     env_file:
       - .env.production

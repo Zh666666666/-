@@ -15,12 +15,15 @@ family/nurse role switching, local signed sessions, or Supabase Auth changes.
 1. Read `src/lib/auth.ts` for `UserRole`, cookie name, and default role paths.
 2. Read `middleware.ts` for route protection and mismatched-role redirects.
 3. Read `src/app/login/login-form.tsx` for client login behavior.
-4. Read `src/app/api/auth/role/route.ts`, `switch/route.ts`, and `logout/route.ts`.
+4. Read `src/app/api/auth/role/route.ts`, `switch/route.ts`, `logout/route.ts`,
+   and the registration routes under `src/app/api/auth/register`.
 5. Check `src/lib/supabase-config.ts`, `src/lib/supabase.ts`, and
    `src/lib/supabase-server.ts` before changing configured-auth detection.
 6. Preserve demo login behavior unless explicitly asked to remove it.
 7. In local production auth, keep role credentials separate, require the signed
    HTTP-only session, and do not permit client-side role switching.
+8. Public email registration is family-only, invite-gated, rate-limited, and
+   disabled unless the transactional email configuration is complete.
 
 ## Commands
 
@@ -32,6 +35,9 @@ family/nurse role switching, local signed sessions, or Supabase Auth changes.
 - `src/lib/auth.ts`
 - `src/lib/local-auth.ts`
 - `src/app/api/auth/login/route.ts`
+- `src/app/register/**`
+- `src/lib/registration-auth.ts`
+- `prisma/schema.prisma`
 - `middleware.ts`
 - `src/app/login/login-form.tsx`
 - `src/app/api/auth/role/route.ts`
@@ -45,6 +51,7 @@ family/nurse role switching, local signed sessions, or Supabase Auth changes.
 - Assuming Supabase public keys imply a usable database.
 - Treating the readable role cookie as authentication without verifying the
   signed local session.
+- Logging plaintext verification codes, passwords, invite codes, or email API keys.
 - Forgetting that role can come from Supabase metadata or the `tka-role` cookie.
 - Redirecting `/family` users to nurse paths or vice versa after refresh.
 - Leaving loading states stuck when Supabase sign-in fails.
