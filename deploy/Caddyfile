@@ -25,6 +25,10 @@
   }
 }
 
+{$ROOT_DOMAIN} {
+  redir https://{$DOMAIN}{uri} permanent
+}
+
 http://{$SERVER_IP} {
   reverse_proxy app:3000
 }

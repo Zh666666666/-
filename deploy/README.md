@@ -13,6 +13,7 @@ APP_MODE=production
 AUTH_MODE=local
 NODE_ENV=production
 DOMAIN=www.example.com
+ROOT_DOMAIN=example.com
 SERVER_IP=203.0.113.10
 ACME_EMAIL=admin@example.com
 NEXT_PUBLIC_APP_URL=https://www.example.com
@@ -28,6 +29,9 @@ LOCAL_FAMILY_PASSWORD=<random-password-at-least-12-characters>
 LOCAL_NURSE_EMAIL=<nurse-login-email>
 LOCAL_NURSE_PASSWORD=<random-password-at-least-12-characters>
 ```
+
+`ROOT_DOMAIN` receives its own automatic certificate and permanently redirects
+to `DOMAIN`, preserving the request path and query string.
 
 Deploy and initialize without adding fake sensor readings:
 
