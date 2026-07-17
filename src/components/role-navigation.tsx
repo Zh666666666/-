@@ -87,7 +87,7 @@ export function RoleNavigation() {
     window.location.assign("/login");
   }
 
-  if (!role || pathname === "/" || pathname === "/login") {
+  if (!role || pathname === "/" || pathname === "/login" || pathname === "/register") {
     return null;
   }
 

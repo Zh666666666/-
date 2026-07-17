@@ -5,6 +5,7 @@ export const localSessionMaxAgeSeconds = 60 * 60 * 12;
 
 type LocalSession = {
   role: UserRole;
+  accountId?: string;
   expiresAt: number;
 };
 
@@ -36,9 +37,11 @@ export async function createLocalSession(
   role: UserRole,
   secret: string,
   nowMs = Date.now(),
+  accountId?: string,
 ) {
   const payload = toBase64Url(encoder.encode(JSON.stringify({
     role,
+    ...(accountId ? { accountId } : {}),
     expiresAt: nowMs + localSessionMaxAgeSeconds * 1000,
   } satisfies LocalSession)));
   const signature = await crypto.subtle.sign("HMAC", await signingKey(secret), encoder.encode(payload));
@@ -64,7 +67,10 @@ export async function verifyLocalSession(
     if (!valid) return null;
     const decoded = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as Partial<LocalSession>;
     if (!isUserRole(decoded.role) || typeof decoded.expiresAt !== "number" || decoded.expiresAt <= nowMs) return null;
-    return { role: decoded.role, expiresAt: decoded.expiresAt };
+    const accountId = typeof decoded.accountId === "string" && decoded.accountId.length > 0
+      ? decoded.accountId
+      : undefined;
+    return { role: decoded.role, ...(accountId ? { accountId } : {}), expiresAt: decoded.expiresAt };
   } catch {
     return null;
   }

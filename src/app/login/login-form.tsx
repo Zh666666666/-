@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { HeartPulse, LockKeyhole, LogIn, ShieldCheck, UserRound } from "lucide-react";
+import { HeartPulse, LockKeyhole, LogIn, ShieldCheck, UserPlus, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { defaultPathForRole, type UserRole } from "@/lib/auth";
-import { isLocalAuthConfigured } from "@/lib/local-auth-config";
+import { isLocalAuthConfigured, isRegistrationEnabled } from "@/lib/local-auth-config";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -193,6 +193,11 @@ export function LoginForm() {
                 {loading ? <LockKeyhole className="size-5" /> : <LogIn className="size-5" />}
                 {loading ? "正在登录" : role ? "登录并进入系统" : "先选择登录端"}
               </Button>
+              {isLocalAuthConfigured && isRegistrationEnabled ? (
+                <Button asChild type="button" variant="outline" className="h-11 w-full border-[#cbb897] bg-white text-[#285c43] hover:bg-[#edf7f1]">
+                  <Link href="/register"><UserPlus className="size-4" />使用邮箱注册家属账号</Link>
+                </Button>
+              ) : null}
             </form>
           </div>
         </div>

@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_MODE: process.env.APP_MODE ?? (process.env.NODE_ENV === "production" ? "invalid" : "demo"),
     NEXT_PUBLIC_AUTH_MODE: process.env.AUTH_MODE ?? (process.env.NODE_ENV === "production" ? "invalid" : "demo"),
+    NEXT_PUBLIC_REGISTRATION_ENABLED: process.env.NEXT_PUBLIC_REGISTRATION_ENABLED ?? "false",
   },
   turbopack: {
     root: process.cwd(),
