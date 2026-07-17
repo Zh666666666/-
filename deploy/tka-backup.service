@@ -1,0 +1,13 @@
+[Unit]
+Description=TKA rehabilitation PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/tka-rehab/deploy/backup.sh
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

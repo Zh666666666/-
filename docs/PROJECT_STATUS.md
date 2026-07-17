@@ -1,6 +1,6 @@
 # 项目状态与 Agent 交接
 
-最后更新：2026-07-14
+最后更新：2026-07-17
 
 本文件是所有本地和云端 Agent 的统一进度来源。每次代码任务结束前，
 必须更新“已完成事项”“当前状态”“下一步任务”和“Agent 工作记录”，
@@ -73,9 +73,9 @@
 
 ## 当前状态
 
-- 默认分支：`main`；当前本地闭环开发分支：`codex/local-evidence-loop`。
+- 默认分支：`main`；当前部署分支：`codex/self-hosted-production`。
 - GitHub 仓库：`https://github.com/Zh666666666/-`
-- 运行时边界：已引入 `APP_MODE`（`demo` / `production` / `invalid`）。Demo 始终走内存数据；生产缺数据库、Supabase 配置或 `GATEWAY_API_TOKEN` 时 fail-closed（503）。
+- 运行时边界：`APP_MODE=demo` 始终走内存数据；生产缺数据库、网关令牌或完整的本地/Supabase 认证配置时 fail-closed（503）。
 - 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
 - 本地验证：既有运行时、网关、API 与新增证据包测试通过；`lint`、生产 `build` 与 Android JVM/Lint/Debug 构建通过。最终测试计数和浏览器闭环结果在本轮 Agent 工作记录中更新。
 - 云端无密钥时：使用 Demo 模式。
@@ -88,8 +88,8 @@
 - 本机联调地址：`http://192.168.31.203:3000`；Demo 患者 ID：`demo-patient-1`。
 - Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
-- 正式服务器：暂不可用，尚未部署生产环境。
-- 已知生产安全缺口：网关样本和采集会话写入已有独立 Bearer Token；`supabase/realtime.sql` 仍是 Demo 级 anon 全表策略，患者/护士业务 API 尚未完成会话级授权和行级隔离。
+- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证；系统安全更新和重启恢复通过。域名 `www.dorianaistudio.cloud` 仍指向旧 Vercel 地址，需修改 DNS 后才能签发 HTTPS。
+- 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
 - 仓库结构缺口：外层仓库将 `tka-rehab-platform` 记为 gitlink，且缺少 `.gitmodules`，交付时需固定到应用仓库提交。
 - 当前产品性质：已具备单传感器、无服务器的软件闭环能力；真机扫描、连接和实时读数已由用户确认，新版“采集→加密封存→导出→Web 回放→事件处理→报告”仍需在用户现有实物上完成一次端到端验收。该闭环只输出工程事件和原始姿态证据，不宣称临床 ROM、跌倒诊断或医疗预警有效性。
 
@@ -105,13 +105,16 @@
    - 刷新页面验证处理记录仍保留；保存原始证据包与复核报告的 SHA256，形成可重复验收样例。
 3. **P1 - 单机任务管理与交付易用性**
    - 增加本机历史任务列表、存储占用、删除确认和导出失败提示；整理一页式安装/采集/导入说明，避免交付时依赖开发人员口头指导。
-4. **暂缓 - 服务器与第二只传感器**
-   - 按用户当前决定，正式服务器、双传感器临床 ROM、量角器对照和真实 ADL/跌倒阈值验证暂不阻塞本地工程闭环；恢复这些工作前不得把单传感器工程事件改称临床结论。
+4. **P0 - 域名与生产 HTTPS 验收**
+   - 将 `www` 的 A 记录从旧 Vercel 地址改为 `103.242.13.17`，验证 Caddy 自动证书、正式账号浏览器登录和 Android HTTPS 网关访问。
+5. **暂缓 - 第二只传感器**
+   - 双传感器临床 ROM、量角器对照和真实 ADL/跌倒阈值验证暂不阻塞单传感器工程闭环；恢复前不得把单传感器工程事件改称临床结论。
 
 ## Agent 工作记录
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-17 | 建立香港云服务器自托管生产环境：PostgreSQL、Next.js、Caddy、本地签名角色认证、API/网关鉴权、正式空数据种子、日志轮转、每日备份、防火墙、仅密钥 SSH 与系统安全更新 | IP 生产闭环及重启恢复已通过；`www` DNS 仍指向旧 Vercel，HTTPS 等待 DNS 修改 | 修改 `www` A 记录并完成域名 HTTPS、浏览器与 Android 网关验收 | Linux Docker 生产构建；`verify-production.mjs` 两次通过；最新内核启动、0 待更新包、容器/备份定时器自动恢复 |
 | 2026-07-09 | 建立 BWT901CL 数据模型、API、模拟器、硬件演示页和双端入口 | 硬件软件骨架可演示，尚未接入实物 | 开发真实硬件接入助手并等待设备联调 | `npm run lint`、`npm run build` 通过 |
 | 2026-07-09 | 配置 AGENTS、项目 Skills、Codespaces、Codex Cloud 和 GitHub CI | 手机可启动云端任务，电脑可离线 | 验证云端修改、测试和 PR 闭环 | GitHub Actions 通过 |
 | 2026-07-09 | 增加统一项目状态文档和强制更新检查 | 后续代码任务必须同步进度记录 | 在下一次云端编码任务中验证 Agent 遵循规则 | 本地检查及 GitHub CI 全部通过 |

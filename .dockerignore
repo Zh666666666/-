@@ -1,0 +1,15 @@
+.git
+.github
+.next
+node_modules
+.env
+.env.*
+!.env.example
+mobile-gateway-android/app/build
+mobile-gateway-android/vendor
+copyright-materials
+research
+*.apk
+*.jks
+*.pem
+npm-debug.log*

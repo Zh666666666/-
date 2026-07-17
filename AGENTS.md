@@ -81,8 +81,11 @@ and are not committed to the public repository.
   without an explicit mode fail closed as `invalid`.
 - Demo mode always uses process-memory data from `demo-store.ts`, even if a
   `DATABASE_URL` is present. Supabase Auth client is disabled in demo mode.
-- Production mode requires a usable `DATABASE_URL` and Supabase public keys.
-  Missing configuration returns HTTP 503 from readiness and data APIs.
+- Production mode requires a usable `DATABASE_URL`, `GATEWAY_API_TOKEN`, and a
+  complete `AUTH_MODE=local` or `AUTH_MODE=supabase` configuration. Missing
+  configuration returns HTTP 503 from readiness and data APIs.
+- The self-hosted production path is Docker Compose with PostgreSQL, the app,
+  Caddy, signed local role sessions, daily backups, and `deploy/verify-production.mjs`.
 - Never seed or silently fall back to demo records in production mode.
 - AI analysis uses `OPENAI_API_KEY`, then `ANTHROPIC_API_KEY`, then local rules.
 

@@ -1,6 +1,6 @@
 ---
 name: tka-auth-roles
-description: Use for login, role cookies, family/nurse routing, Supabase Auth integration, middleware protection, logout, or role switching behavior in the TKA rehab platform.
+description: Use for login, signed local sessions, role cookies, family/nurse routing, Supabase Auth, middleware protection, or logout behavior.
 ---
 
 # TKA Auth Roles
@@ -8,7 +8,7 @@ description: Use for login, role cookies, family/nurse routing, Supabase Auth in
 ## When To Use
 
 Use this skill for `/login`, middleware redirects, `tka-role` cookie handling,
-family/nurse role switching, or Supabase Auth changes.
+family/nurse role switching, local signed sessions, or Supabase Auth changes.
 
 ## Workflow
 
@@ -19,6 +19,8 @@ family/nurse role switching, or Supabase Auth changes.
 5. Check `src/lib/supabase-config.ts`, `src/lib/supabase.ts`, and
    `src/lib/supabase-server.ts` before changing configured-auth detection.
 6. Preserve demo login behavior unless explicitly asked to remove it.
+7. In local production auth, keep role credentials separate, require the signed
+   HTTP-only session, and do not permit client-side role switching.
 
 ## Commands
 
@@ -28,6 +30,8 @@ family/nurse role switching, or Supabase Auth changes.
 ## Files To Inspect
 
 - `src/lib/auth.ts`
+- `src/lib/local-auth.ts`
+- `src/app/api/auth/login/route.ts`
 - `middleware.ts`
 - `src/app/login/login-form.tsx`
 - `src/app/api/auth/role/route.ts`
@@ -39,6 +43,8 @@ family/nurse role switching, or Supabase Auth changes.
 ## Common Mistakes
 
 - Assuming Supabase public keys imply a usable database.
+- Treating the readable role cookie as authentication without verifying the
+  signed local session.
 - Forgetting that role can come from Supabase metadata or the `tka-role` cookie.
 - Redirecting `/family` users to nurse paths or vice versa after refresh.
 - Leaving loading states stuck when Supabase sign-in fails.

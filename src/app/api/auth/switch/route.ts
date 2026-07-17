@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { authRoleCookie, defaultPathForRole, roleFromAuthUser } from "@/lib/auth";
+import { resolveAuthMode } from "@/lib/env";
+import { localSessionCookie, verifyLocalSession } from "@/lib/local-auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const switchSchema = z.object({
@@ -14,6 +16,19 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
+
+  if (resolveAuthMode() === "local") {
+    const cookieStore = await cookies();
+    const session = await verifyLocalSession(
+      cookieStore.get(localSessionCookie)?.value,
+      process.env["LOCAL_AUTH_SESSION_SECRET"],
+    );
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.role !== parsed.data.role) {
+      return NextResponse.json({ error: "请退出后使用对应角色账号登录。" }, { status: 403 });
+    }
+    return NextResponse.json({ role: session.role, redirectTo: defaultPathForRole(session.role) });
   }
 
   const supabase = await createSupabaseServerClient();
