@@ -11,6 +11,13 @@ import { prisma } from "@/lib/prisma";
 import { calculateRehabMetrics } from "@/lib/rehab-metrics";
 import { assessKneeRecord, type SensorSampleItem } from "@/lib/rehab";
 import { resolveSensorDataSource, sensorDataSources } from "@/lib/sample-provenance";
+import { publishSensorLiveEvent } from "@/lib/sensor-live-broker";
+import {
+  buildIngestRaw,
+  buildUploadReceipt,
+  readSampleProvenance,
+  sampleMatchesPayload,
+} from "@/lib/sensor-receipt";
 import {
   alertCooldownMs,
   clinicalRecordIntervalMs,
@@ -19,6 +26,7 @@ import {
 
 const sensorSampleSchema = z.object({
   gatewaySampleId: z.string().min(8).max(128).optional(),
+  captureSequence: z.coerce.number().int().nonnegative().optional(),
   sessionId: z.string().optional().nullable(),
   deviceId: z.string().optional().nullable(),
   patientId: z.string().min(1),
@@ -91,12 +99,14 @@ function resolveKneeAngleMode(raw: unknown, confidence: number | null | undefine
 
 function serializeSensorSample(sample: {
   id: string;
+  gatewaySampleId: string | null;
   patientId: string;
   deviceId: string | null;
   sessionId: string | null;
   placement: SensorSampleItem["placement"];
   source: SensorSampleItem["source"];
   recordedAt: Date;
+  createdAt: Date;
   roll: number | null;
   pitch: number | null;
   yaw: number | null;
@@ -111,8 +121,10 @@ function serializeSensorSample(sample: {
   confidence: number | null;
   raw: unknown;
 }): SensorSampleItem {
+  const provenance = readSampleProvenance(sample);
   return {
     id: sample.id,
+    ...provenance,
     patientId: sample.patientId,
     deviceId: sample.deviceId,
     sessionId: sample.sessionId,
@@ -136,6 +148,15 @@ function serializeSensorSample(sample: {
     kneeAngleMode: resolveKneeAngleMode(sample.raw, sample.confidence),
     clinicalEligible: isClinicalKneeAngle(sample.confidence),
   };
+}
+
+function demoSampleMatchesPayload(sample: SensorSampleItem, body: z.infer<typeof sensorSampleSchema>) {
+  const numericKeys = ["roll", "pitch", "yaw", "ax", "ay", "az", "gx", "gy", "gz"] as const;
+  return sample.gatewaySampleId === (body.gatewaySampleId ?? null)
+    && sample.captureSequence === (body.captureSequence ?? null)
+    && sample.placement === body.placement
+    && sample.recordedAt === (body.recordedAt ?? sample.recordedAt)
+    && numericKeys.every((key) => sample[key] === (body[key] ?? null));
 }
 
 export async function GET(request: Request) {
@@ -218,7 +239,43 @@ export async function POST(request: Request) {
   if (unauthorized) return unauthorized;
 
   if (isDemoMode()) {
-    return NextResponse.json(addDemoSensorSample(body));
+    const result = addDemoSensorSample(body);
+    const sample = result.sample;
+    if (result.duplicate && sample && !demoSampleMatchesPayload(sample, body)) {
+      return NextResponse.json(
+        { error: "gatewaySampleId was already used for a different sample", code: "SAMPLE_ID_CONFLICT" },
+        { status: 409 },
+      );
+    }
+    const receipt = sample ? {
+      gatewaySampleId: sample.gatewaySampleId ?? null,
+      captureSequence: sample.captureSequence ?? null,
+      placement: sample.placement,
+      recordedAt: sample.recordedAt,
+      receivedAt: sample.receivedAt ?? new Date().toISOString(),
+      ingestLatencyMs: sample.ingestLatencyMs ?? null,
+      integrity: sample.ingestIntegrity ?? "UNVERIFIED",
+      values: {
+        roll: sample.roll,
+        pitch: sample.pitch,
+        yaw: sample.yaw,
+        ax: sample.ax,
+        ay: sample.ay,
+        az: sample.az,
+        gx: sample.gx,
+        gy: sample.gy,
+        gz: sample.gz,
+      },
+    } : null;
+    if (sample) {
+      publishSensorLiveEvent({
+        patientId: sample.patientId,
+        gatewaySampleId: sample.gatewaySampleId ?? null,
+        placement: sample.placement,
+        receivedAt: receipt!.receivedAt,
+      });
+    }
+    return NextResponse.json({ ...result, receipt });
   }
 
   await ensureDemoPatients();
@@ -237,6 +294,7 @@ export async function POST(request: Request) {
   const source = resolveSensorDataSource(session?.source, body.source);
 
   const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
+  const ingestRaw = buildIngestRaw(body.raw, body.captureSequence);
 
   const sampleData: Prisma.SensorSampleCreateManyInput = {
     gatewaySampleId: body.gatewaySampleId ?? null,
@@ -262,7 +320,7 @@ export async function POST(request: Request) {
     flexionAngle: body.flexionAngle ?? null,
     extensionAngle: body.extensionAngle ?? null,
     confidence: body.confidence ?? null,
-    raw: body.raw == null ? undefined : body.raw as Prisma.InputJsonValue,
+    raw: ingestRaw as Prisma.InputJsonValue,
   };
 
   const result = await prisma.$transaction(async (transaction) => {
@@ -372,8 +430,7 @@ export async function POST(request: Request) {
 
   if (duplicate && (
     sample.patientId !== body.patientId
-    || sample.placement !== body.placement
-    || sample.recordedAt.getTime() !== recordedAt.getTime()
+    || !sampleMatchesPayload(sample, { ...body, recordedAt })
   )) {
     return NextResponse.json(
       { error: "gatewaySampleId was already used for a different sample", code: "SAMPLE_ID_CONFLICT" },
@@ -381,16 +438,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const receipt = buildUploadReceipt(sample);
+  publishSensorLiveEvent({
+    patientId: sample.patientId,
+    gatewaySampleId: sample.gatewaySampleId,
+    placement: sample.placement,
+    receivedAt: receipt.receivedAt,
+  });
+
   return NextResponse.json({
     duplicate,
+    receipt,
     sample: {
       id: sample.id,
+      gatewaySampleId: sample.gatewaySampleId,
       patientId: sample.patientId,
       deviceId: sample.deviceId,
       sessionId: sample.sessionId,
       placement: sample.placement,
       source: sample.source,
       recordedAt: sample.recordedAt.toISOString(),
+      receivedAt: sample.createdAt.toISOString(),
       flexionAngle: sample.flexionAngle,
       confidence: sample.confidence,
     },

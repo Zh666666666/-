@@ -30,6 +30,7 @@ final class LiveSensorPanel {
     private final WaveformView accWave;
     private final WaveformView gyroWave;
     private final LinearLayout root;
+    private final LinearLayout advancedContent;
     private int sampleCount;
     private long lastRenderAtMs;
 
@@ -82,14 +83,18 @@ final class LiveSensorPanel {
         cube.setLayoutParams(cubeParams);
         root.addView(cube);
 
-        acceleration = addMetricBlock(context, root, "加速度 Acc (g)", 0xFF0D47A1);
-        gyroscope = addMetricBlock(context, root, "角速度 Gyro (°/s)", 0xFF1B5E20);
-        angle = addMetricBlock(context, root, "角度 Angle (°)", 0xFF4A148C);
+        advancedContent = new LinearLayout(context);
+        advancedContent.setOrientation(LinearLayout.VERTICAL);
+        acceleration = addMetricBlock(context, advancedContent, "身体移动（加速度，g）", 0xFF0D47A1);
+        gyroscope = addMetricBlock(context, advancedContent, "转动速度（角速度，°/s）", 0xFF1B5E20);
+        angle = addMetricBlock(context, advancedContent, "佩戴姿态（角度，°）", 0xFF4A148C);
 
-        root.addView(sectionLabel(context, "波形曲线"));
-        angleWave = addWave(context, root, "角度 Angle", "°", 180f);
-        accWave = addWave(context, root, "加速度 Acc", "g", 4f);
-        gyroWave = addWave(context, root, "角速度 Gyro", "°/s", 500f);
+        advancedContent.addView(sectionLabel(context, "专业数据曲线"));
+        angleWave = addWave(context, advancedContent, "佩戴姿态", "°", 180f);
+        accWave = addWave(context, advancedContent, "身体移动", "g", 4f);
+        gyroWave = addWave(context, advancedContent, "转动速度", "°/s", 500f);
+        advancedContent.setVisibility(View.GONE);
+        root.addView(advancedContent);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -101,6 +106,10 @@ final class LiveSensorPanel {
 
     View view() {
         return root;
+    }
+
+    void setAdvancedVisible(boolean visible) {
+        advancedContent.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     void markConnected(String deviceName, String address) {

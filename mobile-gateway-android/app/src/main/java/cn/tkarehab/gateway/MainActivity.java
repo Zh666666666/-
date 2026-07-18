@@ -43,12 +43,15 @@ public final class MainActivity extends AppCompatActivity {
     private TextView sampleSummary;
     private TextView sessionState;
     private TextView localEvidenceState;
+    private TextView syncState;
     private EditText apiUrl;
     private EditText patientId;
     private EditText apiToken;
     private Button start;
     private Button stop;
     private Button exportEvidence;
+    private LinearLayout platformSettings;
+    private boolean advancedVisible;
     private LiveSensorPanel thighPanel;
     private LiveSensorPanel shankPanel;
     private WitBleGateway bleGateway;
@@ -87,6 +90,11 @@ public final class MainActivity extends AppCompatActivity {
                         @Override
                         public void onStatus(String message) {
                             renderStatus(message);
+                        }
+
+                        @Override
+                        public void onUploadReceipt(UploadReceipt receipt) {
+                            renderUploadReceipt(receipt);
                         }
 
                         @Override
@@ -199,14 +207,14 @@ public final class MainActivity extends AppCompatActivity {
         hero.setLayoutParams(heroParams);
 
         TextView title = new TextView(this);
-        title.setText("TKA 实时传感器看板");
+        title.setText("膝关节居家训练");
         title.setTextSize(24);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(0xFFFFFFFF);
         hero.addView(title);
 
         TextView description = new TextView(this);
-        description.setText("3D 姿态 · 波形曲线 · Acc/Gyro/Angle 实时读数\n连接后自动刷新，无需先开始采集上传");
+        description.setText("连接两只传感器后开始训练，手机会同步保存并上传。\n默认只显示必要信息，专业数据可按需展开。");
         description.setTextColor(0xD9FFFFFF);
         description.setTextSize(13);
         description.setPadding(0, dp(6), 0, 0);
@@ -220,6 +228,20 @@ public final class MainActivity extends AppCompatActivity {
         );
         content.addView(linkState);
 
+        TextView steps = banner(
+                "使用步骤\n1. 点击扫描设备  2. 分别设为大腿和小腿  3. 平放归零后开始训练",
+                0xFF0F2942,
+                0xFFFFFFFF
+        );
+        content.addView(steps);
+
+        syncState = banner(
+                "网页同步：尚未开始。开始训练后，每个已确认样本会显示编号与延迟。",
+                0xFF5D4037,
+                0xFFFFF3E0
+        );
+        content.addView(syncState);
+
         sampleSummary = banner(
                 "实时帧数：0\n转动传感器后，3D 姿态与波形应持续变化。",
                 0xFF0F2942,
@@ -227,16 +249,22 @@ public final class MainActivity extends AppCompatActivity {
         );
         content.addView(sampleSummary);
 
-        content.addView(sectionTitle("实时可视化"));
+        content.addView(sectionTitle("佩戴姿态（转动传感器应同步变化）"));
         thighPanel = new LiveSensorPanel(this, "大腿", 0xFF00897B);
         shankPanel = new LiveSensorPanel(this, "小腿", 0xFF1E88E5);
         content.addView(thighPanel.view());
         content.addView(shankPanel.view());
+        content.addView(actionButton("显示专业数据", 0xFF546E7A, view -> {
+            advancedVisible = !advancedVisible;
+            thighPanel.setAdvancedVisible(advancedVisible);
+            shankPanel.setAdvancedVisible(advancedVisible);
+            ((Button) view).setText(advancedVisible ? "收起专业数据" : "显示专业数据");
+        }));
 
-        content.addView(sectionTitle("设备扫描与校准"));
+        content.addView(sectionTitle("连接与佩戴"));
 
-        content.addView(actionButton("运行安装自检", 0xFF546E7A, view -> runReadinessCheck()));
-        content.addView(actionButton("授权并扫描 WT 设备", 0xFF00897B, view -> {
+        content.addView(actionButton("检查手机是否准备好", 0xFF546E7A, view -> runReadinessCheck()));
+        content.addView(actionButton("扫描附近传感器", 0xFF00897B, view -> {
             if (!requireBleGateway()) {
                 return;
             }
@@ -266,7 +294,7 @@ public final class MainActivity extends AppCompatActivity {
         devices.setOrientation(LinearLayout.VERTICAL);
         content.addView(devices);
 
-        content.addView(sectionTitle("本地闭环采集（无需服务器）"));
+        content.addView(sectionTitle("开始训练"));
         sessionState = banner("采集状态：未开始（仅预览实时数据）", 0xFF7A4E00, 0xFFFFF8E1);
         content.addView(sessionState);
 
@@ -279,9 +307,9 @@ public final class MainActivity extends AppCompatActivity {
 
         LinearLayout sessionActions = new LinearLayout(this);
         sessionActions.setOrientation(LinearLayout.HORIZONTAL);
-        start = actionButton("开始本地采集", 0xFF2E7D32, view -> startSession());
+        start = actionButton("开始同步训练", 0xFF2E7D32, view -> startSession());
         sessionActions.addView(start, weightedButton());
-        stop = actionButton("结束本地任务", 0xFFC62828, view -> stopSession());
+        stop = actionButton("结束本次训练", 0xFFC62828, view -> stopSession());
         stop.setEnabled(false);
         sessionActions.addView(stop, weightedButton());
         content.addView(sessionActions);
@@ -290,29 +318,40 @@ public final class MainActivity extends AppCompatActivity {
         exportEvidence.setEnabled(false);
         content.addView(exportEvidence);
 
-        content.addView(sectionTitle("平台上传（可选旁路）"));
+        content.addView(sectionTitle("管理员设置"));
+        Button toggleSettings = actionButton("展开平台设置", 0xFF455A64, view -> {
+            boolean show = platformSettings.getVisibility() != View.VISIBLE;
+            platformSettings.setVisibility(show ? View.VISIBLE : View.GONE);
+            ((Button) view).setText(show ? "收起平台设置" : "展开平台设置");
+        });
+        content.addView(toggleSettings);
+
+        platformSettings = new LinearLayout(this);
+        platformSettings.setOrientation(LinearLayout.VERTICAL);
+        platformSettings.setVisibility(View.GONE);
 
         apiUrl = labeledInput(
-                content,
+                platformSettings,
                 "平台地址",
                 "生产填 HTTPS；本机联调可填 http://192.168.x.x:3000",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
         );
         patientId = labeledInput(
-                content,
+                platformSettings,
                 "对象 ID（本地可选，上传时必填）",
                 "未填写时本地任务使用 local-subject",
                 InputType.TYPE_CLASS_TEXT
         );
         apiToken = labeledInput(
-                content,
+                platformSettings,
                 "Bearer Token（生产必填，不保存）",
                 "正式鉴权启用后填写",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
 
         Button testConnection = actionButton("测试平台连接", 0xFF1565C0, view -> testPlatformConnection());
-        content.addView(testConnection);
+        platformSettings.addView(testConnection);
+        content.addView(platformSettings);
 
         content.addView(sectionTitle("运行信息"));
         status = banner(
@@ -454,13 +493,16 @@ public final class MainActivity extends AppCompatActivity {
         stop.setEnabled(true);
         exportEvidence.setEnabled(false);
         sessionState.setText(uploadEnabled
-                ? "采集状态：本地记录中 + 平台上传旁路"
-                : "采集状态：本地记录中（无需服务器）");
+                ? "训练状态：正在记录并同步网页"
+                : "训练状态：正在保存到手机（未配置网页同步）");
         sessionState.setTextColor(0xFF1B5E20);
         sessionState.setBackground(rounded(0xFFE8F5E9, dp(14)));
         renderStatus(uploadEnabled
-                ? "本地闭环任务已启动；真实样本加密保存，同时尝试上传平台。"
-                : "本地闭环任务已启动；真实样本正在手机加密保存，结束后可导出 JSON 证据包。");
+                ? "训练已开始。每帧会先保存在手机，收到服务器一致性回执后才标记为已同步。"
+                : "训练已开始。真实样本正在手机加密保存，结束后可导出证据包。");
+        syncState.setText(uploadEnabled
+                ? "网页同步：正在等待首个服务器确认样本…"
+                : "网页同步：未启用，数据仅保存在本机。");
     }
 
     private void stopSession() {
@@ -652,6 +694,23 @@ public final class MainActivity extends AppCompatActivity {
 
     private void renderStatus(String message) {
         runOnUiThread(() -> status.setText(message));
+    }
+
+    private void renderUploadReceipt(UploadReceipt receipt) {
+        runOnUiThread(() -> {
+            String location = receipt.placement == SensorPlacement.THIGH ? "大腿" : "小腿";
+            syncState.setText(
+                    "网页同步：已确认一致"
+                            + "\n" + location + "样本 #" + receipt.captureSequence
+                            + " · 编号 …" + receipt.shortId()
+                            + "\n手机采集 → 服务器 " + receipt.ingestLatencyMs + " ms"
+            );
+            syncState.setTextColor(receipt.ingestLatencyMs <= 2_000L ? 0xFF1B5E20 : 0xFFC62828);
+            syncState.setBackground(rounded(
+                    receipt.ingestLatencyMs <= 2_000L ? 0xFFE8F5E9 : 0xFFFFEBEE,
+                    dp(14)
+            ));
+        });
     }
 
     private void renderLiveReading(SensorSample sample) {

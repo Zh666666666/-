@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 final class PlatformGateway {
     interface Listener {
         void onStatus(String message);
+        void onUploadReceipt(UploadReceipt receipt);
         void onError(String message, Exception error);
     }
 
@@ -32,8 +33,8 @@ final class PlatformGateway {
     private final Map<String, String> platformDeviceIds = new HashMap<>();
     private final Map<String, String> sessionIds = new HashMap<>();
     private final Map<SensorPlacement, TimedPitch> latestPitch = new EnumMap<>(SensorPlacement.class);
+    private final Map<SensorPlacement, Long> lastQueuedAtMs = new EnumMap<>(SensorPlacement.class);
     private static final long MIN_QUEUE_INTERVAL_MS = 500L;
-    private long lastQueuedAtMs;
 
     private String baseUrl;
     private String patientId;
@@ -57,6 +58,7 @@ final class PlatformGateway {
         this.bearerToken = bearerToken;
         sessionIds.remove(patientId);
         latestPitch.clear();
+        lastQueuedAtMs.clear();
         this.active = true;
         listener.onStatus("采集会话已就绪；加密队列中有 " + queue.size() + " 条待上传数据。正在探测平台连通性…");
         worker.execute(this::probeAndFlush);
@@ -102,10 +104,13 @@ final class PlatformGateway {
             try {
                 latestPitch.put(sample.placement, new TimedPitch(sample.recordedAtMs, sample.pitch));
                 // Keep live BLE high-rate for UI, but only queue ~2Hz for upload.
-                if (sample.recordedAtMs - lastQueuedAtMs < MIN_QUEUE_INTERVAL_MS) {
+                long previousQueuedAt = lastQueuedAtMs.containsKey(sample.placement)
+                        ? lastQueuedAtMs.get(sample.placement)
+                        : 0L;
+                if (sample.recordedAtMs - previousQueuedAt < MIN_QUEUE_INTERVAL_MS) {
                     return;
                 }
-                lastQueuedAtMs = sample.recordedAtMs;
+                lastQueuedAtMs.put(sample.placement, sample.recordedAtMs);
 
                 JSONObject payload = sample.toUploadJson();
                 payload.put("patientId", targetPatientId);
@@ -186,8 +191,10 @@ final class PlatformGateway {
                 sample.put("sessionId", activeSessionId);
                 // Avoid shipping local-only queue fields to the platform schema.
                 sample.remove("gatewayDeviceId");
-                postJson("/api/sensor-samples", sample);
+                JSONObject response = postJson("/api/sensor-samples", sample);
+                UploadReceipt receipt = UploadReceipt.verify(sample, response);
                 queue.acknowledgeOne();
+                listener.onUploadReceipt(receipt);
                 uploaded += 1;
             }
             if (uploaded > 0) {

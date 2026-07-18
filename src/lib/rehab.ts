@@ -119,12 +119,19 @@ export type SensorSessionItem = {
 
 export type SensorSampleItem = {
   id: string;
+  gatewaySampleId?: string | null;
+  captureSequence?: number | null;
   patientId: string;
   deviceId: string | null;
   sessionId: string | null;
   placement: DevicePlacement;
   source: KneeDataPoint["source"];
   recordedAt: string;
+  receivedAt?: string | null;
+  ingestLatencyMs?: number | null;
+  ingestIntegrity?: "MATCHED" | "UNVERIFIED";
+  protocol?: string | null;
+  transport?: string | null;
   roll: number | null;
   pitch: number | null;
   yaw: number | null;

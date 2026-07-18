@@ -14,6 +14,7 @@ final class SensorSample {
     final String gatewaySampleId;
     final String deviceName;
     final SensorPlacement placement;
+    final long captureSequence;
     final long recordedAtMs;
     final double roll;
     final double pitch;
@@ -29,6 +30,7 @@ final class SensorSample {
             String gatewayDeviceId,
             String deviceName,
             SensorPlacement placement,
+            long captureSequence,
             long recordedAtMs,
             double roll,
             double pitch,
@@ -44,6 +46,7 @@ final class SensorSample {
         this.gatewaySampleId = UUID.randomUUID().toString();
         this.deviceName = deviceName;
         this.placement = placement;
+        this.captureSequence = captureSequence;
         this.recordedAtMs = recordedAtMs;
         this.roll = roll;
         this.pitch = pitch;
@@ -62,10 +65,12 @@ final class SensorSample {
         raw.put("transport", "BLE_5_NATIVE");
         raw.put("gatewayDeviceId", gatewayDeviceId);
         raw.put("deviceName", deviceName);
+        raw.put("captureSequence", captureSequence);
 
         JSONObject payload = new JSONObject();
         payload.put("gatewayDeviceId", gatewayDeviceId);
         payload.put("gatewaySampleId", gatewaySampleId);
+        payload.put("captureSequence", captureSequence);
         payload.put("patientId", "");
         payload.put("placement", placement.name());
         payload.put("recordedAt", formatRecordedAt(recordedAtMs));
@@ -89,6 +94,7 @@ final class SensorSample {
         payload.put("deviceId", gatewayDeviceId);
         payload.put("deviceName", deviceName);
         payload.put("placement", placement.name());
+        payload.put("captureSequence", captureSequence);
         payload.put("roll", roll);
         payload.put("pitch", pitch);
         payload.put("yaw", yaw);
