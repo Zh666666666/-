@@ -8,7 +8,7 @@ import org.junit.Test;
 public final class EvidenceEventDetectorTest {
     private static SensorSample sample(long atMs, double ax, double ay, double az, double gx, double gy, double gz) {
         return new SensorSample(
-                "BLE-001", "WT901BLE67", SensorPlacement.SHANK, atMs,
+                "BLE-001", "WT901BLE67", SensorPlacement.SHANK, atMs, atMs,
                 0, 0, 0, ax, ay, az, gx, gy, gz
         );
     }

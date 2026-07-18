@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { addDemoSensorSession, getDemoDashboardData, getDemoSensorLiveSnapshot } from "@/lib/demo-store";
-import { seedPatients } from "@/lib/rehab";
+import { seedPatients, type SensorSampleItem } from "@/lib/rehab";
 
 import { GET, POST } from "./route";
 
@@ -28,16 +28,33 @@ test("accepts a queued hardware upload exactly once", async () => {
     sessionId: session.id,
     source: "HARDWARE",
     placement: "SHANK",
+    captureSequence: 17,
     recordedAt: "2026-07-14T00:00:00.000Z",
+    roll: 1,
+    pitch: 2,
+    yaw: 3,
+    ax: 0.1,
+    ay: 0.2,
+    az: 1.01,
+    gx: 4,
+    gy: 5,
+    gz: 6,
     flexionAngle: 72,
     extensionAngle: 0,
     confidence: 0.92,
   };
   const initialRecordCount = getDemoDashboardData().records.length;
 
-  const accepted = await (await upload(payload)).json() as { duplicate: boolean; record: { source: string } | null };
+  const accepted = await (await upload(payload)).json() as {
+    duplicate: boolean;
+    record: { source: string } | null;
+    receipt: { captureSequence: number; integrity: string; values: { az: number } };
+  };
   assert.equal(accepted.duplicate, false);
   assert.equal(accepted.record?.source, "HARDWARE");
+  assert.equal(accepted.receipt.captureSequence, 17);
+  assert.equal(accepted.receipt.integrity, "MATCHED");
+  assert.equal(accepted.receipt.values.az, 1.01);
   assert.equal(session.sampleCount, 1);
 
   const replayed = await (await upload(payload)).json() as { duplicate: boolean; record: unknown };
@@ -46,6 +63,32 @@ test("accepts a queued hardware upload exactly once", async () => {
   assert.equal(session.sampleCount, 1);
   assert.equal(getDemoSensorLiveSnapshot(patientId).sampleCount, 1);
   assert.equal(getDemoDashboardData().records.length, initialRecordCount + 1);
+
+  const conflicting = await upload({ ...payload, captureSequence: 18 });
+  assert.equal(conflicting.status, 409);
+});
+
+test("exposes identity and timing provenance on the live snapshot", async () => {
+  resetDemoStore();
+  const patientId = seedPatients[0].id;
+  const recordedAt = new Date(Date.now() - 150).toISOString();
+  await upload({
+    gatewaySampleId: "provenance-sample-001",
+    captureSequence: 3,
+    patientId,
+    source: "HARDWARE",
+    placement: "THIGH",
+    recordedAt,
+    raw: { protocol: "WIT_BLE_SDK", transport: "BLE_5_NATIVE" },
+  });
+
+  const response = await GET(new Request(`http://localhost/api/sensor-samples?patientId=${patientId}`));
+  const snapshot = await response.json() as { latest: SensorSampleItem };
+  assert.equal(snapshot.latest.gatewaySampleId, "provenance-sample-001");
+  assert.equal(snapshot.latest.captureSequence, 3);
+  assert.equal(snapshot.latest.ingestIntegrity, "MATCHED");
+  assert.equal(snapshot.latest.protocol, "WIT_BLE_SDK");
+  assert.ok((snapshot.latest.ingestLatencyMs ?? -1) >= 0);
 });
 
 test("returns the explainable rehab metrics contract after eligible dual-sensor uploads", async () => {

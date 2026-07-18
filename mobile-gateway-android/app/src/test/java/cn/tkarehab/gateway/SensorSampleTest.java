@@ -14,7 +14,7 @@ public final class SensorSampleTest {
     @Test
     public void keepsOneStableGatewaySampleIdForOfflineRetries() throws Exception {
         SensorSample sample = new SensorSample(
-                "BLE-001", "WT901BLE67", SensorPlacement.SHANK, 1_704_067_200_123L,
+                "BLE-001", "WT901BLE67", SensorPlacement.SHANK, 42L, 1_704_067_200_123L,
                 1, 2, 3, 4, 5, 6, 7, 8, 9
         );
 
@@ -23,5 +23,6 @@ public final class SensorSampleTest {
 
         assertEquals(firstUploadId, sample.gatewaySampleId);
         assertTrue(firstUploadId.matches("^[0-9a-fA-F-]{36}$"));
+        assertEquals(42L, sample.toUploadJson().getLong("captureSequence"));
     }
 }

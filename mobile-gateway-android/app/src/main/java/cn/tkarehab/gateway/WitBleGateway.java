@@ -38,6 +38,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private final Map<String, BluetoothDevice> discoveredDevices = new HashMap<>();
     private final Map<String, SensorPlacement> placements = new HashMap<>();
     private final Map<String, Long> lastSampleAt = new HashMap<>();
+    private final Map<String, Long> captureSequences = new HashMap<>();
     private boolean waitingForPermissions;
     private boolean resumeScanWhenReady;
     private boolean scanning;
@@ -257,11 +258,14 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
             return;
         }
         lastSampleAt.put(address, now);
+        long captureSequence = captureSequences.getOrDefault(address, 0L) + 1L;
+        captureSequences.put(address, captureSequence);
 
         SensorSample sample = new SensorSample(
                 "BLE-" + address.replace(":", ""),
                 address,
                 placement,
+                captureSequence,
                 now,
                 readKey(device, "AngX"),
                 readKey(device, "AngY"),

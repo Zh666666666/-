@@ -133,6 +133,7 @@ type SensorSessionInput = {
 
 type SensorSampleInput = {
   gatewaySampleId?: string | null;
+  captureSequence?: number | null;
   sessionId?: string | null;
   deviceId?: string | null;
   patientId: string;
@@ -711,13 +712,18 @@ export function finishDemoSensorSession(id: string, status: "COMPLETED" | "ABORT
 export function addDemoSensorSample(input: SensorSampleInput) {
   const state = getState();
   if (input.gatewaySampleId && state.gatewaySampleIds.has(input.gatewaySampleId)) {
-    return { sample: null, record: null, alert: null, duplicate: true };
+    const existing = state.sensorSamples.find((sample) => sample.gatewaySampleId === input.gatewaySampleId) ?? null;
+    return { sample: existing, record: null, alert: null, duplicate: true };
   }
 
   const session = input.sessionId ? state.sensorSessions.find((item) => item.id === input.sessionId) : null;
   const device = input.deviceId ? state.devices.find((item) => item.id === input.deviceId) : null;
-  const now = input.recordedAt ?? new Date().toISOString();
+  const receivedAt = new Date().toISOString();
+  const now = input.recordedAt ?? receivedAt;
   const source = resolveSensorDataSource(session?.source, input.source);
+  const raw = input.raw && typeof input.raw === "object" && !Array.isArray(input.raw)
+    ? input.raw as Record<string, unknown>
+    : {};
 
   if (input.gatewaySampleId) {
     state.gatewaySampleIds.add(input.gatewaySampleId);
@@ -739,12 +745,19 @@ export function addDemoSensorSample(input: SensorSampleInput) {
   const kneeAngleMode = resolveKneeAngleMode(input.raw, confidence);
   const sample: SensorSampleItem = {
     id: createId("sample"),
+    gatewaySampleId: input.gatewaySampleId ?? null,
+    captureSequence: input.captureSequence ?? null,
     patientId: input.patientId,
     deviceId: input.deviceId ?? null,
     sessionId: input.sessionId ?? null,
     placement: input.placement ?? "UNKNOWN",
     source,
     recordedAt: now,
+    receivedAt,
+    ingestLatencyMs: Math.max(0, new Date(receivedAt).getTime() - new Date(now).getTime()),
+    ingestIntegrity: "MATCHED",
+    protocol: typeof raw.protocol === "string" ? raw.protocol : null,
+    transport: typeof raw.transport === "string" ? raw.transport : null,
     roll: typeof input.roll === "number" ? input.roll : null,
     pitch: typeof input.pitch === "number" ? input.pitch : null,
     yaw: typeof input.yaw === "number" ? input.yaw : null,

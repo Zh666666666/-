@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
   BrainCircuit,
   Calculator,
+  CheckCircle2,
+  Fingerprint,
   Gauge,
   Loader2,
   Radio,
@@ -28,6 +30,7 @@ import {
 } from "recharts";
 
 import { StatusNotice } from "@/components/status-notice";
+import { SensorAttitudeScene } from "@/components/sensor-attitude-scene";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +82,72 @@ function formatClock(value: string | null | undefined) {
 function formatNumber(value: number | null | undefined, digits = 1) {
   if (typeof value !== "number" || Number.isNaN(value)) return "--";
   return value.toFixed(digits);
+}
+
+function formatLatency(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+  return value < 1_000 ? `${Math.round(value)} ms` : `${(value / 1_000).toFixed(2)} s`;
+}
+
+function endToEndLatency(sample: SensorSampleItem | null | undefined, nowMs: number) {
+  if (!sample) return null;
+  const capturedAt = new Date(sample.recordedAt).getTime();
+  if (!Number.isFinite(capturedAt)) return null;
+  return Math.max(0, nowMs - capturedAt);
+}
+
+function isTrustedRealtimeSample(sample: SensorSampleItem | null | undefined, nowMs: number) {
+  const latency = endToEndLatency(sample, nowMs);
+  return Boolean(
+    sample?.source === "HARDWARE"
+    && sample.gatewaySampleId
+    && sample.ingestIntegrity === "MATCHED"
+    && latency !== null
+    && latency <= 2_000,
+  );
+}
+
+function ProvenanceRow({
+  placement,
+  sample,
+  nowMs,
+}: {
+  placement: "THIGH" | "SHANK";
+  sample: SensorSampleItem | null | undefined;
+  nowMs: number;
+}) {
+  const endToEnd = endToEndLatency(sample, nowMs);
+  const trusted = isTrustedRealtimeSample(sample, nowMs);
+  const shortId = sample?.gatewaySampleId ? sample.gatewaySampleId.slice(-8) : "--------";
+
+  return (
+    <div className="grid gap-3 border-t border-slate-200 py-4 first:border-t-0 lg:grid-cols-[0.8fr_1.1fr_1fr_1fr_0.9fr] lg:items-center">
+      <div className="flex items-center gap-2">
+        {trusted ? <CheckCircle2 className="size-5 text-emerald-700" /> : <AlertTriangle className="size-5 text-amber-700" />}
+        <div>
+          <p className="font-bold text-[#12304a]">{placementLabels[placement]}</p>
+          <p className="text-xs text-slate-500">样本 #{sample?.captureSequence ?? "--"}</p>
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-slate-500">App / 网页共同样本 ID</p>
+        <p className="mt-1 font-mono text-sm font-bold text-slate-800">…{shortId}</p>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-slate-500">手机采集 → 服务器</p>
+        <p className="mt-1 font-mono font-bold text-slate-800">{formatLatency(sample?.ingestLatencyMs)}</p>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-slate-500">采集 → 当前网页</p>
+        <p className={`mt-1 font-mono font-bold ${trusted ? "text-emerald-700" : "text-amber-800"}`}>
+          {formatLatency(endToEnd)}
+        </p>
+      </div>
+      <Badge variant={trusted ? "success" : "warning"} className="w-fit">
+        {trusted ? "2 秒内且数值一致" : sample ? "超时或待核验" : "等待样本"}
+      </Badge>
+    </div>
+  );
 }
 
 function modeLabel(mode: string | null | undefined, dualActive: boolean) {
@@ -165,9 +234,9 @@ function SensorCard({
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <AxisGrid title="Acc" unit="g" x={sample?.ax} y={sample?.ay} z={sample?.az} />
-        <AxisGrid title="Gyro" unit="°/s" x={sample?.gx} y={sample?.gy} z={sample?.gz} />
-        <AxisGrid title="Angle" unit="°" x={sample?.roll} y={sample?.pitch} z={sample?.yaw} />
+        <AxisGrid title="身体移动 / Acc" unit="g" x={sample?.ax} y={sample?.ay} z={sample?.az} />
+        <AxisGrid title="转动速度 / Gyro" unit="°/s" x={sample?.gx} y={sample?.gy} z={sample?.gz} />
+        <AxisGrid title="佩戴姿态 / Angle" unit="°" x={sample?.roll} y={sample?.pitch} z={sample?.yaw} />
       </CardContent>
     </Card>
   );
@@ -183,22 +252,34 @@ export default function SensorLivePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
+  const [streamState, setStreamState] = useState<"CONNECTING" | "LIVE" | "FALLBACK">("CONNECTING");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const requestInFlight = useRef(false);
 
   const loadLive = useCallback(async (id: string) => {
-    const response = await fetch(`/api/sensor-samples?patientId=${encodeURIComponent(id)}&limit=60`, {
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error("实时样本读取失败");
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    try {
+      const response = await fetch(`/api/sensor-samples?patientId=${encodeURIComponent(id)}&limit=80`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("实时样本读取失败");
+      }
+      const snapshot = (await response.json()) as LiveSnapshot;
+      setLive(snapshot);
+      const observedAt = new Date().toISOString();
+      setLastRefresh(observedAt);
+      setNowMs(new Date(observedAt).getTime());
+    } finally {
+      requestInFlight.current = false;
     }
-    const snapshot = (await response.json()) as LiveSnapshot;
-    setLive(snapshot);
-    setLastRefresh(new Date().toISOString());
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
+    let eventSource: EventSource | null = null;
 
     async function bootstrap() {
       setLoading(true);
@@ -218,11 +299,18 @@ export default function SensorLivePage() {
         setAnalysis(dashboard.aiAnalyses.filter((item) => item.patientId === patient.id).at(-1) ?? null);
         await loadLive(patient.id);
 
+        eventSource = new EventSource(`/api/sensor-samples/stream?patientId=${encodeURIComponent(patient.id)}`);
+        eventSource.onopen = () => setStreamState("LIVE");
+        eventSource.addEventListener("sample", () => {
+          void loadLive(patient.id).catch(() => setStreamState("FALLBACK"));
+        });
+        eventSource.onerror = () => setStreamState("FALLBACK");
+
         timer = setInterval(() => {
           void loadLive(patient.id).catch(() => {
             // Keep last good frame; next tick retries.
           });
-        }, 1500);
+        }, 1000);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "实时看板加载失败");
@@ -237,8 +325,14 @@ export default function SensorLivePage() {
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      eventSource?.close();
     };
   }, [loadLive]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, []);
 
   const waveform = useMemo(() => {
     const samples = [...(live?.samples ?? [])].reverse().slice(-30);
@@ -288,6 +382,10 @@ export default function SensorLivePage() {
   const dualActive = Boolean(live?.dualActive);
   const clinicalReady = (live?.clinicalRecords.length ?? 0) > 0;
   const metrics = live?.metrics ?? null;
+  const thighSample = live?.latestByPlacement?.THIGH;
+  const shankSample = live?.latestByPlacement?.SHANK;
+  const realtimeQualified = isTrustedRealtimeSample(thighSample, nowMs)
+    && isTrustedRealtimeSample(shankSample, nowMs);
 
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
@@ -300,14 +398,14 @@ export default function SensorLivePage() {
                 实时传感器看板
               </Badge>
               <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#12304a] md:text-4xl">
-                与 Android 网关同口径的实时读数
+                手机与网页同帧实时监测
               </h1>
               <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                显示 Acc / Gyro / Angle、帧时间、来源与单/双传感器状态。原始样本实时刷新；临床趋势仅收录置信度≥0.7 的双传感器聚合。
+                每帧都带有 App 采样 ID、设备内序号和服务器回执。只有来源为真实硬件、数值校验一致且端到端时间不超过 2 秒，才显示“实时达标”。
               </p>
               <p className="mt-2 text-sm text-slate-500">
                 患者 {patientName}
-                {patientId ? ` · ${patientId}` : ""} · 刷新 {formatClock(lastRefresh)}
+                {patientId ? ` · ${patientId}` : ""} · 网页观测 {formatClock(lastRefresh)} · {streamState === "LIVE" ? "事件流在线" : streamState === "FALLBACK" ? "轮询兜底" : "正在连接事件流"}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -334,8 +432,30 @@ export default function SensorLivePage() {
         {error ? <StatusNotice tone="error">{error}</StatusNotice> : null}
         {message ? <StatusNotice tone="success">{message}</StatusNotice> : null}
 
+        <section className="border border-[#d9e2e9] bg-white px-4 py-2 shadow-sm md:px-6" aria-labelledby="provenance-title">
+          <div className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                <Fingerprint className="size-4" />
+                实时链路凭证
+              </p>
+              <h2 id="provenance-title" className="mt-1 text-xl font-bold text-[#12304a]">App、服务器与网页是否为同一帧</h2>
+            </div>
+            <Badge variant={realtimeQualified ? "success" : "warning"} className="w-fit px-3 py-1 text-sm">
+              {realtimeQualified ? "双传感器实时达标" : "等待双传感器 2 秒内回执"}
+            </Badge>
+          </div>
+          <ProvenanceRow placement="THIGH" sample={thighSample} nowMs={nowMs} />
+          <ProvenanceRow placement="SHANK" sample={shankSample} nowMs={nowMs} />
+          <p className="border-t border-slate-200 py-3 text-xs leading-5 text-slate-500">
+            完整性规则：服务器按唯一样本 ID 接收，并把序号与 9 个 Acc / Gyro / Angle 数值原样回传；App 校验全部一致后才删除本地队列。网络或手机时钟异常会在这里直接显示，不会被算作实时。
+          </p>
+        </section>
+
+        <SensorAttitudeScene thigh={thighSample} shank={shankSample} />
+
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">传感器模式</p>
               <p className="text-2xl font-black text-[#12304a]">{modeLabel(live?.mode, dualActive)}</p>
@@ -423,13 +543,34 @@ export default function SensorLivePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
                   <ShieldAlert className="size-5 text-amber-700" />
-                  风险构成与处置
+                  风险计算链路
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-end justify-between gap-4 border-b border-slate-100 pb-4">
+              <CardContent className="space-y-3">
+                <div className="border-l-4 border-[#2b6f88] bg-[#f3f8fa] px-4 py-3">
+                  <p className="text-xs font-bold text-[#2b6f88]">1 · 基础输入</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    双传感器合格样本 {metrics?.dataQuality.eligibleSamples ?? 0} 个；P95 屈曲 {formatNumber(metrics?.rom.peakFlexion)}°；P05 {formatNumber(metrics?.rom.minimumFlexion)}°；近期趋势 {formatNumber(metrics?.trend.changeDegrees)}°；疼痛来自最近一次人工记录。
+                  </p>
+                </div>
+                <div className={`border-l-4 px-4 py-3 ${metrics?.clinicalEligible ? "border-emerald-600 bg-emerald-50" : "border-amber-500 bg-amber-50"}`}>
+                  <p className="text-xs font-bold text-slate-700">2 · 质量门</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    Q={metrics?.dataQuality.score ?? 0}；要求至少 5 个双传感器样本且 Q≥55。{metrics?.clinicalEligible ? "已通过，可以继续计算。" : "未通过，风险分保持为空。"}
+                  </p>
+                </div>
+                <div className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-bold text-amber-900">3 · 风险加分</p>
+                  {(metrics?.risk.factors.length ?? 0) > 0 ? metrics?.risk.factors.map((factor) => (
+                    <div key={factor.name} className="mt-2 flex items-center justify-between gap-3 text-sm">
+                      <span className="text-slate-700">{factor.name}：{factor.evidence}</span>
+                      <span className="shrink-0 font-mono font-bold text-amber-800">+{factor.points}</span>
+                    </div>
+                  )) : <p className="mt-1 text-sm text-slate-600">{metrics?.clinicalEligible ? "没有加分项。" : "等待质量门通过。"}</p>}
+                </div>
+                <div className="flex items-end justify-between gap-4 border-l-4 border-[#12304a] bg-slate-50 px-4 py-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-500">综合监测分</p>
+                    <p className="text-xs font-bold text-[#12304a]">4 · 结果与动作</p>
                     <p className="mt-1 text-4xl font-black tabular-nums text-[#12304a]">
                       {typeof metrics?.risk.score === "number" ? metrics.risk.score : "--"}
                       <span className="ml-1 text-base text-slate-400">/100</span>
@@ -439,19 +580,7 @@ export default function SensorLivePage() {
                     {metrics ? riskLabel(metrics.risk.level) : "等待计算"}
                   </Badge>
                 </div>
-                {(metrics?.risk.factors.length ?? 0) > 0 ? metrics?.risk.factors.map((factor) => (
-                  <div key={factor.name} className="flex items-center justify-between gap-3 text-sm">
-                    <div>
-                      <p className="font-bold text-slate-800">{factor.name}</p>
-                      <p className="text-xs text-slate-500">{factor.evidence}</p>
-                    </div>
-                    <span className="font-mono font-bold text-amber-700">+{factor.points}</span>
-                  </div>
-                )) : (
-                  <p className="text-sm leading-6 text-slate-500">
-                    {metrics?.clinicalEligible ? "当前没有风险加分项。" : "质量门限未通过，系统拒绝生成临床风险分。"}
-                  </p>
-                )}
+                <p className="text-xs leading-5 text-slate-500">风险提示用于监测和分流，不是诊断；任何高风险项都必须结合患者主诉与人工确认。</p>
               </CardContent>
             </Card>
 
@@ -484,7 +613,7 @@ export default function SensorLivePage() {
             </Card>
           </div>
 
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
                 <Calculator className="size-5 text-emerald-700" />
@@ -515,14 +644,14 @@ export default function SensorLivePage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
                 <Gauge className="size-5 text-emerald-700" />
                 原始样本波形（近 30 帧）
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 min-w-0">
               {waveform.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-slate-500">
                   {loading ? "加载中…" : "等待 Android 网关上传 HARDWARE 样本"}
@@ -544,14 +673,14 @@ export default function SensorLivePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
                 <Activity className="size-5 text-emerald-700" />
                 临床趋势（10 秒聚合）
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 min-w-0">
               {clinicalSeries.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
                   <AlertTriangle className="size-5 text-amber-600" />
@@ -617,6 +746,7 @@ export default function SensorLivePage() {
               <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-2 py-2">时间</th>
+                  <th className="px-2 py-2">App 样本</th>
                   <th className="px-2 py-2">位置</th>
                   <th className="px-2 py-2">来源</th>
                   <th className="px-2 py-2">Acc XYZ</th>
@@ -631,6 +761,7 @@ export default function SensorLivePage() {
                 {(live?.samples ?? []).slice(0, 12).map((sample) => (
                   <tr key={sample.id} className="border-b border-slate-100 font-mono text-[12px]">
                     <td className="px-2 py-2">{formatClock(sample.recordedAt)}</td>
+                    <td className="px-2 py-2">#{sample.captureSequence ?? "--"} / …{sample.gatewaySampleId?.slice(-8) ?? "--------"}</td>
                     <td className="px-2 py-2">{placementLabels[sample.placement]}</td>
                     <td className="px-2 py-2">{sourceLabels[sample.source] ?? sample.source}</td>
                     <td className="px-2 py-2">
@@ -649,7 +780,7 @@ export default function SensorLivePage() {
                 ))}
                 {(live?.samples.length ?? 0) === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-2 py-8 text-center text-slate-500">
+                    <td colSpan={10} className="px-2 py-8 text-center text-slate-500">
                       暂无原始帧。手机连接传感器后点“开始采集上传”。
                     </td>
                   </tr>
