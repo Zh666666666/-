@@ -77,11 +77,11 @@
 
 ## 当前状态
 
-- 默认分支：`main`；当前开发分支：`codex/realtime-sensor-trust-loop`。
+- 默认分支：`main`；实时可信链路已通过 PR #23 合并，当前仅在 `codex/realtime-loop-deployment-log` 补充生产验收自动化与交接记录。
 - GitHub 仓库：`https://github.com/Zh666666666/-`
 - 运行时边界：`APP_MODE=demo` 始终走内存数据；生产缺数据库、网关令牌或完整的本地/Supabase 认证配置时 fail-closed（503）。
 - 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
-- 本地验证：37 项运行时/网关/API 测试、`lint`、生产 `build` 与 Android Debug 构建通过；Android JVM 测试源码编译通过，但本机中文路径下 Gradle/JUnit 执行仍发生全测试类 `ClassNotFoundException`，由 Linux GitHub Actions 执行结果作为最终门禁。浏览器使用真实双传感器格式并发帧完成 2 秒链路验收。
+- 验证状态：37 项运行时/网关/API 测试、`lint`、生产 `build` 与 Android Debug 构建通过；PR #23 的 Linux GitHub Build 和 Android verify 全部通过，涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验。浏览器使用真实双传感器格式并发帧完成 2 秒链路验收。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；用户已确认项目 Android 网关可同时连接两只实物，并在 App 与网站看到实时数据。已知其中一只广播名为 `WT901BLE67`、地址为 `D7:0F:8A:DA:BE:DB`；地址与广播名仍不能当作已验证的厂商序列号。
 - Android 网关：v0.4.0（`versionCode=4`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。本地证据任务不要求平台配置；Debug 仍允许可选的局域网 HTTP 上传，Release 继续禁止明文 HTTP。
@@ -93,6 +93,7 @@
 - Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
 - 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证；系统安全更新和重启恢复通过。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
+- 实时可信链路已部署到正式服务器：部署前数据库备份成功，容器重建后健康；生产验收脚本已通过健康、角色隔离、受保护数据、网关鉴权、登录态 `/sensor-live` 页面和 SSE `ready` 事件检查。软件格式双路并发验收约 0.37-0.41 秒入库、约 1.17 秒到网页；该结果不能替代用户手机网络下的连续实物验收。
 - 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
 - 邮箱注册已在生产启用并由用户确认合格：`updates.dorianaistudio.cloud` 的 Resend DKIM/SPF 已验证，API Key、发件地址和随机照护邀请码仅保存在服务器/本机私密环境；家属验证码注册、自动登录与再次登录链路可用。
 - 仓库结构缺口：外层仓库将 `tka-rehab-platform` 记为 gitlink，且缺少 `.gitmodules`，交付时需固定到应用仓库提交。
@@ -102,8 +103,8 @@
 
 按优先级从上到下执行：
 
-1. **P0 - 发布实时可信链路并完成双实物验收**
-   - 合并并部署本分支，安装本轮 Android APK；使用两只实物连续训练至少 10 分钟，逐只核对 App 与 Web 的样本序号、ID 尾号和 Acc/Gyro/Angle，统计 2 秒达标率、断网补传和重连恢复情况。
+1. **P0 - 安装最新版 Android APK 并完成双实物验收**
+   - 代码、CI 与生产部署已完成；安装本轮 Android APK，使用两只实物连续训练至少 10 分钟，逐只核对 App 与 Web 的样本序号、ID 尾号和 Acc/Gyro/Angle，统计 2 秒达标率、断网补传和重连恢复情况。
    - 若手机与服务器时钟偏差超过 1 秒，先启用系统自动时间；不得用隐藏负延迟或放宽阈值的方式伪造达标。
 2. **P0 - 双传感器 ROM 对照验收**
    - 固定大腿/小腿安装轴向，完成双设备归零；用量角器在 0°、30°、60°、90°、110° 各重复 5 次，记录偏差并调整安装/标定，不直接用风险公式掩盖姿态误差。
@@ -118,6 +119,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-18 | 合并并部署实时可信链路；生产重建前完成数据库备份，并把登录态实时页与 SSE `ready` 事件加入生产验收脚本 | PR #23 的 Build/Android verify 全绿；生产健康、角色隔离、网关鉴权和实时入口通过，软件双路链路约 1.17 秒；两只实物连续运行仍需用户手机验收 | 安装最新版 APK，完成双实物 10 分钟、断网补传、重连恢复和量角器验收 | GitHub Actions Build 1m7s、Android verify 3m2s；`verify-production.mjs` 通过；`/api/health/ready` 200；备份 `tka-rehab-20260718T071005Z.dump` |
 | 2026-07-18 | 修复双传感器共用上传节流，建立样本 ID/序号/9 个原值的服务器回执与 App 严格校验；新增 SSE+1 秒兜底、2 秒实时状态、Three.js 双 3D、风险四步链路和 Android 普通模式 | 软件闭环通过；本地并发帧接收约 0.37–0.41 秒、网页约 1.17 秒并显示双路一致；生产与两只实物连续运行尚待本 PR 合并部署后复验 | 推送 PR、通过 Linux Android CI，随后部署生产并做双实物 10 分钟/量角器验收 | `npm test` 37/37、Lint、Next Build、Android Debug BUILD SUCCESSFUL；Android JVM 测试使用真实 `org.json`；390px 无横向溢出，WebGL 画布 343×330，浏览器同帧双路 2 秒达标 |
 | 2026-07-18 | 验证 Resend 发信子域并在生产配置 Sending-only API Key、发件地址和随机照护邀请码，重新构建并开放家属邮箱注册；清除传输临时文件和测试验证码记录 | 生产容器/数据库健康，登录客户端已编译注册链接，邀请码门禁返回 403，Resend 官方投递测试地址返回 200 且响应不泄露验证码 | 用户使用真实邮箱完成收码、注册、自动登录和再次密码登录验收 | `verify-production.mjs` 通过；生产健康 200；客户端开关均为 `true`；Resend 测试发送 200；测试记录 `DELETE 1` |
 | 2026-07-17 | 实现家属邮箱验证码注册、数据库账号、邀请码门禁、验证码/密码哈希、频率限制、自动登录和登录页入口；护士注册保持关闭 | 36 项测试、Lint 和 40 路由生产构建通过；生产邮件开关等待 Resend 域名/API Key | 配置 Resend 发送子域并完成真实邮箱端到端验收 | `npm test` 36/36、`npm run lint`、`npm run build`、`npm run db:generate` |

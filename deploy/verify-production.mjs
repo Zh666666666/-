@@ -60,7 +60,33 @@ const familyCookie = await login(
   "/family",
   "/nurse",
 );
-await login("nurse", process.env.LOCAL_NURSE_EMAIL, process.env.LOCAL_NURSE_PASSWORD, "/nurse", "/family");
+const nurseCookie = await login(
+  "nurse",
+  process.env.LOCAL_NURSE_EMAIL,
+  process.env.LOCAL_NURSE_PASSWORD,
+  "/nurse",
+  "/family",
+);
+
+const livePage = await request("/sensor-live", { headers: { cookie: nurseCookie } });
+if (livePage.status !== 200) throw new Error(`Authenticated live page failed with HTTP ${livePage.status}`);
+
+const streamController = new AbortController();
+const streamTimeout = setTimeout(() => streamController.abort(), 5_000);
+const liveStream = await request("/api/sensor-samples/stream?patientId=prod-patient-1", {
+  headers: { accept: "text/event-stream", cookie: nurseCookie },
+  signal: streamController.signal,
+});
+if (liveStream.status !== 200 || !liveStream.headers.get("content-type")?.includes("text/event-stream")) {
+  clearTimeout(streamTimeout);
+  throw new Error(`Authenticated sensor stream failed with HTTP ${liveStream.status}`);
+}
+const firstStreamChunk = await liveStream.body?.getReader().read();
+clearTimeout(streamTimeout);
+streamController.abort();
+if (!firstStreamChunk?.value || !new TextDecoder().decode(firstStreamChunk.value).includes("event: ready")) {
+  throw new Error("Sensor stream did not emit its ready event");
+}
 
 const dashboard = await request("/api/dashboard", { headers: { cookie: familyCookie } });
 const dashboardBody = await dashboard.json();
@@ -78,4 +104,6 @@ if (invalidGateway.status !== 401 || validGateway.status !== 200) {
   throw new Error(`Gateway authorization failed: invalid=${invalidGateway.status}, valid=${validGateway.status}`);
 }
 
-console.log("Production verification passed: health, local roles, protected data, and gateway authorization.");
+console.log(
+  "Production verification passed: health, local roles, protected data, gateway authorization, live page, and sensor stream.",
+);
