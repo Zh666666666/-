@@ -375,7 +375,7 @@ export default function HardwareDemoPage() {
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 size-5 text-[#2f6f55]" />
                   <p className="text-sm leading-6 text-[#4c5b50]">
-                    本页演示的是传感器到货后的业务链路。当前样本来自本地模拟，写入 API 后会以 `DEMO` 来源进入趋势和预警，不能作为真实硬件数据使用。
+                    本页仅用于演示业务链路。当前样本来自本地模拟，写入 API 后会以 `DEMO` 来源进入趋势和预警，不能作为真实硬件数据使用。真实采集请使用 Android 网关连接双 BT50。
                   </p>
                 </div>
               </div>

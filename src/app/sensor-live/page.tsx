@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -8,6 +7,7 @@ import {
   BrainCircuit,
   Calculator,
   CheckCircle2,
+  ClipboardCopy,
   Fingerprint,
   Gauge,
   Loader2,
@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Timer,
+  UsersRound,
   Wifi,
 } from "lucide-react";
 import {
@@ -40,6 +41,7 @@ import type {
   DashboardData,
   DevicePlacement,
   KneeDataPoint,
+  PatientSummary,
   SensorSampleItem,
 } from "@/lib/rehab";
 
@@ -243,6 +245,7 @@ function SensorCard({
 }
 
 export default function SensorLivePage() {
+  const [patients, setPatients] = useState<PatientSummary[]>([]);
   const [patientId, setPatientId] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("康复患者");
   const [live, setLive] = useState<LiveSnapshot | null>(null);
@@ -278,8 +281,6 @@ export default function SensorLivePage() {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
-    let eventSource: EventSource | null = null;
 
     async function bootstrap() {
       setLoading(true);
@@ -287,47 +288,80 @@ export default function SensorLivePage() {
 
       try {
         const dashboardResponse = await fetch("/api/dashboard", { cache: "no-store" });
+        if (!dashboardResponse.ok) {
+          throw new Error("患者列表读取失败");
+        }
         const dashboard = (await dashboardResponse.json()) as DashboardData;
-        const patient = dashboard.patients[0];
-        if (!patient) {
+        const firstPatient = dashboard.patients[0];
+        if (!firstPatient) {
           throw new Error("没有可监测的患者档案");
         }
         if (cancelled) return;
 
-        setPatientId(patient.id);
-        setPatientName(patient.name);
-        setAnalysis(dashboard.aiAnalyses.filter((item) => item.patientId === patient.id).at(-1) ?? null);
-        await loadLive(patient.id);
-
-        eventSource = new EventSource(`/api/sensor-samples/stream?patientId=${encodeURIComponent(patient.id)}`);
-        eventSource.onopen = () => setStreamState("LIVE");
-        eventSource.addEventListener("sample", () => {
-          void loadLive(patient.id).catch(() => setStreamState("FALLBACK"));
-        });
-        eventSource.onerror = () => setStreamState("FALLBACK");
-
-        timer = setInterval(() => {
-          void loadLive(patient.id).catch(() => {
-            // Keep last good frame; next tick retries.
-          });
-        }, 1000);
+        const requestedId = new URLSearchParams(window.location.search).get("patientId");
+        const selectedPatient = dashboard.patients.find((patient) => patient.id === requestedId) ?? firstPatient;
+        setPatients(dashboard.patients);
+        setPatientId(selectedPatient.id);
+        setPatientName(selectedPatient.name);
+        setAnalysis(dashboard.aiAnalyses.filter((item) => item.patientId === selectedPatient.id).at(-1) ?? null);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "实时看板加载失败");
+          setLoading(false);
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
-    bootstrap();
+    void bootstrap();
 
     return () => {
       cancelled = true;
-      if (timer) clearInterval(timer);
-      eventSource?.close();
     };
-  }, [loadLive]);
+  }, []);
+
+  useEffect(() => {
+    if (!patientId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setLive(null);
+    setStreamState("CONNECTING");
+
+    const selectedPatient = patients.find((patient) => patient.id === patientId);
+    if (selectedPatient) setPatientName(selectedPatient.name);
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("patientId", patientId);
+    window.history.replaceState(null, "", url);
+
+    void loadLive(patientId)
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "实时看板加载失败");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    const eventSource = new EventSource(`/api/sensor-samples/stream?patientId=${encodeURIComponent(patientId)}`);
+    eventSource.onopen = () => setStreamState("LIVE");
+    eventSource.addEventListener("sample", () => {
+      void loadLive(patientId).catch(() => setStreamState("FALLBACK"));
+    });
+    eventSource.onerror = () => setStreamState("FALLBACK");
+
+    const timer = setInterval(() => {
+      void loadLive(patientId).catch(() => {
+        // Keep the last good frame; the next tick retries.
+      });
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      eventSource.close();
+    };
+  }, [loadLive, patientId, patients]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 250);
@@ -386,45 +420,71 @@ export default function SensorLivePage() {
   const shankSample = live?.latestByPlacement?.SHANK;
   const realtimeQualified = isTrustedRealtimeSample(thighSample, nowMs)
     && isTrustedRealtimeSample(shankSample, nowMs);
+  const latestFrameAge = endToEndLatency(latest, nowMs);
 
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-7xl space-y-5">
-        <header className="overflow-hidden rounded-lg border border-[#d9e2e9] bg-white p-5 shadow-sm md:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <header className="relative overflow-hidden rounded-2xl border border-[#244d68] bg-[#0d2a40] p-5 text-white shadow-[0_24px_70px_rgba(13,42,64,0.22)] md:p-7">
+          <div className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full bg-[#2a78d6]/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 size-72 rounded-full bg-[#1baf7a]/20 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
+              <Badge className="gap-2 border border-white/15 bg-white/10 px-3 py-1 text-sm text-white">
                 <Activity className="size-4" />
-                实时传感器看板
+                真实硬件 · 实时数据中枢
               </Badge>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#12304a] md:text-4xl">
-                手机与网页同帧实时监测
+              <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white md:text-5xl">
+                两只传感器，一条可信数据链。
               </h1>
-              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                每帧都带有 App 采样 ID、设备内序号和服务器回执。只有来源为真实硬件、数值校验一致且端到端时间不超过 2 秒，才显示“实时达标”。
+              <p className="mt-3 max-w-3xl text-base leading-7 text-[#cfe0e9]">
+                手机采集、服务器接收和网页显示使用同一个样本 ID。目标延迟 1–2 秒；超时、患者不一致或数值未核验都会明确显示，不用猜数据到底有没有上传。
               </p>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-3 text-sm text-[#9fc0d2]">
                 患者 {patientName}
                 {patientId ? ` · ${patientId}` : ""} · 网页观测 {formatClock(lastRefresh)} · {streamState === "LIVE" ? "事件流在线" : streamState === "FALLBACK" ? "轮询兜底" : "正在连接事件流"}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="lg"
-                variant="elder"
-                disabled={!patientId || loading}
-                onClick={() => patientId && void loadLive(patientId)}
-              >
-                <RefreshCw className="size-5" />
-                立即刷新
-              </Button>
-              <Button size="lg" variant="outline" disabled={!patientId || analyzing} onClick={runAnalysis}>
-                {analyzing ? <Loader2 className="size-5 animate-spin" /> : <BrainCircuit className="size-5" />}
-                运行内置分析
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/family/devices">设备绑定</Link>
-              </Button>
+            <div className="grid min-w-full gap-3 rounded-xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur lg:min-w-[360px]">
+              <label className="grid gap-2 text-sm font-bold text-[#cfe0e9]">
+                <span className="flex items-center gap-2"><UsersRound className="size-4" />当前监测患者</span>
+                <select
+                  value={patientId ?? ""}
+                  onChange={(event) => setPatientId(event.target.value)}
+                  className="h-11 rounded-lg border border-white/15 bg-[#173b54] px-3 text-sm font-semibold text-white outline-none"
+                >
+                  {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.id}</option>)}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                  disabled={!patientId || loading}
+                  onClick={() => patientId && void loadLive(patientId)}
+                >
+                  <RefreshCw className="size-5" />
+                  刷新
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                  disabled={!patientId}
+                  onClick={async () => {
+                    if (!patientId) return;
+                    await navigator.clipboard.writeText(patientId);
+                    setMessage(`患者 ID 已复制：${patientId}`);
+                  }}
+                >
+                  <ClipboardCopy className="size-4" />
+                  复制 ID
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs text-[#cfe0e9]">
+                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{streamState === "LIVE" ? "SSE" : "1s"}</b>刷新</span>
+                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{formatLatency(latestFrameAge)}</b>帧龄</span>
+                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{live?.sampleCount ?? 0}</b>缓存帧</span>
+              </div>
             </div>
           </div>
         </header>
@@ -664,9 +724,9 @@ export default function SensorLivePage() {
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="flexion" name="膝角°" stroke="#0f766e" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="pitch" name="Pitch°" stroke="#1d4ed8" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="roll" name="Roll°" stroke="#b45309" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="flexion" name="膝角°" stroke="#2A78D6" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="pitch" name="Pitch°" stroke="#008300" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="roll" name="Roll°" stroke="#E87BA4" strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
@@ -702,11 +762,18 @@ export default function SensorLivePage() {
         </div>
 
         <Card className="border-[#d9e2e9] bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
-              <BrainCircuit className="size-5 text-emerald-700" />
-              内置分析 API
-            </CardTitle>
+          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <BrainCircuit className="size-5 text-emerald-700" />
+                内置分析 API
+              </CardTitle>
+              <p className="mt-2 text-sm text-slate-500">仅在双传感器质量门通过后生成康复分析。</p>
+            </div>
+            <Button disabled={!patientId || analyzing || !clinicalReady} onClick={runAnalysis}>
+              {analyzing ? <Loader2 className="size-4 animate-spin" /> : <BrainCircuit className="size-4" />}
+              {analyzing ? "正在分析" : "运行分析"}
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm leading-6 text-slate-600">
