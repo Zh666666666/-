@@ -69,12 +69,10 @@ final class PlatformGateway {
     }
 
     void testConnection(String baseUrl, String patientId, String bearerToken) {
-        this.baseUrl = stripTrailingSlash(baseUrl);
-        this.patientId = patientId;
-        this.bearerToken = bearerToken;
+        String targetBaseUrl = stripTrailingSlash(baseUrl);
         worker.execute(() -> {
             try {
-                JSONObject ready = getJson(gatewayReadyPath(patientId));
+                JSONObject ready = getJson(targetBaseUrl, bearerToken, gatewayReadyPath(patientId));
                 JSONObject patient = ready.getJSONObject("patient");
                 listener.onStatus(
                         "平台、Token 与患者均已验证："
@@ -352,7 +350,11 @@ final class PlatformGateway {
     }
 
     private JSONObject getJson(String path) throws Exception {
-        HttpURLConnection connection = open(path);
+        return getJson(baseUrl, bearerToken, path);
+    }
+
+    private JSONObject getJson(String targetBaseUrl, String targetBearerToken, String path) throws Exception {
+        HttpURLConnection connection = open(targetBaseUrl, targetBearerToken, path);
         try {
             connection.setRequestMethod("GET");
             return readJsonResponse(connection, "GET " + path);
@@ -362,16 +364,20 @@ final class PlatformGateway {
     }
 
     private HttpURLConnection open(String path) throws Exception {
-        if (baseUrl == null || baseUrl.isEmpty()) {
+        return open(baseUrl, bearerToken, path);
+    }
+
+    private HttpURLConnection open(String targetBaseUrl, String targetBearerToken, String path) throws Exception {
+        if (targetBaseUrl == null || targetBaseUrl.isEmpty()) {
             throw new IllegalStateException("平台地址为空");
         }
-        HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL(targetBaseUrl + path).openConnection();
         connection.setConnectTimeout(8_000);
         connection.setReadTimeout(12_000);
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "application/json");
-        if (bearerToken != null && !bearerToken.isEmpty()) {
-            connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
+        if (targetBearerToken != null && !targetBearerToken.isEmpty()) {
+            connection.setRequestProperty("Authorization", "Bearer " + targetBearerToken);
         }
         return connection;
     }

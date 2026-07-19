@@ -246,6 +246,7 @@ function SensorCard({
 
 export default function SensorLivePage() {
   const [patients, setPatients] = useState<PatientSummary[]>([]);
+  const [analysesByPatient, setAnalysesByPatient] = useState<Record<string, AiAnalysisItem | null>>({});
   const [patientId, setPatientId] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("康复患者");
   const [live, setLive] = useState<LiveSnapshot | null>(null);
@@ -257,25 +258,31 @@ export default function SensorLivePage() {
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [streamState, setStreamState] = useState<"CONNECTING" | "LIVE" | "FALLBACK">("CONNECTING");
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const requestInFlight = useRef(false);
+  const selectedPatientIdRef = useRef<string | null>(null);
+  const liveRequestRef = useRef<{ patientId: string; controller: AbortController } | null>(null);
 
   const loadLive = useCallback(async (id: string) => {
-    if (requestInFlight.current) return;
-    requestInFlight.current = true;
+    if (liveRequestRef.current?.patientId === id) return;
+
+    liveRequestRef.current?.controller.abort();
+    const request = { patientId: id, controller: new AbortController() };
+    liveRequestRef.current = request;
     try {
       const response = await fetch(`/api/sensor-samples?patientId=${encodeURIComponent(id)}&limit=80`, {
         cache: "no-store",
+        signal: request.controller.signal,
       });
       if (!response.ok) {
         throw new Error("实时样本读取失败");
       }
       const snapshot = (await response.json()) as LiveSnapshot;
+      if (selectedPatientIdRef.current !== id) return;
       setLive(snapshot);
       const observedAt = new Date().toISOString();
       setLastRefresh(observedAt);
       setNowMs(new Date(observedAt).getTime());
     } finally {
-      requestInFlight.current = false;
+      if (liveRequestRef.current === request) liveRequestRef.current = null;
     }
   }, []);
 
@@ -300,10 +307,18 @@ export default function SensorLivePage() {
 
         const requestedId = new URLSearchParams(window.location.search).get("patientId");
         const selectedPatient = dashboard.patients.find((patient) => patient.id === requestedId) ?? firstPatient;
+        const latestAnalyses = Object.fromEntries(
+          dashboard.patients.map((patient) => [
+            patient.id,
+            dashboard.aiAnalyses.filter((item) => item.patientId === patient.id).at(-1) ?? null,
+          ]),
+        ) as Record<string, AiAnalysisItem | null>;
+        selectedPatientIdRef.current = selectedPatient.id;
         setPatients(dashboard.patients);
+        setAnalysesByPatient(latestAnalyses);
         setPatientId(selectedPatient.id);
         setPatientName(selectedPatient.name);
-        setAnalysis(dashboard.aiAnalyses.filter((item) => item.patientId === selectedPatient.id).at(-1) ?? null);
+        setAnalysis(latestAnalyses[selectedPatient.id] ?? null);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "实时看板加载失败");
@@ -323,6 +338,7 @@ export default function SensorLivePage() {
     if (!patientId) return;
 
     let cancelled = false;
+    selectedPatientIdRef.current = patientId;
     setLoading(true);
     setError(null);
     setLive(null);
@@ -360,6 +376,10 @@ export default function SensorLivePage() {
       cancelled = true;
       clearInterval(timer);
       eventSource.close();
+      if (liveRequestRef.current?.patientId === patientId) {
+        liveRequestRef.current.controller.abort();
+        liveRequestRef.current = null;
+      }
     };
   }, [loadLive, patientId, patients]);
 
@@ -404,6 +424,7 @@ export default function SensorLivePage() {
         throw new Error(payload.error ?? "分析失败");
       }
       setAnalysis(payload);
+      setAnalysesByPatient((current) => ({ ...current, [patientId]: payload }));
       setMessage(`分析完成（${payload.provider}），基于临床趋势记录，不含单传感器临时读数。`);
     } catch (analysisError) {
       setError(analysisError instanceof Error ? analysisError.message : "分析失败");
@@ -421,6 +442,20 @@ export default function SensorLivePage() {
   const realtimeQualified = isTrustedRealtimeSample(thighSample, nowMs)
     && isTrustedRealtimeSample(shankSample, nowMs);
   const latestFrameAge = endToEndLatency(latest, nowMs);
+
+  function selectPatient(nextPatientId: string) {
+    selectedPatientIdRef.current = nextPatientId;
+    liveRequestRef.current?.controller.abort();
+    liveRequestRef.current = null;
+    const selectedPatient = patients.find((patient) => patient.id === nextPatientId);
+    if (selectedPatient) setPatientName(selectedPatient.name);
+    setLive(null);
+    setLastRefresh(null);
+    setError(null);
+    setMessage(null);
+    setAnalysis(analysesByPatient[nextPatientId] ?? null);
+    setPatientId(nextPatientId);
+  }
 
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
@@ -450,7 +485,7 @@ export default function SensorLivePage() {
                 <span className="flex items-center gap-2"><UsersRound className="size-4" />当前监测患者</span>
                 <select
                   value={patientId ?? ""}
-                  onChange={(event) => setPatientId(event.target.value)}
+                  onChange={(event) => selectPatient(event.target.value)}
                   className="h-11 rounded-lg border border-white/15 bg-[#173b54] px-3 text-sm font-semibold text-white outline-none"
                 >
                   {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.id}</option>)}
@@ -717,7 +752,7 @@ export default function SensorLivePage() {
                   {loading ? "加载中…" : "等待 Android 网关上传 HARDWARE 样本"}
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={waveform}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
@@ -747,7 +782,7 @@ export default function SensorLivePage() {
                   尚无临床聚合点。单传感器 confidence=0.35 只保留原始帧。
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={clinicalSeries}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={20} />

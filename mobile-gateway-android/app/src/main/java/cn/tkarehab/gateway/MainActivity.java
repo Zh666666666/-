@@ -467,11 +467,17 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
         persistPlatformConfiguration(validation);
+        String token = apiToken.getText().toString().trim();
+        if (evidenceStore != null && evidenceStore.isActive() && thighConnected && shankConnected) {
+            renderStatus("正在重新验证平台配置并恢复网页上传…");
+            platformGateway.start(validation.baseUrl, validation.patientId, token);
+            return;
+        }
         renderStatus("正在验证平台、Bearer Token 与患者 ID…");
         platformGateway.testConnection(
                 validation.baseUrl,
                 validation.patientId,
-                apiToken.getText().toString().trim()
+                token
         );
     }
 
@@ -732,7 +738,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void maybeStartAfterDualConnection() {
-        if (!thighConnected || !shankConnected || stop.isEnabled()) return;
+        if (!thighConnected || !shankConnected) return;
         GatewayConfig.Validation validation = GatewayConfig.validate(
                 apiUrl.getText().toString(),
                 patientId.getText().toString()
@@ -741,6 +747,16 @@ public final class MainActivity extends AppCompatActivity {
             syncState.setText("网页同步：双传感器已连接，但平台配置不完整。请展开平台设置填写正式域名与患者 ID。");
             platformSettings.setVisibility(View.VISIBLE);
             renderStatus(validation.message);
+            return;
+        }
+        if (stop.isEnabled()) {
+            persistPlatformConfiguration(validation);
+            syncState.setText("网页同步：双路已恢复，正在重新验证患者与 Token…");
+            platformGateway.start(
+                    validation.baseUrl,
+                    validation.patientId,
+                    apiToken.getText().toString().trim()
+            );
             return;
         }
         startSession();

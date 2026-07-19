@@ -5,7 +5,7 @@ project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="$project_root/app/build/outputs/apk/release"
 unsigned_apk="$output_dir/app-release-unsigned.apk"
 aligned_apk="$output_dir/app-release-aligned.apk"
-signed_apk="${SIGNED_APK:-$output_dir/TKA-Gateway-v0.4.0.apk}"
+signed_apk="${SIGNED_APK:-$output_dir/TKA-Gateway-v0.4.1.apk}"
 
 for variable in ANDROID_SDK_ROOT SIGNING_KEYSTORE SIGNING_KEY_ALIAS SIGNING_STORE_PASSWORD SIGNING_KEY_PASSWORD; do
     if [[ -z "${!variable:-}" ]]; then
