@@ -97,7 +97,7 @@
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
 - 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证；系统安全更新和重启恢复通过。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
 - 实时可信链路已部署到正式服务器：部署前数据库备份成功，容器重建后健康；生产验收脚本已通过健康、角色隔离、受保护数据、网关鉴权、登录态 `/sensor-live` 页面和 SSE `ready` 事件检查。软件格式双路并发验收约 0.37-0.41 秒入库、约 1.17 秒到网页；该结果不能替代用户手机网络下的连续实物验收。
-- Android v0.4.1 候选包包含双路连接后自动上传、`startRequested` 预检竞态保护、受保护患者预检、Keystore Token、旧队列迁移与隔离、重连恢复和活动患者保护。可安装 APK 必须取自本轮 GitHub Android Gateway 构建产物，最终文件 SHA256 在 CI 完成后回填；此前日志中的 `48A3F349...D1402E4E` 文件不在本机或 GitHub，不再作为交付依据。生产 `sensor_samples` 表在本轮部署前仍为 0 条。
+- Android v0.4.1 正式签名包来自合并提交 `f1ec633` 的 GitHub Actions 运行 `29676758183`，产物名 `android-gateway-release-f1ec6334b9fa78662c4dd204af54a567e714ebfa`，安装文件 `TKA-Gateway-v0.4.1.apk`，大小 1,548,166 字节，SHA256 `8484EF4EA43FECD01263FC14AD62AB5316E4269348F7EC4734A968E609C72788`；v2/v3 与独立 v4 验证均通过。该包包含双路连接后自动上传、`startRequested` 预检竞态保护、受保护患者预检、Keystore Token、旧队列迁移与隔离、重连恢复和活动患者保护。此前日志中的 `48A3F349...D1402E4E` 文件不在本机或 GitHub，不再作为交付依据。部署后生产 `sensor_samples` 表仍为 0 条，因此真实双传感器连续回传仍待用户手机验收。
 - 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
 - 邮箱注册已在生产启用并由用户确认合格：`updates.dorianaistudio.cloud` 的 Resend DKIM/SPF 已验证，API Key、发件地址和随机照护邀请码仅保存在服务器/本机私密环境；家属验证码注册、自动登录与再次登录链路可用。
 - 仓库结构缺口：外层仓库将 `tka-rehab-platform` 记为 gitlink，且缺少 `.gitmodules`，交付时需固定到应用仓库提交。
@@ -123,7 +123,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
-| 2026-07-19 | 接管未完成的 `fix/realtime-sensor-web-polish`，修复 Web 患者切换串帧/分析串用、Android 活动配置污染与重连恢复，并将网关提升为 v0.4.1 | 本地 Web、Android 与移动端浏览器门禁已通过；患者切换后立即清空旧帧并加载对应分析，移动端无横向溢出，Three.js 场景正常；尚待 GitHub CI、生产部署与双实物验收 | 提交 PR 并等待同一提交 CI 产物，记录 APK 哈希后部署生产；用户安装该 APK 完成双 BT50 连续 10 分钟实测 | `npm test` 39/39、lint、Next 41 路由 build、Android JVM/lint/Debug build 全通过；390x844 浏览器患者切换、3D 场景与控制台复核通过 |
+| 2026-07-19 | 接管并完成 `fix/realtime-sensor-web-polish`：修复 Web 患者切换串帧/分析串用、Android 活动配置污染与重连恢复，发布 v0.4.1；PR #26 合并后备份并部署生产，生成同提交长期签名 APK | 软件闭环、GitHub CI、生产部署和可追溯 APK 均完成；生产健康、角色隔离、网关鉴权、实时页和 SSE 通过，数据库仍为 0 条实物样本 | 在 Android 手机安装 SHA256 `8484EF4E...C72788` 的 APK，连接两只 BT50 连续运行 10 分钟，核对 App/Web 同帧 ID、2 秒达标率、断网补传与重连 | 本地 39/39、lint、41 路由 build、Android JVM/lint/Debug build 和 390x844 浏览器通过；PR #26 Build 1m3s、Android verify 2m17s；Actions `29676758183` 正式签名成功；备份 `tka-rehab-20260719T063932Z.dump`；`verify-production.mjs`、外网 ready 200、无效/有效网关 Token 401/200 |
 | 2026-07-18 | 收口实时链路：`startRequested` 竞态、硬件演示页到货文案清除、Chrome 桌面/移动验收截图；重建含网关修复的 Debug APK | 本地代码、测试和浏览器布局曾验收；生产部署与双 BT50 实物 e2e 未做；记录的 APK 文件后续核查时已不存在 | 由后续 Agent 重跑门禁、重新生成可追溯 APK 后再部署和实测 | Web lint + 39 测试与 Android verify-debug 曾报告成功；原记录 APK 哈希无法从本机或 GitHub 复核，已撤销交付资格 |
 | 2026-07-18 | 修复 BLE 连接仅预览、不启动上传的状态机；增加 Token+患者受保护预检、Keystore Token、旧队列稳定 ID/坏样本隔离；Web 增加患者选择、真实帧龄状态、正式域名指引并升级实时数据页视觉 | 代码与本地软件链路已完成；需部署 Web/API 并安装新 APK 后进行两只实物连续验收 | 部署本分支，安装指定 SHA256 APK，连接双实物验证自动上传、1–2 秒更新、断网补传和重连 | Web 39 项测试通过、Lint、41 路由 Build；Android ASCII 路径 `:app:testDebugUnitTest :app:lintDebug :app:assembleDebug` 成功 |
 | 2026-07-18 | 核对 GitHub 合并状态、正式健康检查和本地 APK 交付物，并记录 APK 哈希与生产样本边界 | `main` 已包含 PR #23/#24；生产 ready，实时页/SSE 自动验收通过；生产库当前 0 条实物样本，因此真实双传感器回传仍明确标记为待验收 | 将指定哈希的最新版 APK 安装到 Android 手机，连接两只 BT50 后连续上传 10 分钟并核对网页同帧凭证 | `git status` clean；PR #23/#24 merged；`/api/health/ready` 200；生产 SQL `sensor_samples` = 0；APK SHA256 已核对 |
