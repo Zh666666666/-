@@ -10,12 +10,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { subscribeToSharedTables, removeRealtimeChannel } from "@/lib/realtime";
-import { createDemoRecord, formatTime, type AiAnalysisItem, type AlertItem, type DashboardData, type KneeDataPoint, type NursingRecordItem, type PatientSummary } from "@/lib/rehab";
+import { createDemoRecord, formatTime, type AiAnalysisItem, type AlertItem, type DashboardData, type KneeDataPoint, type NursingRecordItem, type PatientSummary, type SensorSampleItem } from "@/lib/rehab";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type UploadState = "idle" | "syncing" | "synced" | "error";
 type FamilyWorkspace = "today" | "data" | "nurse" | "care";
+type SensorLiveSummary = {
+  latest: SensorSampleItem | null;
+  latestByPlacement: Partial<Record<"THIGH" | "SHANK", SensorSampleItem | null>>;
+  sampleCount: number;
+  dualActive: boolean;
+};
 const isClientDemoMode = process.env.NEXT_PUBLIC_APP_MODE === "demo";
 
 async function fetchDashboard() {
@@ -90,6 +96,8 @@ export default function FamilyPage() {
   const [aiAnalyses, setAiAnalyses] = useState<AiAnalysisItem[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [nursingRecords, setNursingRecords] = useState<NursingRecordItem[]>([]);
+  const [sensorLive, setSensorLive] = useState<SensorLiveSummary | null>(null);
+  const [sensorNow, setSensorNow] = useState(() => Date.now());
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [dailyCheckIn, setDailyCheckIn] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<FamilyWorkspace>("today");
@@ -159,6 +167,32 @@ export default function FamilyPage() {
   }, [patient]);
 
   useEffect(() => {
+    if (!patient) return;
+
+    const patientId = patient.id;
+    let eventSource: EventSource | null = null;
+
+    async function refreshSensorLive() {
+      const response = await fetch(`/api/sensor-samples?patientId=${encodeURIComponent(patientId)}&limit=20`, { cache: "no-store" });
+      if (!response.ok) return;
+      setSensorLive((await response.json()) as SensorLiveSummary);
+      setSensorNow(Date.now());
+    }
+
+    void refreshSensorLive();
+    eventSource = new EventSource(`/api/sensor-samples/stream?patientId=${encodeURIComponent(patientId)}`);
+    eventSource.addEventListener("sample", () => void refreshSensorLive());
+    const pollTimer = window.setInterval(() => void refreshSensorLive(), 1000);
+    const clockTimer = window.setInterval(() => setSensorNow(Date.now()), 500);
+
+    return () => {
+      window.clearInterval(pollTimer);
+      window.clearInterval(clockTimer);
+      eventSource?.close();
+    };
+  }, [patient]);
+
+  useEffect(() => {
     if (!patient || !isClientDemoMode) {
       return;
     }
@@ -206,8 +240,19 @@ export default function FamilyPage() {
     };
   }, [patient]);
 
-  const stateLabel = uploadState === "syncing" ? "正在同步" : uploadState === "error" ? "等待重试" : "自动同步中";
-  const flexion = latestRecord?.flexionAngle ?? recentRecords[0]?.flexionAngle ?? 0;
+  const latestHardwareSample = sensorLive?.latest ?? null;
+  const hardwareFrameAge = latestHardwareSample ? Math.max(0, sensorNow - new Date(latestHardwareSample.recordedAt).getTime()) : null;
+  const hardwareOnline = latestHardwareSample?.source === "HARDWARE" && hardwareFrameAge !== null && hardwareFrameAge <= 2_500;
+  const stateLabel = hardwareOnline
+    ? `实时同步 ${(hardwareFrameAge! / 1000).toFixed(1)}s`
+    : latestHardwareSample?.source === "HARDWARE"
+      ? "硬件数据已延迟"
+      : uploadState === "syncing"
+        ? "演示同步中"
+        : uploadState === "error"
+          ? "等待重试"
+          : "等待 App 实时上传";
+  const flexion = latestHardwareSample?.flexionAngle ?? latestRecord?.flexionAngle ?? recentRecords[0]?.flexionAngle ?? 0;
   const frequency = latestRecord?.activityFrequency ?? recentRecords[0]?.activityFrequency ?? 0;
   const extension = latestRecord?.extensionAngle ?? recentRecords[0]?.extensionAngle ?? 0;
   const duration = latestRecord?.activityDuration ?? recentRecords[0]?.activityDuration ?? 0;
@@ -234,7 +279,7 @@ export default function FamilyPage() {
           <div className="relative grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-end">
             <div>
               <Badge className="border border-[#78c9d3]/40 bg-[#0b7f8f]/20 px-3 py-1 text-[#d8f3f5] shadow-none">
-                家庭照护台 · 智能护膝在线
+                家庭照护台 · {hardwareOnline ? "双传感器实时在线" : "等待真实硬件数据"}
               </Badge>
               <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-tight text-white md:mt-5 md:text-5xl">
                 今日康复照护，一眼看清。
@@ -256,7 +301,7 @@ export default function FamilyPage() {
               <div className="flex items-center justify-between text-sm text-[#c9dfd2]">
                 <span>{patient ? `${patient.name} · ${patient.age} 岁` : "正在读取家人信息"}</span>
                 <span className="flex items-center gap-2 rounded-full bg-emerald-300/15 px-3 py-1 text-emerald-100">
-                  <span className="sync-dot size-2 rounded-full bg-emerald-300" />
+                  <span className={`sync-dot size-2 rounded-full ${hardwareOnline ? "bg-emerald-300" : "bg-amber-300"}`} />
                   {stateLabel}
                 </span>
               </div>
@@ -317,7 +362,7 @@ export default function FamilyPage() {
                       <Radio className="size-5 text-[#f2c36b]" />
                     </div>
                     <div className="mt-5 flex items-center gap-3 md:mt-8 md:gap-4">
-                      <span className="sync-dot size-5 rounded-full bg-emerald-300 shadow-lg shadow-emerald-300/50" />
+                      <span className={`sync-dot size-5 rounded-full shadow-lg ${hardwareOnline ? "bg-emerald-300 shadow-emerald-300/50" : "bg-amber-300 shadow-amber-300/40"}`} />
                       <p className="text-2xl font-black tracking-tight md:text-3xl">{stateLabel}</p>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-[#c9dfd2] md:mt-4 md:text-base md:leading-7">{patient ? `${patient.name}，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
@@ -414,7 +459,7 @@ export default function FamilyPage() {
                       <Radio className="size-5 text-[#f2c36b]" />
                     </div>
                     <div className="mt-5 flex items-center gap-3 md:mt-8 md:gap-4">
-                      <span className="sync-dot size-5 rounded-full bg-emerald-300 shadow-lg shadow-emerald-300/50" />
+                      <span className={`sync-dot size-5 rounded-full shadow-lg ${hardwareOnline ? "bg-emerald-300 shadow-emerald-300/50" : "bg-amber-300 shadow-amber-300/40"}`} />
                       <p className="text-2xl font-black tracking-tight md:text-3xl">{stateLabel}</p>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-[#c9dfd2] md:mt-4 md:text-base md:leading-7">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
@@ -442,9 +487,18 @@ export default function FamilyPage() {
             </Card>
 
             <Card className={panelClass}>
-              <CardHeader>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Upload Log</p>
-                <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em]">最近自动上传</CardTitle>
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Upload Log</p>
+                  <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em]">最近自动上传</CardTitle>
+                </div>
+                {patient ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/sensor-live?patientId=${encodeURIComponent(patient.id)}`}>
+                      <Radio className="size-4" />实时原始帧
+                    </Link>
+                  </Button>
+                ) : null}
               </CardHeader>
               <CardContent className="space-y-3">
                 {recentRecords.length === 0 ? (

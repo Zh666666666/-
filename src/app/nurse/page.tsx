@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -681,7 +680,7 @@ export default function NursePage() {
               <div className="flex flex-wrap items-center gap-3">
                 <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-[#f8deb0] shadow-none">
                   <span className={cn("sync-dot size-2 rounded-full", syncState === "realtime" ? "bg-emerald-300" : "bg-amber-300")} />
-                  {syncState === "realtime" ? "实时数据在线" : syncState === "polling" ? "演示数据更新中" : "正在连接数据"}
+                  {syncState === "realtime" ? "实时数据在线" : syncState === "polling" ? "定时同步在线" : "正在连接数据"}
                 </Badge>
                 <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-white shadow-none">TKA 康复护士工作台</Badge>
               </div>
@@ -887,11 +886,20 @@ export default function NursePage() {
                   </CardTitle>
                   <p className="mt-2 text-sm text-slate-500">屈曲角度、活动频次与训练时长自动随护膝数据更新，护士结合疼痛、睡眠和家属反馈判断护理重点。</p>
                 </div>
-                {selectedLatest ? (
-                  <Badge variant={selectedLatest.flexionAngle < 78 || selectedLatest.painScore >= 7 ? "destructive" : "success"} className="px-3 py-1 text-sm">
-                    最新 {formatTime(selectedLatest.recordedAt)}
-                  </Badge>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedPatient ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/sensor-live?patientId=${encodeURIComponent(selectedPatient.id)}`}>
+                        <Radio className="size-4" />查看实时原始帧
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {selectedLatest ? (
+                    <Badge variant={selectedLatest.flexionAngle < 78 || selectedLatest.painScore >= 7 ? "destructive" : "success"} className="px-3 py-1 text-sm">
+                      最新 {formatTime(selectedLatest.recordedAt)}
+                    </Badge>
+                  ) : null}
+                </div>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-4">
@@ -909,10 +917,7 @@ export default function NursePage() {
                         <XAxis dataKey="time" tick={{ fontSize: 12 }} stroke="#64748b" />
                         <YAxis stroke="#64748b" />
                         <Tooltip contentStyle={{ borderRadius: 18, border: "1px solid #dbe4ea" }} />
-                        <Legend />
-                        <Line type="monotone" dataKey="flexionAngle" name="屈曲角度" stroke="#0f766e" strokeWidth={3} dot={false} />
-                        <Line type="monotone" dataKey="activityFrequency" name="活动频次" stroke="#2563eb" strokeWidth={3} dot={false} />
-                        <Line type="monotone" dataKey="activityDuration" name="训练时长" stroke="#f97316" strokeWidth={3} dot={false} />
+                        <Line type="monotone" dataKey="flexionAngle" name="屈曲角度" stroke="#2A78D6" strokeWidth={3} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : null}

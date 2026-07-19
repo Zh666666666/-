@@ -10,6 +10,7 @@ const protectedPrefixes = ["/family", "/nurse"];
 const localProtectedPrefixes = [...protectedPrefixes, "/appointments", "/sensor-live", "/evidence", "/hardware-demo"];
 const publicApiPrefixes = ["/api/auth", "/api/health"];
 const gatewayApiPrefixes = [
+  "/api/gateway",
   "/api/devices",
   "/api/device-bindings",
   "/api/device-calibrations",

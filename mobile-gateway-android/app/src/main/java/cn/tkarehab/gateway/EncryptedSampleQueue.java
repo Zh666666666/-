@@ -83,6 +83,17 @@ final class EncryptedSampleQueue {
         }
     }
 
+    synchronized void quarantineOne(String reason) {
+        File[] files = files();
+        if (files.length == 0) return;
+        File head = files[0];
+        String safeReason = reason.replaceAll("[^a-zA-Z0-9-]", "-");
+        File quarantined = new File(directory, head.getName().replace(".payload", ".rejected-" + safeReason));
+        if (!head.renameTo(quarantined)) {
+            throw new IllegalStateException("Could not isolate a permanently rejected queued sample.");
+        }
+    }
+
     synchronized int size() {
         return files().length;
     }

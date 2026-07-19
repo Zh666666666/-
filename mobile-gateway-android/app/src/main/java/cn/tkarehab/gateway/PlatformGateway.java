@@ -8,10 +8,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +41,7 @@ final class PlatformGateway {
     private String baseUrl;
     private String patientId;
     private String bearerToken;
+    private volatile boolean startRequested;
     private volatile boolean active;
 
     PlatformGateway(EncryptedSampleQueue queue, Listener listener) {
@@ -59,35 +62,38 @@ final class PlatformGateway {
         sessionIds.remove(patientId);
         latestPitch.clear();
         lastQueuedAtMs.clear();
-        this.active = true;
-        listener.onStatus("采集会话已就绪；加密队列中有 " + queue.size() + " 条待上传数据。正在探测平台连通性…");
-        worker.execute(this::probeAndFlush);
+        this.startRequested = true;
+        this.active = false;
+        listener.onStatus("正在验证网关 Token 与患者 ID；通过后自动上传 " + queue.size() + " 条离线数据…");
+        worker.execute(this::preflightAndActivate);
     }
 
-    void testConnection(String baseUrl, String bearerToken) {
-        this.baseUrl = stripTrailingSlash(baseUrl);
-        this.bearerToken = bearerToken;
+    void testConnection(String baseUrl, String patientId, String bearerToken) {
+        String targetBaseUrl = stripTrailingSlash(baseUrl);
         worker.execute(() -> {
             try {
-                JSONObject ready = getJson("/api/health/ready");
+                JSONObject ready = getJson(targetBaseUrl, bearerToken, gatewayReadyPath(patientId));
+                JSONObject patient = ready.getJSONObject("patient");
                 listener.onStatus(
-                        "平台连通正常：" + ready.optString("status", "ready")
-                                + " / mode=" + ready.optString("mode", "unknown")
-                                + " / storage=" + ready.optString("storage", "unknown")
+                        "平台、Token 与患者均已验证："
+                                + patient.optString("name", "康复患者")
+                                + " / " + patient.getString("id")
                 );
             } catch (Exception error) {
-                listener.onStatus("平台连通失败：" + summarize(error)
-                        + "。请确认手机与电脑同一 Wi-Fi，浏览器能打开 " + this.baseUrl + "/api/health/ready");
+                listener.onStatus("平台预检失败：" + summarize(error)
+                        + "。请核对正式域名、患者 ID 与 Bearer Token；健康页能打开不代表上传鉴权通过。");
             }
         });
     }
 
     void stop() {
+        startRequested = false;
         active = false;
         worker.execute(latestPitch::clear);
     }
 
     void close() {
+        startRequested = false;
         active = false;
         worker.shutdownNow();
     }
@@ -155,22 +161,41 @@ final class PlatformGateway {
         }
     }
 
+    private void preflightAndActivate() {
+        if (!startRequested) return;
+        try {
+            JSONObject ready = getJson(gatewayReadyPath(patientId));
+            if (!startRequested) return;
+            JSONObject patient = ready.getJSONObject("patient");
+            active = true;
+            listener.onStatus(
+                    "上传已启动：" + patient.optString("name", "康复患者")
+                            + " / " + patient.getString("id")
+                            + "；待上传 " + queue.size() + " 条。"
+            );
+            flushOnWorker();
+        } catch (Exception error) {
+            active = false;
+            if (!startRequested) return;
+            listener.onStatus(
+                    "未启动网页上传：" + summarize(error)
+                            + "。本地证据仍在保存；请核对患者 ID 与 Bearer Token 后重新开始。"
+            );
+        }
+    }
+
     private void probeAndFlush() {
         if (!active) {
             return;
         }
         try {
-            JSONObject ready = getJson("/api/health/ready");
-            listener.onStatus(
-                    "平台已连通（" + ready.optString("mode", "unknown") + "），开始上传队列 "
-                            + queue.size() + " 条…"
-            );
+            getJson(gatewayReadyPath(patientId));
             flushOnWorker();
         } catch (Exception error) {
             listener.onStatus(
                     "上传暂缓；" + queue.size() + " 条仍在加密队列。"
                             + " 原因：" + summarize(error)
-                            + "。请用手机浏览器打开 " + baseUrl + "/api/health/ready"
+                            + "。请核对患者 ID、Bearer Token 与网络。"
             );
         }
     }
@@ -179,28 +204,42 @@ final class PlatformGateway {
         if (!active) {
             return;
         }
+        int uploaded = 0;
+        int isolated = 0;
         try {
-            int uploaded = 0;
             JSONObject sample;
             // Cap each flush burst so the UI can keep rendering BLE frames.
-            while (uploaded < 40 && (sample = queue.peek()) != null) {
-                String deviceId = ensureDevice(sample);
-                String samplePatientId = sample.getString("patientId");
-                String activeSessionId = ensureSession(samplePatientId);
-                sample.put("deviceId", deviceId);
-                sample.put("sessionId", activeSessionId);
-                // Avoid shipping local-only queue fields to the platform schema.
-                sample.remove("gatewayDeviceId");
-                JSONObject response = postJson("/api/sensor-samples", sample);
-                UploadReceipt receipt = UploadReceipt.verify(sample, response);
-                queue.acknowledgeOne();
-                listener.onUploadReceipt(receipt);
-                uploaded += 1;
+            while (uploaded + isolated < 40 && (sample = queue.peek()) != null) {
+                try {
+                    normalizeLegacyIdentity(sample);
+                    String deviceId = ensureDevice(sample);
+                    String samplePatientId = sample.getString("patientId");
+                    String activeSessionId = ensureSession(samplePatientId);
+                    sample.put("deviceId", deviceId);
+                    sample.put("sessionId", activeSessionId);
+                    // Avoid shipping local-only queue fields to the platform schema.
+                    sample.remove("gatewayDeviceId");
+                    JSONObject response = postJson("/api/sensor-samples", sample);
+                    UploadReceipt receipt = UploadReceipt.verify(sample, response);
+                    queue.acknowledgeOne();
+                    listener.onUploadReceipt(receipt);
+                    uploaded += 1;
+                } catch (HttpStatusException error) {
+                    if (!isPermanentSampleFailure(error.status)) {
+                        throw error;
+                    }
+                    queue.quarantineOne("http-" + error.status);
+                    isolated += 1;
+                    listener.onStatus(
+                            "已隔离 1 条无法恢复的旧队列数据（HTTP " + error.status
+                                    + "），后续实时帧继续上传。"
+                    );
+                }
             }
-            if (uploaded > 0) {
-                int remaining = queue.size();
+            int remaining = queue.size();
+            if (uploaded > 0 || isolated > 0) {
                 listener.onStatus(
-                        "已上传 " + uploaded + " 条真实网关采样"
+                        "本轮已上传 " + uploaded + " 条、隔离 " + isolated + " 条"
                                 + (remaining > 0 ? "；队列还剩 " + remaining + " 条。" : "；队列已清空。")
                 );
                 if (remaining > 0) {
@@ -213,6 +252,32 @@ final class PlatformGateway {
                             + " 原因：" + summarize(error)
             );
         }
+    }
+
+    static void normalizeLegacyIdentity(JSONObject sample) throws Exception {
+        boolean migrated = false;
+        if (!sample.has("gatewaySampleId") || sample.optString("gatewaySampleId").isEmpty()) {
+            String stableId = UUID.nameUUIDFromBytes(sample.toString().getBytes(StandardCharsets.UTF_8)).toString();
+            sample.put("gatewaySampleId", stableId);
+            migrated = true;
+        }
+        if (!sample.has("captureSequence")) {
+            sample.put("captureSequence", 0L);
+            migrated = true;
+        }
+        if (!migrated) return;
+
+        JSONObject raw = sample.optJSONObject("raw");
+        if (raw == null) {
+            raw = new JSONObject();
+            sample.put("raw", raw);
+        }
+        raw.put("captureSequence", sample.getLong("captureSequence"));
+        raw.put("legacyQueueMigrated", true);
+    }
+
+    private static boolean isPermanentSampleFailure(int status) {
+        return status == 400 || status == 409 || status == 422;
     }
 
     private void retryQueuedSamples() {
@@ -285,7 +350,11 @@ final class PlatformGateway {
     }
 
     private JSONObject getJson(String path) throws Exception {
-        HttpURLConnection connection = open(path);
+        return getJson(baseUrl, bearerToken, path);
+    }
+
+    private JSONObject getJson(String targetBaseUrl, String targetBearerToken, String path) throws Exception {
+        HttpURLConnection connection = open(targetBaseUrl, targetBearerToken, path);
         try {
             connection.setRequestMethod("GET");
             return readJsonResponse(connection, "GET " + path);
@@ -295,16 +364,20 @@ final class PlatformGateway {
     }
 
     private HttpURLConnection open(String path) throws Exception {
-        if (baseUrl == null || baseUrl.isEmpty()) {
+        return open(baseUrl, bearerToken, path);
+    }
+
+    private HttpURLConnection open(String targetBaseUrl, String targetBearerToken, String path) throws Exception {
+        if (targetBaseUrl == null || targetBaseUrl.isEmpty()) {
             throw new IllegalStateException("平台地址为空");
         }
-        HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL(targetBaseUrl + path).openConnection();
         connection.setConnectTimeout(8_000);
         connection.setReadTimeout(12_000);
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "application/json");
-        if (bearerToken != null && !bearerToken.isEmpty()) {
-            connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
+        if (targetBearerToken != null && !targetBearerToken.isEmpty()) {
+            connection.setRequestProperty("Authorization", "Bearer " + targetBearerToken);
         }
         return connection;
     }
@@ -321,7 +394,7 @@ final class PlatformGateway {
                 : connection.getErrorStream();
         String response = readFully(stream);
         if (status < 200 || status >= 300) {
-            throw new IllegalStateException(label + " failed (" + status + "): " + response);
+            throw new HttpStatusException(status, label + " failed (" + status + "): " + response);
         }
         if (response == null || response.trim().isEmpty()) {
             return new JSONObject();
@@ -343,8 +416,21 @@ final class PlatformGateway {
         return result.toString();
     }
 
+    private static String gatewayReadyPath(String patientId) throws Exception {
+        return "/api/gateway/ready?patientId=" + URLEncoder.encode(patientId, StandardCharsets.UTF_8.name());
+    }
+
     private static String stripTrailingSlash(String value) {
         return value.replaceAll("/+$", "");
+    }
+
+    private static final class HttpStatusException extends IllegalStateException {
+        final int status;
+
+        HttpStatusException(int status, String message) {
+            super(message);
+            this.status = status;
+        }
     }
 
     private static final class TimedPitch {

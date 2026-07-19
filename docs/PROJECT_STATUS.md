@@ -59,6 +59,9 @@
 - 用户已确认 Android App 可同时连接两只传感器，并能在 App 与网站看到实时数据；在此基础上已完成同帧可信链路：大腿/小腿分别以 2Hz 独立入队，每帧携带稳定 `gatewaySampleId` 与设备内 `captureSequence`，服务器回传接收时间和 9 个原始运动数值，App 逐项校验一致后才删除离线队列；同一 ID 若携带不同数值会返回冲突。
 - Web `/sensor-live` 已升级为事件流触发、1 秒轮询兜底的实时看板，明确展示 App 样本 ID、序号、手机采集时间、服务器接收时间、采集到网页的端到端延迟和完整性状态；两只传感器都来自 `HARDWARE`、回执为 `MATCHED` 且当前帧不超过 2 秒时才显示“实时达标”，超时会显式降级。
 - Web 已加入 Three.js 双传感器实时 3D 姿态，模型与数值卡均读取同一回执样本的 Roll/Pitch/Yaw、Acc 和 Gyro；风险区域改为“基础输入→质量门→风险加分→结果与人工动作”的可追踪链路。Android 默认界面改为三步普通用户流程，专业 Acc/Gyro/Angle 曲线和管理员平台配置默认收起，保留按需展开能力。
+- 已修复真机“App 有实时帧但 Web 无上传”的状态机断点：大腿/小腿实际连接成功后自动启动本地证据与网页上传；平台预检同时验证 Bearer Token 和患者 ID，不再以公开健康接口产生成功假象；Token 由 Android Keystore 加密保存。旧队列缺失样本 ID 时生成确定性稳定 ID，不可恢复的 400/409/422 样本会隔离而不阻塞后续实时帧，鉴权和网络错误仍保留原数据重试。
+- Web 实时页支持显式患者选择和 `?patientId=` 固定监测对象，家属设备页、家属仪表盘和护士工作台均链接到同一患者的实时原始帧；数据状态按真实 HARDWARE 帧龄显示，不再无条件宣称在线。设备页已改为正式域名与现有双实物流程，并移除“等待到货”和模拟硬件主入口。
+- 已补齐患者隔离收尾：Web 切换患者会取消旧样本请求、立即清空旧帧并切换对应分析，旧请求即使稍后返回也不能覆盖当前患者；Android 的“测试平台连接”不再改写活动上传配置，双路重连或补填 Token 后可重新预检并恢复当前任务上传。
 
 ### Agent 与云端开发
 
@@ -84,7 +87,7 @@
 - 验证状态：37 项运行时/网关/API 测试、`lint`、生产 `build` 与 Android Debug 构建通过；PR #23 的 Linux GitHub Build 和 Android verify 全部通过，涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验。浏览器使用真实双传感器格式并发帧完成 2 秒链路验收。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；用户已确认项目 Android 网关可同时连接两只实物，并在 App 与网站看到实时数据。已知其中一只广播名为 `WT901BLE67`、地址为 `D7:0F:8A:DA:BE:DB`；地址与广播名仍不能当作已验证的厂商序列号。
-- Android 网关：v0.4.0（`versionCode=4`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。本地证据任务不要求平台配置；Debug 仍允许可选的局域网 HTTP 上传，Release 继续禁止明文 HTTP。
+- Android 网关：v0.4.1（`versionCode=5`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。本地证据任务不要求平台配置；Debug 仍允许可选的局域网 HTTP 上传，Release 继续禁止明文 HTTP。
 - Android v0.3 保留升级前的加密离线队列并继续补传；不得因无法区分测试/真实数据而自动删除旧样本。新采集样本使用稳定幂等 ID。
 - 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
 - 网站实时看板：`/sensor-live` 使用同进程 SSE 样本事件立即触发刷新，并以 1 秒轮询兜底；当前单实例生产形态可工作，多实例扩容前需把事件总线迁移到 Redis/Postgres/Supabase。页面展示双传感器 Three.js 3D、Acc/Gyro/Angle、同帧 ID/序号、服务端回执与端到端延迟。
@@ -94,7 +97,7 @@
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
 - 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证；系统安全更新和重启恢复通过。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
 - 实时可信链路已部署到正式服务器：部署前数据库备份成功，容器重建后健康；生产验收脚本已通过健康、角色隔离、受保护数据、网关鉴权、登录态 `/sensor-live` 页面和 SSE `ready` 事件检查。软件格式双路并发验收约 0.37-0.41 秒入库、约 1.17 秒到网页；该结果不能替代用户手机网络下的连续实物验收。
-- 当前可安装的 Android Debug APK 为 `mobile-gateway-android/app/build/outputs/apk/debug/app-debug.apk`，大小 6,330,513 字节，SHA256 为 `4E74AC16C1F8207DF5BBBF534977F7182C81AFD71C573982D287B88F19400891`。2026-07-18 最终核验时生产 `sensor_samples` 表为 0 条，说明最新版 App 尚未向正式服务器提交实物帧；在双实物 10 分钟验收完成前，不得把软件格式帧或历史 Demo 显示描述为真实回传已达标。
+- Android v0.4.1 候选包包含双路连接后自动上传、`startRequested` 预检竞态保护、受保护患者预检、Keystore Token、旧队列迁移与隔离、重连恢复和活动患者保护。可安装 APK 必须取自本轮 GitHub Android Gateway 构建产物，最终文件 SHA256 在 CI 完成后回填；此前日志中的 `48A3F349...D1402E4E` 文件不在本机或 GitHub，不再作为交付依据。生产 `sensor_samples` 表在本轮部署前仍为 0 条。
 - 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
 - 邮箱注册已在生产启用并由用户确认合格：`updates.dorianaistudio.cloud` 的 Resend DKIM/SPF 已验证，API Key、发件地址和随机照护邀请码仅保存在服务器/本机私密环境；家属验证码注册、自动登录与再次登录链路可用。
 - 仓库结构缺口：外层仓库将 `tka-rehab-platform` 记为 gitlink，且缺少 `.gitmodules`，交付时需固定到应用仓库提交。
@@ -104,8 +107,8 @@
 
 按优先级从上到下执行：
 
-1. **P0 - 安装最新版 Android APK 并完成双实物验收**
-   - 代码、CI 与生产部署已完成；安装本轮 Android APK，使用两只实物连续训练至少 10 分钟，逐只核对 App 与 Web 的样本序号、ID 尾号和 Acc/Gyro/Angle，统计 2 秒达标率、断网补传和重连恢复情况。
+1. **P0 - 发布 v0.4.1 并完成双实物验收**
+   - 通过 PR、Web 与 Android CI 后部署 `/api/gateway/ready`、患者选择和实时页面；下载并核对同一提交的 Android Gateway APK 产物。填写正式域名、同一患者 ID 与 Token 后连接两只实物，确认 App 自动显示“上传已启动”。连续训练至少 10 分钟，逐只核对 App 与 Web 的样本序号、ID 尾号和 Acc/Gyro/Angle，统计 2 秒达标率、断网补传和重连恢复情况。
    - 若手机与服务器时钟偏差超过 1 秒，先启用系统自动时间；不得用隐藏负延迟或放宽阈值的方式伪造达标。
 2. **P0 - 双传感器 ROM 对照验收**
    - 固定大腿/小腿安装轴向，完成双设备归零；用量角器在 0°、30°、60°、90°、110° 各重复 5 次，记录偏差并调整安装/标定，不直接用风险公式掩盖姿态误差。
@@ -120,6 +123,9 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-19 | 接管未完成的 `fix/realtime-sensor-web-polish`，修复 Web 患者切换串帧/分析串用、Android 活动配置污染与重连恢复，并将网关提升为 v0.4.1 | 本地 Web、Android 与移动端浏览器门禁已通过；患者切换后立即清空旧帧并加载对应分析，移动端无横向溢出，Three.js 场景正常；尚待 GitHub CI、生产部署与双实物验收 | 提交 PR 并等待同一提交 CI 产物，记录 APK 哈希后部署生产；用户安装该 APK 完成双 BT50 连续 10 分钟实测 | `npm test` 39/39、lint、Next 41 路由 build、Android JVM/lint/Debug build 全通过；390x844 浏览器患者切换、3D 场景与控制台复核通过 |
+| 2026-07-18 | 收口实时链路：`startRequested` 竞态、硬件演示页到货文案清除、Chrome 桌面/移动验收截图；重建含网关修复的 Debug APK | 本地代码、测试和浏览器布局曾验收；生产部署与双 BT50 实物 e2e 未做；记录的 APK 文件后续核查时已不存在 | 由后续 Agent 重跑门禁、重新生成可追溯 APK 后再部署和实测 | Web lint + 39 测试与 Android verify-debug 曾报告成功；原记录 APK 哈希无法从本机或 GitHub 复核，已撤销交付资格 |
+| 2026-07-18 | 修复 BLE 连接仅预览、不启动上传的状态机；增加 Token+患者受保护预检、Keystore Token、旧队列稳定 ID/坏样本隔离；Web 增加患者选择、真实帧龄状态、正式域名指引并升级实时数据页视觉 | 代码与本地软件链路已完成；需部署 Web/API 并安装新 APK 后进行两只实物连续验收 | 部署本分支，安装指定 SHA256 APK，连接双实物验证自动上传、1–2 秒更新、断网补传和重连 | Web 39 项测试通过、Lint、41 路由 Build；Android ASCII 路径 `:app:testDebugUnitTest :app:lintDebug :app:assembleDebug` 成功 |
 | 2026-07-18 | 核对 GitHub 合并状态、正式健康检查和本地 APK 交付物，并记录 APK 哈希与生产样本边界 | `main` 已包含 PR #23/#24；生产 ready，实时页/SSE 自动验收通过；生产库当前 0 条实物样本，因此真实双传感器回传仍明确标记为待验收 | 将指定哈希的最新版 APK 安装到 Android 手机，连接两只 BT50 后连续上传 10 分钟并核对网页同帧凭证 | `git status` clean；PR #23/#24 merged；`/api/health/ready` 200；生产 SQL `sensor_samples` = 0；APK SHA256 已核对 |
 | 2026-07-18 | 合并并部署实时可信链路；生产重建前完成数据库备份，并把登录态实时页与 SSE `ready` 事件加入生产验收脚本 | PR #23 的 Build/Android verify 全绿；生产健康、角色隔离、网关鉴权和实时入口通过，软件双路链路约 1.17 秒；两只实物连续运行仍需用户手机验收 | 安装最新版 APK，完成双实物 10 分钟、断网补传、重连恢复和量角器验收 | GitHub Actions Build 1m7s、Android verify 3m2s；`verify-production.mjs` 通过；`/api/health/ready` 200；备份 `tka-rehab-20260718T071005Z.dump` |
 | 2026-07-18 | 修复双传感器共用上传节流，建立样本 ID/序号/9 个原值的服务器回执与 App 严格校验；新增 SSE+1 秒兜底、2 秒实时状态、Three.js 双 3D、风险四步链路和 Android 普通模式 | 软件闭环通过；本地并发帧接收约 0.37–0.41 秒、网页约 1.17 秒并显示双路一致；生产与两只实物连续运行尚待本 PR 合并部署后复验 | 推送 PR、通过 Linux Android CI，随后部署生产并做双实物 10 分钟/量角器验收 | `npm test` 37/37、Lint、Next Build、Android Debug BUILD SUCCESSFUL；Android JVM 测试使用真实 `org.json`；390px 无横向溢出，WebGL 画布 343×330，浏览器同帧双路 2 秒达标 |

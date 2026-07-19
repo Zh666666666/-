@@ -20,6 +20,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKey;
 
 import com.wit.witsdk.Bluetooth.WitBluetoothManager;
 
@@ -58,10 +60,13 @@ public final class MainActivity extends AppCompatActivity {
     private PlatformGateway platformGateway;
     private LocalEvidenceStore evidenceStore;
     private SharedPreferences preferences;
+    private SharedPreferences securePreferences;
     private String bleInitializationFailure;
     private int liveSampleCount;
     private String connectedThighAddress = "";
     private String connectedShankAddress = "";
+    private boolean thighConnected;
+    private boolean shankConnected;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +77,20 @@ public final class MainActivity extends AppCompatActivity {
         // blank the process before the user sees anything. Then clear the
         // incomplete-launch flag so the next cold start does not false-alarm.
         setContentView(createContent());
+        try {
+            MasterKey masterKey = new MasterKey.Builder(this)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build();
+            securePreferences = EncryptedSharedPreferences.create(
+                    this,
+                    "gateway-secure-config",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            );
+        } catch (Exception error) {
+            renderStatus("安全配置存储初始化失败；Bearer Token 本次可用但不会保存" + detail(error));
+        }
         restoreConfiguration();
         TkaApplication.markLaunchSucceeded(this);
 
@@ -214,7 +233,7 @@ public final class MainActivity extends AppCompatActivity {
         hero.addView(title);
 
         TextView description = new TextView(this);
-        description.setText("连接两只传感器后开始训练，手机会同步保存并上传。\n默认只显示必要信息，专业数据可按需展开。");
+        description.setText("连接大腿与小腿传感器后，App 会自动验证平台并开始实时上传。\n每帧先加密保存，再等待服务器一致性回执。");
         description.setTextColor(0xD9FFFFFF);
         description.setTextSize(13);
         description.setPadding(0, dp(6), 0, 0);
@@ -229,14 +248,14 @@ public final class MainActivity extends AppCompatActivity {
         content.addView(linkState);
 
         TextView steps = banner(
-                "使用步骤\n1. 点击扫描设备  2. 分别设为大腿和小腿  3. 平放归零后开始训练",
+                "使用步骤\n1. 在平台设置中绑定正式域名、患者 ID 与 Token  2. 扫描并连接大腿/小腿  3. 双路连接后自动记录并上传",
                 0xFF0F2942,
                 0xFFFFFFFF
         );
         content.addView(steps);
 
         syncState = banner(
-                "网页同步：尚未开始。开始训练后，每个已确认样本会显示编号与延迟。",
+                "网页同步：等待双传感器连接。连接成功后自动验证患者与 Token，并开始上传。",
                 0xFF5D4037,
                 0xFFFFF3E0
         );
@@ -307,7 +326,7 @@ public final class MainActivity extends AppCompatActivity {
 
         LinearLayout sessionActions = new LinearLayout(this);
         sessionActions.setOrientation(LinearLayout.HORIZONTAL);
-        start = actionButton("开始同步训练", 0xFF2E7D32, view -> startSession());
+        start = actionButton("开始记录并上传", 0xFF2E7D32, view -> startSession());
         sessionActions.addView(start, weightedButton());
         stop = actionButton("结束本次训练", 0xFFC62828, view -> stopSession());
         stop.setEnabled(false);
@@ -333,19 +352,19 @@ public final class MainActivity extends AppCompatActivity {
         apiUrl = labeledInput(
                 platformSettings,
                 "平台地址",
-                "生产填 HTTPS；本机联调可填 http://192.168.x.x:3000",
+                "正式平台：https://www.dorianaistudio.cloud",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
         );
         patientId = labeledInput(
                 platformSettings,
-                "对象 ID（本地可选，上传时必填）",
-                "未填写时本地任务使用 local-subject",
+                "患者 ID（必须与 Web 实时页完全一致）",
+                "从 Web 设备页复制，例如 prod-patient-1",
                 InputType.TYPE_CLASS_TEXT
         );
         apiToken = labeledInput(
                 platformSettings,
-                "Bearer Token（生产必填，不保存）",
-                "正式鉴权启用后填写",
+                "Bearer Token（加密保存在本机）",
+                "用于验证并上传真实传感器帧",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
 
@@ -355,7 +374,7 @@ public final class MainActivity extends AppCompatActivity {
 
         content.addView(sectionTitle("运行信息"));
         status = banner(
-                "先扫描并连接 BT50，再点“开始本地采集”。平台配置为空时仍会完整保存、结束和导出证据包。",
+                "先在平台设置完成一次验证，再扫描并连接两只 BT50。双路连接后会自动记录并上传；网络异常时样本留在加密队列。",
                 0xFF0F2942,
                 0xFFFFFFFF
         );
@@ -437,7 +456,7 @@ public final class MainActivity extends AppCompatActivity {
     private void testPlatformConnection() {
         GatewayConfig.Validation validation = GatewayConfig.validate(
                 apiUrl.getText().toString(),
-                patientId.getText().toString().isEmpty() ? "demo-patient-1" : patientId.getText().toString()
+                patientId.getText().toString()
         );
         if (!validation.valid) {
             renderStatus(validation.message);
@@ -447,12 +466,25 @@ public final class MainActivity extends AppCompatActivity {
             renderStatus("加密队列不可用，无法测试上传。");
             return;
         }
-        preferences.edit().putString("apiUrl", validation.baseUrl).apply();
-        renderStatus("正在测试平台连接：" + validation.baseUrl + "/api/health/ready");
-        platformGateway.testConnection(validation.baseUrl, apiToken.getText().toString().trim());
+        persistPlatformConfiguration(validation);
+        String token = apiToken.getText().toString().trim();
+        if (evidenceStore != null && evidenceStore.isActive() && thighConnected && shankConnected) {
+            renderStatus("正在重新验证平台配置并恢复网页上传…");
+            platformGateway.start(validation.baseUrl, validation.patientId, token);
+            return;
+        }
+        renderStatus("正在验证平台、Bearer Token 与患者 ID…");
+        platformGateway.testConnection(
+                validation.baseUrl,
+                validation.patientId,
+                token
+        );
     }
 
     private void startSession() {
+        if (stop.isEnabled()) {
+            return;
+        }
         if (evidenceStore == null) {
             renderStatus("本地证据存储不可用，已阻止采集，避免产生不可追溯数据。");
             return;
@@ -478,10 +510,7 @@ public final class MainActivity extends AppCompatActivity {
         );
         boolean uploadEnabled = validation.valid && platformGateway != null;
         if (uploadEnabled) {
-            preferences.edit()
-                    .putString("apiUrl", validation.baseUrl)
-                    .putString("patientId", validation.patientId)
-                    .apply();
+            persistPlatformConfiguration(validation);
             platformGateway.start(
                     validation.baseUrl,
                     validation.patientId,
@@ -555,8 +584,21 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void restoreConfiguration() {
-        apiUrl.setText(preferences.getString("apiUrl", ""));
+        apiUrl.setText(preferences.getString("apiUrl", "https://www.dorianaistudio.cloud"));
         patientId.setText(preferences.getString("patientId", ""));
+        if (securePreferences != null) {
+            apiToken.setText(securePreferences.getString("apiToken", ""));
+        }
+    }
+
+    private void persistPlatformConfiguration(GatewayConfig.Validation validation) {
+        preferences.edit()
+                .putString("apiUrl", validation.baseUrl)
+                .putString("patientId", validation.patientId)
+                .apply();
+        if (securePreferences != null) {
+            securePreferences.edit().putString("apiToken", apiToken.getText().toString().trim()).apply();
+        }
     }
 
     private void runReadinessCheck() {
@@ -615,7 +657,8 @@ public final class MainActivity extends AppCompatActivity {
                 return;
             }
             connectedThighAddress = address;
-            thighPanel.markConnected(name, address);
+            thighConnected = false;
+            thighPanel.markConnected(name + "（连接中）", address);
             updateLinkState();
             bleGateway.assignAndConnect(address, SensorPlacement.THIGH);
             renderStatus(name + " 正在连接为大腿传感器。连接后绿色卡片应出现 3D 姿态与波形。");
@@ -626,7 +669,8 @@ public final class MainActivity extends AppCompatActivity {
                 return;
             }
             connectedShankAddress = address;
-            shankPanel.markConnected(name, address);
+            shankConnected = false;
+            shankPanel.markConnected(name + "（连接中）", address);
             updateLinkState();
             bleGateway.assignAndConnect(address, SensorPlacement.SHANK);
             renderStatus(name + " 正在连接为小腿传感器。连接后蓝色卡片应出现 3D 姿态与波形。");
@@ -645,6 +689,7 @@ public final class MainActivity extends AppCompatActivity {
             }
         }
         if (address.equals(connectedThighAddress)) {
+            thighConnected = connected;
             if (connected) {
                 thighPanel.markConnected("大腿传感器", address);
             } else {
@@ -653,6 +698,7 @@ public final class MainActivity extends AppCompatActivity {
             }
         }
         if (address.equals(connectedShankAddress)) {
+            shankConnected = connected;
             if (connected) {
                 shankPanel.markConnected("小腿传感器", address);
             } else {
@@ -661,29 +707,59 @@ public final class MainActivity extends AppCompatActivity {
             }
         }
         updateLinkState();
-        renderStatus(address + (connected ? " 已连接，等待实时数据…" : " 已断开"));
+        renderStatus(address + (connected ? " 已连接，正在准备实时上传…" : " 已断开"));
+        if (connected) {
+            maybeStartAfterDualConnection();
+        }
     }
 
     private void updateLinkState() {
-        boolean thigh = !connectedThighAddress.isEmpty();
-        boolean shank = !connectedShankAddress.isEmpty();
-        if (thigh && shank) {
-            linkState.setText("连接状态：大腿 + 小腿 均已连接");
+        if (thighConnected && shankConnected) {
+            linkState.setText("连接状态：大腿 + 小腿 均已连接 · 正在自动启动上传");
             linkState.setTextColor(0xFF1B5E20);
             linkState.setBackground(rounded(0xFFE8F5E9, dp(14)));
-        } else if (thigh) {
+        } else if (thighConnected) {
             linkState.setText("连接状态：大腿已连接，小腿未连接");
             linkState.setTextColor(0xFF00695C);
             linkState.setBackground(rounded(0xFFE0F2F1, dp(14)));
-        } else if (shank) {
+        } else if (shankConnected) {
             linkState.setText("连接状态：小腿已连接，大腿未连接");
             linkState.setTextColor(0xFF0D47A1);
             linkState.setBackground(rounded(0xFFE3F2FD, dp(14)));
+        } else if (!connectedThighAddress.isEmpty() || !connectedShankAddress.isEmpty()) {
+            linkState.setText("连接状态：正在连接已分配的传感器…");
+            linkState.setTextColor(0xFF7A4E00);
+            linkState.setBackground(rounded(0xFFFFF8E1, dp(14)));
         } else {
             linkState.setText("连接状态：未连接传感器");
             linkState.setTextColor(0xFF7A4E00);
             linkState.setBackground(rounded(0xFFFFF8E1, dp(14)));
         }
+    }
+
+    private void maybeStartAfterDualConnection() {
+        if (!thighConnected || !shankConnected) return;
+        GatewayConfig.Validation validation = GatewayConfig.validate(
+                apiUrl.getText().toString(),
+                patientId.getText().toString()
+        );
+        if (!validation.valid) {
+            syncState.setText("网页同步：双传感器已连接，但平台配置不完整。请展开平台设置填写正式域名与患者 ID。");
+            platformSettings.setVisibility(View.VISIBLE);
+            renderStatus(validation.message);
+            return;
+        }
+        if (stop.isEnabled()) {
+            persistPlatformConfiguration(validation);
+            syncState.setText("网页同步：双路已恢复，正在重新验证患者与 Token…");
+            platformGateway.start(
+                    validation.baseUrl,
+                    validation.patientId,
+                    apiToken.getText().toString().trim()
+            );
+            return;
+        }
+        startSession();
     }
 
     private LinearLayout.LayoutParams weightedButton() {
@@ -720,16 +796,19 @@ public final class MainActivity extends AppCompatActivity {
                 if (connectedThighAddress.isEmpty()) {
                     connectedThighAddress = sample.deviceName;
                 }
+                thighConnected = true;
                 thighPanel.markConnected("大腿传感器", sample.deviceName);
                 thighPanel.update(sample, false);
             } else {
                 if (connectedShankAddress.isEmpty()) {
                     connectedShankAddress = sample.deviceName;
                 }
+                shankConnected = true;
                 shankPanel.markConnected("小腿传感器", sample.deviceName);
                 shankPanel.update(sample, false);
             }
             updateLinkState();
+            maybeStartAfterDualConnection();
             sampleSummary.setText(
                     "实时帧数：" + liveSampleCount
                             + "\n最新设备：" + sample.deviceName

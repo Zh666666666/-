@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, BatteryMedium, CheckCircle2, Gauge, LinkIcon, Loader2, Radio, RotateCcw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import { Activity, BatteryMedium, CheckCircle2, ClipboardCopy, Gauge, LinkIcon, Loader2, Radio, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 
 import { StatusNotice } from "@/components/status-notice";
 import { Badge } from "@/components/ui/badge";
@@ -51,10 +51,8 @@ export default function FamilyDevicesPage() {
   const [form, setForm] = useState<DeviceForm>(defaultForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [simulating, setSimulating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lastSimulatedAngle, setLastSimulatedAngle] = useState<number | null>(null);
 
   const loadHardwareState = useCallback(async (nextPatientId?: string) => {
     const id = nextPatientId ?? patientId;
@@ -170,7 +168,7 @@ export default function FamilyDevicesPage() {
         throw new Error("设备绑定失败");
       }
 
-      setMessage(`${placementLabels[form.placement]}已绑定，传感器到货后可直接接入采集端。`);
+      setMessage(`${placementLabels[form.placement]}已绑定。请在 Android 网关选择同一位置并确认患者 ID 后连接上传。`);
       setForm((current) => ({ ...current, serialNo: "", placement: current.placement === "THIGH" ? "SHANK" : "THIGH" }));
       await loadHardwareState(patientId);
     } catch (bindError) {
@@ -207,7 +205,7 @@ export default function FamilyDevicesPage() {
           shankDeviceId: shank.deviceId,
           quality: "GOOD",
           zeroFlexionAngle: 0,
-          notes: "伸直位零点校准。传感器到货后用实测姿态覆盖这条记录。",
+          notes: "两只实物传感器佩戴完成后，在膝关节伸直位执行零点归一化并保存。",
         }),
       });
 
@@ -215,7 +213,7 @@ export default function FamilyDevicesPage() {
         throw new Error("校准记录保存失败");
       }
 
-      setMessage("零点校准记录已保存。实物到货后按同一流程替换为真实校准。");
+      setMessage("实物零点校准记录已保存。开始训练前请确认两只传感器安装方向一致。");
       await loadHardwareState(patientId);
     } catch (calibrationError) {
       setError(calibrationError instanceof Error ? calibrationError.message : "校准失败");
@@ -224,50 +222,20 @@ export default function FamilyDevicesPage() {
     }
   }
 
-  async function simulateHardwareSample() {
-    if (!patientId) {
-      return;
-    }
-
-    setSimulating(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      const response = await fetch("/api/hardware-simulator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patientId }),
-      });
-
-      if (!response.ok) {
-        throw new Error("演示样本写入失败");
-      }
-
-      const data = (await response.json()) as { record?: { flexionAngle?: number }; simulated?: { flexionAngle?: number } };
-      setLastSimulatedAngle(data.record?.flexionAngle ?? data.simulated?.flexionAngle ?? null);
-      setMessage("已写入一条 DEMO 演示样本，并同步生成康复记录。护士端趋势图会读到这条演示数据。");
-      await loadHardwareState(patientId);
-    } catch (simulationError) {
-      setError(simulationError instanceof Error ? simulationError.message : "演示样本写入失败");
-    } finally {
-      setSimulating(false);
-    }
-  }
-
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <header className="overflow-hidden rounded-lg border border-[#d9e2e9] bg-white p-5 shadow-sm md:p-6">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <header className="relative overflow-hidden rounded-2xl border border-[#244d68] bg-[#0d2a40] p-5 text-white shadow-[0_24px_70px_rgba(13,42,64,0.2)] md:p-7">
+          <div className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full bg-[#2a78d6]/25 blur-3xl" />
+          <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
+              <Badge className="gap-2 border border-white/15 bg-white/10 px-3 py-1 text-sm text-white">
                 <Radio className="size-4" />
-                WT9011DCL-BT50 真实设备准备
+                双 WT9011DCL-BT50 已进入实物接入阶段
               </Badge>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#12304a] md:text-4xl">设备绑定与校准</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">
-                先把大腿和小腿两个传感器档案建好。传感器到货后，手机采集端只要按这里的绑定关系上传数据，就能进入真实康复闭环。
+              <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white md:text-5xl">设备身份、患者与实时链路</h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-[#cfe0e9] md:text-lg md:leading-8">
+                两只传感器已经到位。这里用于确认大腿/小腿设备档案和患者 ID；Android 网关使用同一患者 ID 后，双路连接成功即自动记录并上传。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -306,7 +274,7 @@ export default function FamilyDevicesPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Android 网关患者 ID</p>
                   <p className="mt-1 break-all font-mono text-sm font-bold text-slate-900">{patientId ?? "读取中..."}</p>
                   <p className="mt-2 text-xs leading-5 text-slate-500">
-                    手机端填写：平台地址 `http://192.168.31.203:3000`，患者 ID 复制下面这一串，再点“开始采集上传”。
+                    Android 网关平台地址填写 `https://www.dorianaistudio.cloud`，患者 ID 必须与下面这一串完全一致。完成一次 Token 验证后，两只传感器连接成功会自动开始实时上传。
                   </p>
                   <Button
                     type="button"
@@ -324,6 +292,7 @@ export default function FamilyDevicesPage() {
                       }
                     }}
                   >
+                    <ClipboardCopy className="size-4" />
                     复制患者 ID
                   </Button>
                 </div>
@@ -394,25 +363,19 @@ export default function FamilyDevicesPage() {
                 <p className="mt-1 text-sm text-emerald-50">{formatTime(latestCalibration?.createdAt)}</p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={calibrate} disabled={saving || loading}>
-                  <ShieldCheck className="size-5" />
-                  保存零点校准
-                </Button>
-                <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={simulateHardwareSample} disabled={simulating || loading}>
-                  {simulating ? <Loader2 className="size-5 animate-spin" /> : <RotateCcw className="size-5" />}
-                  模拟硬件采集
-                </Button>
-              </div>
+              <Button variant="outline" className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={calibrate} disabled={saving || loading}>
+                <ShieldCheck className="size-5" />
+                保存实物零点校准
+              </Button>
 
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <span className="rounded-2xl bg-white/10 px-2 py-3">
                   <CheckCircle2 className="mx-auto mb-1 size-4" />
-                  {readyForHardware ? "可接入" : "待准备"}
+                  {readyForHardware ? "双路已绑定" : "待完成绑定"}
                 </span>
                 <span className="rounded-2xl bg-white/10 px-2 py-3">
                   <Gauge className="mx-auto mb-1 size-4" />
-                  {lastSimulatedAngle ? `${lastSimulatedAngle.toFixed(0)}°` : "--"}
+                  {latestCalibration ? "已校准" : "待归零"}
                 </span>
                 <span className="rounded-2xl bg-white/10 px-2 py-3">
                   <Activity className="mx-auto mb-1 size-4" />
