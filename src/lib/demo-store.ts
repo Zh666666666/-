@@ -26,6 +26,7 @@ import { resolveSensorDataSource } from "@/lib/sample-provenance";
 import {
   alertCooldownMs,
   isClinicalKneeAngle,
+  resolveTrustedClinicalPairAngle,
   shouldMaterializeClinicalRecord,
 } from "@/lib/sensor-ingestion";
 
@@ -778,7 +779,40 @@ export function addDemoSensorSample(input: SensorSampleInput) {
 
   state.sensorSamples = [sample, ...state.sensorSamples].slice(0, MAX_DEMO_SENSOR_SAMPLES);
 
-  if (typeof input.flexionAngle === "number" && isClinicalKneeAngle(input.confidence)) {
+  const oppositePlacement = sample.placement === "THIGH" ? "SHANK" : sample.placement === "SHANK" ? "THIGH" : null;
+  const calibration = state.calibrationRecords.find((record) => record.patientId === input.patientId && record.quality === "GOOD") ?? null;
+  const expectedOppositeDeviceId = oppositePlacement === "THIGH"
+    ? calibration?.thighDeviceId
+    : oppositePlacement === "SHANK"
+      ? calibration?.shankDeviceId
+      : null;
+  const currentBindingMatches = state.deviceBindings.some((binding) => (
+    binding.active
+    && binding.patientId === input.patientId
+    && binding.deviceId === sample.deviceId
+    && binding.placement === sample.placement
+  ));
+  const oppositeSample = oppositePlacement && expectedOppositeDeviceId
+    ? state.sensorSamples
+        .filter((candidate) => (
+          candidate.id !== sample.id
+          && candidate.patientId === input.patientId
+          && candidate.source === "HARDWARE"
+          && candidate.placement === oppositePlacement
+          && candidate.deviceId === expectedOppositeDeviceId
+          && candidate.kneeAngleMode === "DUAL_SENSOR"
+          && Math.abs(new Date(candidate.recordedAt).getTime() - new Date(sample.recordedAt).getTime()) <= 200
+        ))
+        .sort((a, b) => Math.abs(new Date(a.recordedAt).getTime() - new Date(sample.recordedAt).getTime()) - Math.abs(new Date(b.recordedAt).getTime() - new Date(sample.recordedAt).getTime()))[0] ?? null
+    : null;
+  const trustedPairAngle = resolveTrustedClinicalPairAngle({
+    current: sample,
+    opposite: oppositeSample,
+    calibration,
+    currentBindingMatches,
+  });
+
+  if (trustedPairAngle !== null) {
     const nearbyRecord = state.records.find((record) => (
       record.patientId === input.patientId
       && record.source === source
@@ -788,8 +822,8 @@ export function addDemoSensorSample(input: SensorSampleInput) {
     if (!nearbyRecord) {
       const knee = addDemoKneeRecord({
         patientId: input.patientId,
-        flexionAngle: input.flexionAngle,
-        extensionAngle: input.extensionAngle ?? 0,
+        flexionAngle: trustedPairAngle,
+        extensionAngle: Math.max(0, input.extensionAngle ?? 0),
         activityFrequency: 1,
         activityDuration: 1,
         painScore: 0,
@@ -830,10 +864,16 @@ export function getDemoSensorLiveSnapshot(patientId: string) {
     .filter((record) => record.patientId === patientId)
     .slice(-12);
   const patient = dashboard.patients.find((item) => item.id === patientId);
+  const calibration = getState().calibrationRecords.find((record) => record.patientId === patientId) ?? null;
   const metrics = calculateRehabMetrics({
     samples,
     clinicalRecords,
     targetFlexion: patient?.targetFlexion,
+    calibration: calibration ? {
+      quality: calibration.quality,
+      thighDeviceId: calibration.thighDeviceId,
+      shankDeviceId: calibration.shankDeviceId,
+    } : null,
   });
 
   return {

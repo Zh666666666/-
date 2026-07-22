@@ -44,19 +44,25 @@ test("trusted dual-sensor samples are time-throttled and ROM alerts are deduplic
   let createdAlerts = 0;
 
   for (let index = 0; index < 40; index += 1) {
-    const result = addDemoSensorSample({
-      patientId,
-      source: "HARDWARE",
-      placement: "SHANK",
-      recordedAt: new Date(startedAt + index * 500).toISOString(),
-      flexionAngle: 65,
-      extensionAngle: -20,
-      confidence: 0.9,
-      raw: { kneeAngleMode: "DUAL_SENSOR" },
-    });
+    for (const [placement, deviceId, offset] of [
+      ["THIGH", "demo-device-thigh", 0],
+      ["SHANK", "demo-device-shank", 50],
+    ] as const) {
+      const result = addDemoSensorSample({
+        patientId,
+        deviceId,
+        source: "HARDWARE",
+        placement,
+        recordedAt: new Date(startedAt + index * 500 + offset).toISOString(),
+        flexionAngle: 65,
+        extensionAngle: -20,
+        confidence: 0.9,
+        raw: { kneeAngleMode: "DUAL_SENSOR" },
+      });
 
-    if (result.record) createdRecords += 1;
-    if (result.alert) createdAlerts += 1;
+      if (result.record) createdRecords += 1;
+      if (result.alert) createdAlerts += 1;
+    }
   }
 
   assert.equal(createdRecords, 2);

@@ -8,7 +8,7 @@ function sample(index: number, angle: number, overrides: Partial<SensorSampleIte
   return {
     id: `sample-${index}`,
     patientId: "patient-1",
-    deviceId: "device-1",
+    deviceId: "device-shank",
     sessionId: "session-1",
     placement: "SHANK",
     source: "HARDWARE",
@@ -33,6 +33,28 @@ function sample(index: number, angle: number, overrides: Partial<SensorSampleIte
   };
 }
 
+const goodCalibration = {
+  quality: "GOOD" as const,
+  thighDeviceId: "device-thigh",
+  shankDeviceId: "device-shank",
+};
+
+function pairedSamples(angles: number[]) {
+  const base = Date.UTC(2026, 6, 14, 10, 0, 0);
+  return angles.flatMap((angle, index) => [
+    sample(index * 2, angle, {
+      placement: "THIGH",
+      deviceId: "device-thigh",
+      recordedAt: new Date(base + index * 1_000).toISOString(),
+    }),
+    sample(index * 2 + 1, angle, {
+      placement: "SHANK",
+      deviceId: "device-shank",
+      recordedAt: new Date(base + index * 1_000 + 50).toISOString(),
+    }),
+  ]);
+}
+
 function record(index: number, angle: number, painScore = 2): KneeDataPoint {
   return {
     id: `record-${index}`,
@@ -44,7 +66,7 @@ function record(index: number, angle: number, painScore = 2): KneeDataPoint {
     painScore,
     batteryLevel: 80,
     signalStrength: 90,
-    source: "HARDWARE",
+    source: "MANUAL",
     recordedAt: new Date(Date.UTC(2026, 6, 14, 9, 0, index)).toISOString(),
   };
 }
@@ -52,9 +74,10 @@ function record(index: number, angle: number, painScore = 2): KneeDataPoint {
 test("calculates robust ROM and completed repetitions from eligible dual-sensor samples", () => {
   const angles = [5, 8, 30, 70, 95, 70, 25, 7, 30, 80, 100, 75, 20, 6];
   const metrics = calculateRehabMetrics({
-    samples: angles.map((angle, index) => sample(index, angle)),
+    samples: pairedSamples(angles),
     clinicalRecords: [],
     targetFlexion: 110,
+    calibration: goodCalibration,
     now: new Date(Date.UTC(2026, 6, 14, 10, 0, 14)),
   });
 
@@ -88,8 +111,10 @@ test("keeps an experimental impact warning separate from a single-sensor clinica
     kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL",
     clinicalEligible: false,
   }));
-  samples[2] = { ...samples[2], ax: 0.2, ay: 0.1, az: 0.2, gy: 100 };
-  samples[3] = { ...samples[3], ax: 3, ay: 0, az: 0, gy: 120 };
+  const impactBase = Date.UTC(2026, 6, 14, 10, 0, 2);
+  samples[2] = { ...samples[2], recordedAt: new Date(impactBase).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 100 };
+  samples[3] = { ...samples[3], recordedAt: new Date(impactBase + 400).toISOString(), ax: 3, ay: 0, az: 0, gy: 120 };
+  samples[4] = { ...samples[4], recordedAt: new Date(impactBase + 800).toISOString(), ax: 1, ay: 0, az: 0, gy: 20 };
 
   const metrics = calculateRehabMetrics({
     samples,
@@ -99,19 +124,24 @@ test("keeps an experimental impact warning separate from a single-sensor clinica
 
   assert.equal(metrics.clinicalEligible, false);
   assert.equal(metrics.risk.score, null);
-  assert.equal(metrics.risk.level, "HIGH");
+  assert.equal(metrics.risk.level, "INSUFFICIENT_DATA");
   assert.ok(metrics.warnings.some((warning) => warning.code === "POSSIBLE_FALL_IMPACT"));
 });
 
 test("detects regression, high pain and experimental fall-impact pattern", () => {
-  const samples = Array.from({ length: 10 }, (_, index) => sample(index, 55 + index));
-  samples[3] = sample(3, 58, { ax: 0.2, ay: 0.1, az: 0.2, gy: 100 });
-  samples[4] = sample(4, 59, { ax: 3, ay: 0, az: 0, gy: 120 });
+  const samples = pairedSamples([5, 20, 55, 90, 60, 20, 5, 25, 65, 95, 55, 15, 5]);
+  const impactBase = Date.UTC(2026, 6, 14, 10, 0, 13);
+  samples.push(
+    sample(100, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 100, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
+    sample(101, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase + 400).toISOString(), ax: 3, ay: 0, az: 0, gy: 120, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
+    sample(102, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase + 800).toISOString(), ax: 1, ay: 0, az: 0, gy: 20, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
+  );
   const records = [100, 102, 101, 80, 82, 81].map((angle, index) => record(index, angle, index === 5 ? 8 : 2));
   const metrics = calculateRehabMetrics({
     samples,
     clinicalRecords: records,
-    now: new Date(Date.UTC(2026, 6, 14, 10, 0, 10)),
+    calibration: goodCalibration,
+    now: new Date(Date.UTC(2026, 6, 14, 10, 0, 14)),
   });
 
   assert.ok(metrics.warnings.some((warning) => warning.code === "ROM_REGRESSION"));
@@ -119,4 +149,31 @@ test("detects regression, high pain and experimental fall-impact pattern", () =>
   assert.ok(metrics.warnings.some((warning) => warning.code === "POSSIBLE_FALL_IMPACT"));
   assert.equal(metrics.risk.level, "HIGH");
   assert.ok((metrics.risk.score ?? 0) >= 75);
+});
+
+test("requires a matching GOOD calibration and synchronized dual-device pairs", () => {
+  const angles = [5, 20, 60, 90, 60, 20, 5, 25, 70, 95, 55, 15, 5];
+  const withoutCalibration = calculateRehabMetrics({
+    samples: pairedSamples(angles),
+    clinicalRecords: [],
+    now: new Date(Date.UTC(2026, 6, 14, 10, 0, 14)),
+  });
+  assert.equal(withoutCalibration.clinicalEligible, false);
+  assert.equal(withoutCalibration.dataQuality.measurementStatus, "SETUP_REQUIRED");
+  assert.equal(withoutCalibration.rom.value, null);
+
+  const unsynchronized = pairedSamples(angles).map((item) => (
+    item.placement === "SHANK"
+      ? { ...item, recordedAt: new Date(new Date(item.recordedAt).getTime() + 400).toISOString() }
+      : item
+  ));
+  const failedPairing = calculateRehabMetrics({
+    samples: unsynchronized,
+    clinicalRecords: [],
+    calibration: goodCalibration,
+    now: new Date(Date.UTC(2026, 6, 14, 10, 0, 14)),
+  });
+  assert.equal(failedPairing.clinicalEligible, false);
+  assert.equal(failedPairing.dataQuality.synchronizedPairs, 0);
+  assert.equal(failedPairing.risk.score, null);
 });

@@ -2,6 +2,7 @@ import type { KneeDataPoint, SensorSampleItem } from "@/lib/rehab";
 
 export type MetricRiskLevel = "INSUFFICIENT_DATA" | "STABLE" | "WATCH" | "HIGH";
 export type MetricWarningSeverity = "INFO" | "WATCH" | "HIGH";
+export type MeasurementStatus = "READY" | "COLLECTING" | "SETUP_REQUIRED" | "TECHNICAL_ISSUE";
 
 export type RehabMetricWarning = {
   code: "DATA_STALE" | "ROM_REGRESSION" | "PAIN_HIGH" | "POSSIBLE_FALL_IMPACT";
@@ -23,6 +24,14 @@ export type RehabMetrics = {
     candidateSamples: number;
     meanConfidence: number | null;
     freshnessSeconds: number | null;
+    synchronizedPairs: number;
+    pairGapP95Ms: number | null;
+    observationSeconds: number;
+    samplingRegularityPercent: number;
+    motionPlausibilityPercent: number;
+    calibrationStatus: "GOOD" | "MISSING" | "MISMATCHED" | "NOT_GOOD";
+    measurementStatus: MeasurementStatus;
+    reasonCodes: string[];
     formula: string;
   };
   rom: {
@@ -60,7 +69,22 @@ type MetricInput = {
   samples: SensorSampleItem[];
   clinicalRecords: KneeDataPoint[];
   targetFlexion?: number | null;
+  calibration?: {
+    quality: "PENDING" | "GOOD" | "FAIR" | "POOR";
+    thighDeviceId: string | null;
+    shankDeviceId: string | null;
+  } | null;
   now?: Date;
+};
+
+type SynchronizedPair = {
+  at: number;
+  gapMs: number;
+  flexionAngle: number;
+  confidence: number;
+  thighDeviceId: string | null;
+  shankDeviceId: string | null;
+  representative: SensorSampleItem;
 };
 
 const round = (value: number, digits = 1) => {
@@ -96,6 +120,89 @@ function movingMedian(values: number[]) {
     const window = values.slice(Math.max(0, index - 1), Math.min(values.length, index + 2));
     return quantile(window, 0.5) ?? values[index];
   });
+}
+
+function buildSynchronizedPairs(samples: SensorSampleItem[]) {
+  const eligible = samples.filter((sample) => (
+    sample.source === "HARDWARE"
+    && sample.clinicalEligible
+    && sample.kneeAngleMode === "DUAL_SENSOR"
+    && typeof sample.flexionAngle === "number"
+    && typeof sample.confidence === "number"
+    && sample.confidence >= 0.7
+    && Number.isFinite(new Date(sample.recordedAt).getTime())
+  ));
+  const thighs = eligible.filter((sample) => sample.placement === "THIGH");
+  const shanks = eligible.filter((sample) => sample.placement === "SHANK");
+  const usedShanks = new Set<number>();
+  const pairs: SynchronizedPair[] = [];
+
+  for (const thigh of thighs) {
+    const thighAt = new Date(thigh.recordedAt).getTime();
+    let bestIndex = -1;
+    let bestGap = Number.POSITIVE_INFINITY;
+
+    shanks.forEach((shank, index) => {
+      if (usedShanks.has(index)) return;
+      if (thigh.sessionId && shank.sessionId && thigh.sessionId !== shank.sessionId) return;
+      const gap = Math.abs(new Date(shank.recordedAt).getTime() - thighAt);
+      if (gap < bestGap) {
+        bestGap = gap;
+        bestIndex = index;
+      }
+    });
+
+    if (bestIndex < 0 || bestGap > 200) continue;
+    const shank = shanks[bestIndex];
+    usedShanks.add(bestIndex);
+    pairs.push({
+      at: Math.max(thighAt, new Date(shank.recordedAt).getTime()),
+      gapMs: bestGap,
+      flexionAngle: ((thigh.flexionAngle as number) + (shank.flexionAngle as number)) / 2,
+      confidence: Math.min(thigh.confidence as number, shank.confidence as number),
+      thighDeviceId: thigh.deviceId,
+      shankDeviceId: shank.deviceId,
+      representative: new Date(shank.recordedAt).getTime() >= thighAt ? shank : thigh,
+    });
+  }
+
+  return pairs.sort((a, b) => a.at - b.at);
+}
+
+function samplingRegularity(pairs: SynchronizedPair[]) {
+  if (pairs.length < 2) return 0;
+  const gaps = pairs.slice(1).map((pair, index) => pair.at - pairs[index].at).filter((gap) => gap > 0);
+  if (!gaps.length) return 0;
+  const medianGap = quantile(gaps, 0.5) ?? 0;
+  const maximumRegularGap = Math.max(1_000, medianGap * 3);
+  return gaps.filter((gap) => gap <= maximumRegularGap && gap <= 2_000).length / gaps.length;
+}
+
+function motionPlausibility(pairs: SynchronizedPair[]) {
+  if (pairs.length < 2) return 0;
+  let checked = 0;
+  let plausible = 0;
+  for (let index = 1; index < pairs.length; index += 1) {
+    const deltaSeconds = (pairs[index].at - pairs[index - 1].at) / 1_000;
+    if (deltaSeconds <= 0 || deltaSeconds > 2) continue;
+    checked += 1;
+    const angularRate = Math.abs(pairs[index].flexionAngle - pairs[index - 1].flexionAngle) / deltaSeconds;
+    if (angularRate <= 300) plausible += 1;
+  }
+  return checked ? plausible / checked : 0;
+}
+
+function resolveCalibrationStatus(
+  calibration: MetricInput["calibration"],
+  pairs: SynchronizedPair[],
+): RehabMetrics["dataQuality"]["calibrationStatus"] {
+  if (!calibration) return "MISSING";
+  if (calibration.quality !== "GOOD") return "NOT_GOOD";
+  if (!calibration.thighDeviceId || !calibration.shankDeviceId) return "MISMATCHED";
+  const thighIds = new Set(pairs.map((pair) => pair.thighDeviceId).filter(Boolean));
+  const shankIds = new Set(pairs.map((pair) => pair.shankDeviceId).filter(Boolean));
+  if (!thighIds.has(calibration.thighDeviceId) || !shankIds.has(calibration.shankDeviceId)) return "MISMATCHED";
+  return "GOOD";
 }
 
 function countRepetitions(angles: number[]) {
@@ -148,6 +255,7 @@ function detectPossibleFallImpact(samples: SensorSampleItem[]) {
     .filter((sample) => sample.source === "HARDWARE")
     .map((sample) => ({
       at: new Date(sample.recordedAt).getTime(),
+      placement: sample.placement,
       acceleration: vectorMagnitude(sample.ax, sample.ay, sample.az),
       angularVelocity: vectorMagnitude(sample.gx, sample.gy, sample.gz),
     }))
@@ -155,7 +263,12 @@ function detectPossibleFallImpact(samples: SensorSampleItem[]) {
     .sort((a, b) => a.at - b.at);
 
   for (let start = 0; start < hardware.length; start += 1) {
-    const window = hardware.filter((sample) => sample.at >= hardware[start].at && sample.at - hardware[start].at <= 1_200);
+    const window = hardware.filter((sample) => (
+      sample.placement === hardware[start].placement
+      && sample.at >= hardware[start].at
+      && sample.at - hardware[start].at <= 1_200
+    ));
+    if (window.length < 3) continue;
     const accelerations = window.map((sample) => sample.acceleration as number);
     const angularVelocities = window.map((sample) => sample.angularVelocity as number);
     if (
@@ -164,6 +277,7 @@ function detectPossibleFallImpact(samples: SensorSampleItem[]) {
       && Math.max(...angularVelocities) > 80
     ) {
       return {
+        placement: hardware[start].placement,
         minimumAcceleration: Math.min(...accelerations),
         peakAcceleration: Math.max(...accelerations),
         peakAngularVelocity: Math.max(...angularVelocities),
@@ -185,6 +299,7 @@ export function calculateRehabMetrics({
   samples,
   clinicalRecords,
   targetFlexion = 110,
+  calibration = null,
   now = new Date(),
 }: MetricInput): RehabMetrics {
   const target = clamp(targetFlexion ?? 110, 60, 150);
@@ -192,33 +307,62 @@ export function calculateRehabMetrics({
     new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
   ));
   const candidateAngles = ordered.filter((sample) => typeof sample.flexionAngle === "number");
-  const eligible = candidateAngles.filter((sample) => (
-    sample.clinicalEligible
-    && sample.kneeAngleMode === "DUAL_SENSOR"
-    && typeof sample.confidence === "number"
-    && sample.confidence >= 0.7
-  ));
-  const confidences = eligible.map((sample) => sample.confidence as number);
+  const synchronizedPairs = buildSynchronizedPairs(ordered);
+  const pairedSamples = synchronizedPairs.map((pair) => ({
+    ...pair.representative,
+    recordedAt: new Date(pair.at).toISOString(),
+    flexionAngle: pair.flexionAngle,
+    confidence: pair.confidence,
+  }));
+  const confidences = synchronizedPairs.map((pair) => pair.confidence);
   const latestTimestamp = ordered.at(-1)?.recordedAt;
   const freshnessSeconds = latestTimestamp
     ? Math.max(0, (now.getTime() - new Date(latestTimestamp).getTime()) / 1000)
     : null;
   const meanConfidence = mean(confidences);
-  const eligibleRatio = candidateAngles.length ? eligible.length / candidateAngles.length : 0;
-  const freshnessFactor = freshnessSeconds === null ? 0 : clamp(1 - freshnessSeconds / 120, 0, 1);
+  const eligibleRatio = candidateAngles.length ? (synchronizedPairs.length * 2) / candidateAngles.length : 0;
+  const freshnessFactor = freshnessSeconds === null ? 0 : clamp(1 - freshnessSeconds / 30, 0, 1);
+  const observationSeconds = synchronizedPairs.length >= 2
+    ? (synchronizedPairs.at(-1)!.at - synchronizedPairs[0].at) / 1_000
+    : 0;
+  const regularity = samplingRegularity(synchronizedPairs);
+  const plausibility = motionPlausibility(synchronizedPairs);
+  const pairGapP95Ms = quantile(synchronizedPairs.map((pair) => pair.gapMs), 0.95);
+  const calibrationStatus = resolveCalibrationStatus(calibration, synchronizedPairs);
+  const repetitionsBeforeGate = countRepetitions(synchronizedPairs.map((pair) => pair.flexionAngle));
+  const reasonCodes: string[] = [];
+  if (resolveProvenance(ordered) !== "HARDWARE") reasonCodes.push("NOT_HARDWARE");
+  if (calibrationStatus !== "GOOD") reasonCodes.push(`CALIBRATION_${calibrationStatus}`);
+  if (synchronizedPairs.length < 6) reasonCodes.push("TOO_FEW_SYNCHRONIZED_PAIRS");
+  if (observationSeconds < 3) reasonCodes.push("OBSERVATION_TOO_SHORT");
+  if (pairGapP95Ms === null || pairGapP95Ms > 200) reasonCodes.push("PAIR_SYNC_FAILED");
+  if (regularity < 0.7) reasonCodes.push("IRREGULAR_SAMPLING");
+  if (plausibility < 0.8) reasonCodes.push("IMPLAUSIBLE_MOTION");
+  if (repetitionsBeforeGate < 1) reasonCodes.push("NO_COMPLETE_MOVEMENT_CYCLE");
   const qualityScore = Math.round(
-    (meanConfidence ?? 0) * 45
-    + eligibleRatio * 25
+    (meanConfidence ?? 0) * 25
+    + clamp(eligibleRatio, 0, 1) * 20
     + freshnessFactor * 15
-    + clamp(eligible.length / 30, 0, 1) * 15,
+    + clamp(synchronizedPairs.length / 20, 0, 1) * 10
+    + clamp(observationSeconds / 8, 0, 1) * 10
+    + regularity * 10
+    + plausibility * 10,
   );
-  const clinicalEligible = eligible.length >= 5 && qualityScore >= 55;
-  const angles = eligible.map((sample) => sample.flexionAngle as number);
+  if (qualityScore < 70) reasonCodes.push("QUALITY_SCORE_LOW");
+  const clinicalEligible = reasonCodes.length === 0;
+  const measurementStatus: MeasurementStatus = clinicalEligible
+    ? "READY"
+    : calibrationStatus !== "GOOD"
+      ? "SETUP_REQUIRED"
+      : synchronizedPairs.length < 6 || observationSeconds < 3 || repetitionsBeforeGate < 1
+        ? "COLLECTING"
+        : "TECHNICAL_ISSUE";
+  const angles = synchronizedPairs.map((pair) => pair.flexionAngle);
   const minimumFlexion = clinicalEligible ? quantile(angles, 0.05) : null;
   const peakFlexion = clinicalEligible ? quantile(angles, 0.95) : null;
   const rom = minimumFlexion !== null && peakFlexion !== null ? Math.max(0, peakFlexion - minimumFlexion) : null;
-  const activeDurationSeconds = clinicalEligible ? calculateActiveDuration(eligible) : null;
-  const repetitions = clinicalEligible ? countRepetitions(angles) : null;
+  const activeDurationSeconds = clinicalEligible ? calculateActiveDuration(pairedSamples) : null;
+  const repetitions = clinicalEligible ? repetitionsBeforeGate : null;
   const cadence = repetitions !== null && activeDurationSeconds !== null && activeDurationSeconds >= 10
     ? repetitions / (activeDurationSeconds / 60)
     : null;
@@ -230,8 +374,9 @@ export function calculateRehabMetrics({
   const previousFlexion = recordAngles.length >= 6 ? mean(recordAngles.slice(-6, -3)) : null;
   const trendChange = recentFlexion !== null && previousFlexion !== null ? recentFlexion - previousFlexion : null;
   const latestPain = [...clinicalRecords]
+    .filter((record) => record.source === "MANUAL")
     .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())
-    .at(0)?.painScore ?? 0;
+    .at(0)?.painScore ?? null;
 
   const warnings: RehabMetricWarning[] = [];
   if (freshnessSeconds !== null && freshnessSeconds > 30) {
@@ -254,7 +399,7 @@ export function calculateRehabMetrics({
       requiresHumanConfirmation: true,
     });
   }
-  if (latestPain >= 7) {
+  if (latestPain !== null && latestPain >= 7) {
     warnings.push({
       code: "PAIN_HIGH",
       severity: "HIGH",
@@ -269,9 +414,9 @@ export function calculateRehabMetrics({
     warnings.push({
       code: "POSSIBLE_FALL_IMPACT",
       severity: "HIGH",
-      title: "疑似跌倒或强冲击事件",
-      evidence: `1.2 秒窗内出现低加速度 ${round(possibleFall.minimumAcceleration, 2)}g、冲击 ${round(possibleFall.peakAcceleration, 2)}g、峰值角速度 ${round(possibleFall.peakAngularVelocity, 0)}°/s。`,
-      action: "立即联系患者确认意识、疼痛和是否跌倒；该规则为膝部 IMU 实验性筛查，不能单独确诊。",
+      title: "检测到一次较强晃动",
+      evidence: `${possibleFall.placement === "THIGH" ? "大腿" : possibleFall.placement === "SHANK" ? "小腿" : "同一"}设备在 1.2 秒内出现低加速度 ${round(possibleFall.minimumAcceleration, 2)}g、冲击 ${round(possibleFall.peakAcceleration, 2)}g、峰值角速度 ${round(possibleFall.peakAngularVelocity, 0)}°/s。`,
+      action: "请先确认家人是否安全、有无疼痛或跌倒；这只是实验性冲击筛查，不能判断是否真的跌倒。",
       requiresHumanConfirmation: true,
     });
   }
@@ -290,7 +435,7 @@ export function calculateRehabMetrics({
     const points = round(clamp(Math.abs(trendChange) / 15, 0, 1) * 20, 0);
     if (points > 0) factors.push({ name: "近期趋势回退", points, evidence: `${round(trendChange)}°` });
   }
-  if (latestPain > 3) {
+  if (latestPain !== null && latestPain > 3) {
     const points = round(clamp((latestPain - 3) / 7, 0, 1) * 20, 0);
     if (points > 0) factors.push({ name: "疼痛负担", points, evidence: `${latestPain}/10` });
   }
@@ -303,10 +448,10 @@ export function calculateRehabMetrics({
   if (possibleFallWarning && clinicalEligible) {
     riskScore = Math.max(riskScore ?? 0, 75);
   }
-  const riskLevel: MetricRiskLevel = possibleFallWarning
-    ? "HIGH"
-    : riskScore === null
+  const riskLevel: MetricRiskLevel = riskScore === null
     ? "INSUFFICIENT_DATA"
+    : possibleFallWarning
+      ? "HIGH"
     : riskScore >= 50
       ? "HIGH"
       : riskScore >= 25
@@ -320,11 +465,19 @@ export function calculateRehabMetrics({
     dataQuality: {
       score: qualityScore,
       label: clinicalEligible ? (qualityScore >= 75 ? "GOOD" : "FAIR") : "INSUFFICIENT",
-      eligibleSamples: eligible.length,
+      eligibleSamples: synchronizedPairs.length * 2,
       candidateSamples: candidateAngles.length,
       meanConfidence: meanConfidence === null ? null : round(meanConfidence, 2),
       freshnessSeconds: freshnessSeconds === null ? null : round(freshnessSeconds, 0),
-      formula: "Q=45×平均置信度+25×双传感器合格率+15×新鲜度+15×样本充分度；至少5个合格样本且Q≥55。",
+      synchronizedPairs: synchronizedPairs.length,
+      pairGapP95Ms: pairGapP95Ms === null ? null : round(pairGapP95Ms, 0),
+      observationSeconds: round(observationSeconds, 1),
+      samplingRegularityPercent: round(regularity * 100, 0),
+      motionPlausibilityPercent: round(plausibility * 100, 0),
+      calibrationStatus,
+      measurementStatus,
+      reasonCodes,
+      formula: "Q=25×成对置信度+20×双路配对覆盖+15×新鲜度+10×成对样本量+10×观察时长+10×采样连续性+10×动作合理性；同时要求真实硬件、GOOD 校准、配对误差≤200ms、至少6对/3秒且出现完整屈伸周期，任一失败均不输出训练结论。",
     },
     rom: {
       value: rom === null ? null : round(rom),
@@ -351,14 +504,15 @@ export function calculateRehabMetrics({
       score: riskScore,
       level: riskLevel,
       factors,
-      formula: "风险分=目标差距(0-30)+伸直缺失(0-15)+趋势回退(0-20)+疼痛(0-20)+重复不足(0-15)；质量门通过时，疑似跌倒筛查将风险分下限提高到75。",
+      formula: "关注优先级=目标差距(0-30)+伸直差距(0-15)+趋势回退(0-20)+人工疼痛记录(0-20)+重复不足(0-15)；它不是并发症概率或医学严重程度。质量门通过时，实验性冲击筛查将优先级下限提高到75。",
     },
     warnings,
     safetyBoundary: [
       "本结果用于康复监测与分诊提示，不构成诊断或自动处方。",
-      "单传感器、未校准或质量门限未通过时，不输出临床 ROM 与综合风险分。",
+      "单传感器、未完成有效校准、配对不同步、没有完整动作周期或质量门未通过时，不输出活动范围与关注优先级。",
       "膝部 IMU 无法识别发热、切口渗液、单侧小腿肿痛、胸痛或呼吸困难；这些症状必须由患者主动报告并人工处置。",
-      "疑似跌倒规则来自可穿戴 IMU 研究阈值，但设备安装位置不同，必须经过本产品真实人群验证后才能升级为正式告警。",
+      "较强晃动规则仅是同一设备内的实验性冲击筛查；设备安装位置和动作场景不同，必须经过真实人群验证后才能升级为正式告警。",
+      "当前网关角度仍是双传感器 Pitch 差值预览；在四元数相对姿态和功能轴校准落地前，本结果只用于训练监测，不作为临床量角器替代。",
     ],
   };
 }

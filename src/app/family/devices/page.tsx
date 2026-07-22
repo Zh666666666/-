@@ -17,6 +17,12 @@ type DeviceForm = {
   placement: DevicePlacement;
 };
 
+type CalibrationChecks = {
+  placement: boolean;
+  extension: boolean;
+  stillness: boolean;
+};
+
 const placementLabels: Record<DevicePlacement, string> = {
   THIGH: "大腿传感器",
   SHANK: "小腿传感器",
@@ -28,6 +34,12 @@ const defaultForm: DeviceForm = {
   name: "WT9011DCL-BT50",
   serialNo: "",
   placement: "THIGH",
+};
+
+const defaultCalibrationChecks: CalibrationChecks = {
+  placement: false,
+  extension: false,
+  stillness: false,
 };
 
 function formatTime(value: string | null | undefined) {
@@ -53,6 +65,7 @@ export default function FamilyDevicesPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [calibrationChecks, setCalibrationChecks] = useState<CalibrationChecks>(defaultCalibrationChecks);
 
   const loadHardwareState = useCallback(async (nextPatientId?: string) => {
     const id = nextPatientId ?? patientId;
@@ -121,6 +134,7 @@ export default function FamilyDevicesPage() {
 
   const latestCalibration = calibrations[0];
   const readyForHardware = Boolean(bindingByPlacement.get("THIGH") && bindingByPlacement.get("SHANK") && latestCalibration);
+  const calibrationConfirmed = Object.values(calibrationChecks).every(Boolean);
 
   async function bindDevice() {
     if (!patientId) {
@@ -191,6 +205,11 @@ export default function FamilyDevicesPage() {
       return;
     }
 
+    if (!calibrationConfirmed) {
+      setError("请按顺序完成三项基础校准确认");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -205,7 +224,7 @@ export default function FamilyDevicesPage() {
           shankDeviceId: shank.deviceId,
           quality: "GOOD",
           zeroFlexionAngle: 0,
-          notes: "两只实物传感器佩戴完成后，在膝关节伸直位执行零点归一化并保存。",
+          notes: "guided-v1：已确认大腿/小腿设备位置、舒适伸直位与静止状态。该记录用于基础佩戴零点，不替代医疗量角器校准。",
         }),
       });
 
@@ -213,7 +232,8 @@ export default function FamilyDevicesPage() {
         throw new Error("校准记录保存失败");
       }
 
-      setMessage("实物零点校准记录已保存。开始训练前请确认两只传感器安装方向一致。");
+      setMessage("基础校准已保存。若重新佩戴或交换传感器位置，请重新完成校准。");
+      setCalibrationChecks(defaultCalibrationChecks);
       await loadHardwareState(patientId);
     } catch (calibrationError) {
       setError(calibrationError instanceof Error ? calibrationError.message : "校准失败");
@@ -358,14 +378,37 @@ export default function FamilyDevicesPage() {
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
-                <p className="text-sm text-emerald-100">最近校准</p>
-                <p className="mt-2 text-xl font-black">{latestCalibration ? latestCalibration.quality : "未校准"}</p>
+                <p className="text-sm text-emerald-100">最近基础校准</p>
+                <p className="mt-2 text-xl font-black">{latestCalibration?.quality === "GOOD" ? "已完成" : "未完成"}</p>
                 <p className="mt-1 text-sm text-emerald-50">{formatTime(latestCalibration?.createdAt)}</p>
               </div>
 
-              <Button variant="outline" className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={calibrate} disabled={saving || loading}>
+              <div className="space-y-3 rounded-3xl border border-white/10 bg-white/10 p-5">
+                <div>
+                  <p className="font-bold">开始前依次确认</p>
+                  <p className="mt-1 text-sm leading-6 text-emerald-100">重新佩戴、交换位置或明显移动绑带后，都需要重新确认。</p>
+                </div>
+                {([
+                  ["placement", "1. 大腿与小腿传感器位置正确，安装方向一致"],
+                  ["extension", "2. 腿放松并保持在舒适伸直位，不要强行压直"],
+                  ["stillness", "3. 两只传感器均已连接，身体保持静止"],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="flex cursor-pointer items-start gap-3 rounded-2xl bg-white/10 p-3 text-sm leading-6">
+                    <input
+                      type="checkbox"
+                      className="mt-1 size-4 shrink-0 accent-emerald-400"
+                      checked={calibrationChecks[key]}
+                      onChange={(event) => setCalibrationChecks((current) => ({ ...current, [key]: event.target.checked }))}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+                <p className="text-xs leading-5 text-emerald-100">这是基础佩戴零点确认，用于提升双传感器数据一致性，不替代医疗量角器测量。</p>
+              </div>
+
+              <Button variant="outline" className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={calibrate} disabled={saving || loading || !calibrationConfirmed}>
                 <ShieldCheck className="size-5" />
-                保存实物零点校准
+                完成基础校准
               </Button>
 
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -375,7 +418,7 @@ export default function FamilyDevicesPage() {
                 </span>
                 <span className="rounded-2xl bg-white/10 px-2 py-3">
                   <Gauge className="mx-auto mb-1 size-4" />
-                  {latestCalibration ? "已校准" : "待归零"}
+                  {latestCalibration?.quality === "GOOD" ? "已校准" : "待归零"}
                 </span>
                 <span className="rounded-2xl bg-white/10 px-2 py-3">
                   <Activity className="mx-auto mb-1 size-4" />
