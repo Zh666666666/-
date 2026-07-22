@@ -84,11 +84,11 @@
 
 ## 当前状态
 
-- 默认分支与当前交付基线：`main`；实时可信链路与生产验收自动化已分别通过 PR #23、PR #24 合并。
+- 默认分支与当前交付基线：`main`；家属易读视图、专业姿态质量门和服务端可信记录物化已通过 PR #28 合并，生产部署提交为 `a33e929`。
 - GitHub 仓库：`https://github.com/Zh666666666/-`
 - 运行时边界：`APP_MODE=demo` 始终走内存数据；生产缺数据库、网关令牌或完整的本地/Supabase 认证配置时 fail-closed（503）。
 - 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
-- 验证状态：37 项运行时/网关/API 测试、`lint`、生产 `build` 与 Android Debug 构建通过；PR #23 的 Linux GitHub Build 和 Android verify 全部通过，涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验。浏览器使用真实双传感器格式并发帧完成 2 秒链路验收。
+- 验证状态：41 项运行时/网关/API 测试、`lint` 和 41 路由生产 `build` 通过；PR #28 的 GitHub Build 运行 `29933119386` 通过。既有 Android 发布门禁涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验；浏览器使用真实双传感器格式并发帧完成 2 秒链路验收。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；用户已确认项目 Android 网关可同时连接两只实物，并在 App 与网站看到实时数据。已知其中一只广播名为 `WT901BLE67`、地址为 `D7:0F:8A:DA:BE:DB`；地址与广播名仍不能当作已验证的厂商序列号。
 - Android 网关：v0.4.1（`versionCode=5`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。本地证据任务不要求平台配置；Debug 仍允许可选的局域网 HTTP 上传，Release 继续禁止明文 HTTP。
@@ -99,7 +99,7 @@
 - 本机联调地址：`http://192.168.31.203:3000`；Demo 患者 ID：`demo-patient-1`。
 - Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
-- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证；系统安全更新和重启恢复通过。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
+- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），当前源码标记为 GitHub `main` 提交 `a33e929`；本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
 - 实时可信链路已部署到正式服务器：部署前数据库备份成功，容器重建后健康；生产验收脚本已通过健康、角色隔离、受保护数据、网关鉴权、登录态 `/sensor-live` 页面和 SSE `ready` 事件检查。软件格式双路并发验收约 0.37-0.41 秒入库、约 1.17 秒到网页；该结果不能替代用户手机网络下的连续实物验收。
 - Android v0.4.1 正式签名包来自合并提交 `f1ec633` 的 GitHub Actions 运行 `29676758183`，产物名 `android-gateway-release-f1ec6334b9fa78662c4dd204af54a567e714ebfa`，安装文件 `TKA-Gateway-v0.4.1.apk`，大小 1,548,166 字节，SHA256 `8484EF4EA43FECD01263FC14AD62AB5316E4269348F7EC4734A968E609C72788`；v2/v3 与独立 v4 验证均通过。该包包含双路连接后自动上传、`startRequested` 预检竞态保护、受保护患者预检、Keystore Token、旧队列迁移与隔离、重连恢复和活动患者保护。此前日志中的 `48A3F349...D1402E4E` 文件不在本机或 GitHub，不再作为交付依据。部署后生产 `sensor_samples` 表仍为 0 条，因此真实双传感器连续回传仍待用户手机验收。
 - 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
@@ -127,6 +127,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-22 | 将 PR #28 的家属易读视图、专业姿态质量门和可信记录物化完整部署至正式服务器；部署前生成数据库备份，并持久修正服务器 Docker Hub DNS 解析 | 正式站运行 GitHub `main` 提交 `a33e929`，PostgreSQL、Next.js、Caddy 均健康；生产环境变量与历史备份未被发布包覆盖 | 使用两只实物连续训练至少 10 分钟，核对 App/Web 同帧 ID、2 秒达标率、断网补传、校准质量门和 ROM 对照结果 | PR #28 Build `29933119386` 通过；备份 `tka-rehab-20260722T153020Z.dump`；41 路由生产构建、10 项迁移无待执行；`verify-production.mjs` 通过健康、角色隔离、受保护数据、网关鉴权、实时页和 SSE；外网 ready 200、裸域 301 保留路径和查询参数 |
 | 2026-07-22 | 以小白家属体验官和专业姿态分析师双角色复核并改良家属首页、实时页、设备校准与指标引擎；保留 3D/原始帧/公式等专业功能并默认收起；质量门与服务端记录物化均改为校准、双路同步、连续性、合理性和完整周期通过后才输出结论 | 家属默认视图已去除主要技术术语和虚假“无预警”；专业详情保留完整诊断；当前角度仍为双传感器 Pitch 差值训练预览，不冒充临床量角器 | Android 增加四元数原始姿态和功能轴校准契约，再以量角器完成 0°/30°/60°/90°/110° 对照与阈值标定 | 41/41 运行时/网关/API 测试、ESLint、41 路由生产构建通过；浏览器验证家属患者隔离、默认/专业双层视图、3D/公式保留、390×844 无横向溢出、设备三步校准及控制台 0 error/warning |
 | 2026-07-19 | 接管并完成 `fix/realtime-sensor-web-polish`：修复 Web 患者切换串帧/分析串用、Android 活动配置污染与重连恢复，发布 v0.4.1；PR #26 合并后备份并部署生产，生成同提交长期签名 APK | 软件闭环、GitHub CI、生产部署和可追溯 APK 均完成；生产健康、角色隔离、网关鉴权、实时页和 SSE 通过，数据库仍为 0 条实物样本 | 在 Android 手机安装 SHA256 `8484EF4E...C72788` 的 APK，连接两只 BT50 连续运行 10 分钟，核对 App/Web 同帧 ID、2 秒达标率、断网补传与重连 | 本地 39/39、lint、41 路由 build、Android JVM/lint/Debug build 和 390x844 浏览器通过；PR #26 Build 1m3s、Android verify 2m17s；Actions `29676758183` 正式签名成功；备份 `tka-rehab-20260719T063932Z.dump`；`verify-production.mjs`、外网 ready 200、无效/有效网关 Token 401/200 |
 | 2026-07-18 | 收口实时链路：`startRequested` 竞态、硬件演示页到货文案清除、Chrome 桌面/移动验收截图；重建含网关修复的 Debug APK | 本地代码、测试和浏览器布局曾验收；生产部署与双 BT50 实物 e2e 未做；记录的 APK 文件后续核查时已不存在 | 由后续 Agent 重跑门禁、重新生成可追溯 APK 后再部署和实测 | Web lint + 39 测试与 Android verify-debug 曾报告成功；原记录 APK 哈希无法从本机或 GitHub 复核，已撤销交付资格 |
@@ -186,3 +187,4 @@
 
 不得把计划写成已完成，不得删除其他 Agent 的有效历史记录，也不得在
 没有验证证据时声称真实硬件或生产环境已经可用。
+
