@@ -252,7 +252,11 @@ export default function FamilyPage() {
         : uploadState === "error"
           ? "等待重试"
           : "等待 App 实时上传";
-  const flexion = latestHardwareSample?.flexionAngle ?? latestRecord?.flexionAngle ?? recentRecords[0]?.flexionAngle ?? 0;
+  const fallbackRecord = latestRecord ?? recentRecords[0] ?? null;
+  const flexion = latestHardwareSample?.flexionAngle ?? fallbackRecord?.flexionAngle ?? null;
+  const measurementAt = latestHardwareSample?.recordedAt ?? fallbackRecord?.recordedAt ?? null;
+  const flexionLabel = hardwareOnline ? "当前膝盖弯曲角度" : flexion === null ? "等待首次测量" : "上次测量的弯曲角度";
+  const flexionDisplay = flexion === null ? "--" : `${flexion.toFixed(0)}°`;
   const frequency = latestRecord?.activityFrequency ?? recentRecords[0]?.activityFrequency ?? 0;
   const extension = latestRecord?.extensionAngle ?? recentRecords[0]?.extensionAngle ?? 0;
   const duration = latestRecord?.activityDuration ?? recentRecords[0]?.activityDuration ?? 0;
@@ -307,11 +311,12 @@ export default function FamilyPage() {
               </div>
               <div className="mt-5 flex items-end justify-between gap-3 md:mt-8 md:gap-4">
                 <div>
-                  <p className="text-sm text-[#c9dfd2]">最新屈曲角度</p>
-                  <p className="mt-1 text-4xl font-black tracking-[-0.08em] text-[#fff7e8] md:mt-2 md:text-6xl">{flexion.toFixed(0)}°</p>
+                  <p className="text-sm text-[#c9dfd2]">{flexionLabel}</p>
+                  <p className="mt-1 text-4xl font-black text-[#fff7e8] md:mt-2 md:text-6xl">{flexionDisplay}</p>
+                  {!hardwareOnline && measurementAt ? <p className="mt-2 text-xs text-[#c9dfd2]">测于 {formatTime(measurementAt)} · 当前没有实时数据</p> : null}
                 </div>
                 <div className="rounded-md bg-white px-3 py-2 text-right text-[#12304a] md:px-4 md:py-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6f6a5d]">Target</p>
+                  <p className="text-xs font-bold text-[#6f6a5d]">阶段目标（因人而异）</p>
                   <p className="mt-1 text-xl font-black md:text-2xl">{patient?.targetFlexion ?? 110}°</p>
                 </div>
               </div>
@@ -351,7 +356,7 @@ export default function FamilyPage() {
           <div className="family-view-enter grid gap-5 lg:grid-cols-[1.18fr_0.82fr]">
             <Card className={cn(panelClass, "overflow-hidden") }>
               <CardHeader className="pb-1 md:pb-2">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Today Rhythm</p>
+                <p className="text-xs font-black text-[#b0823d]">今天先做这些</p>
                 <CardTitle className="mt-1 text-2xl font-black tracking-[-0.03em] md:mt-2 md:text-4xl">今日照护节奏</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 p-4 pt-1 md:space-y-5 md:p-6 md:pt-2">
@@ -374,7 +379,7 @@ export default function FamilyPage() {
                         <span>今天最关键指标</span>
                         <Activity className="size-5 text-[#5b876f]" />
                       </div>
-                      <p className="mt-3 text-5xl font-black tracking-[-0.08em] text-[#2f6f55] md:mt-5 md:text-7xl">{flexion.toFixed(0)}°</p>
+                      <p className="mt-3 text-5xl font-black text-[#2f6f55] md:mt-5 md:text-7xl">{flexionDisplay}</p>
                       <p className="mt-3 text-base leading-7 text-[#5d6c61]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
@@ -383,7 +388,7 @@ export default function FamilyPage() {
                 <div className={cn(quietPanelClass, "p-5") }>
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b0823d]">Companion Check</p>
+                      <p className="text-xs font-black text-[#b0823d]">陪伴小提醒</p>
                       <p className="mt-3 max-w-2xl text-base leading-7 text-[#4c5b50]">{encouragement}</p>
                     </div>
                     <Button size="lg" className="h-10 rounded-xl bg-[#17251f] text-sm text-white shadow-[0_14px_32px_rgba(23,37,31,0.16)] hover:bg-[#243d33] md:h-12 md:rounded-2xl md:text-base md:shadow-[0_18px_40px_rgba(23,37,31,0.18)]" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
@@ -415,7 +420,7 @@ export default function FamilyPage() {
 
             <Card className={cn(panelClass, "bg-[#fff6e6]") }>
               <CardHeader>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Care Compass</p>
+                <p className="text-xs font-black text-[#b0823d]">家属行动提示</p>
                 <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em]">下一步提醒</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -468,10 +473,10 @@ export default function FamilyPage() {
                   <MetricEducationDialog metric="flexion">
                     <button className={cn(quietPanelClass, "p-6 text-left transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_55px_rgba(46,61,50,0.12)]") }>
                       <div className="flex items-center justify-between text-sm text-[#718174]">
-                        <span>最新屈曲角度</span>
+                        <span>{flexionLabel}</span>
                         <Activity className="size-5 text-[#5b876f]" />
                       </div>
-                      <p className="mt-3 text-5xl font-black tracking-[-0.08em] text-[#2f6f55] md:mt-5 md:text-7xl">{flexion.toFixed(0)}°</p>
+                      <p className="mt-3 text-5xl font-black text-[#2f6f55] md:mt-5 md:text-7xl">{flexionDisplay}</p>
                       <p className="mt-3 text-base leading-7 text-[#5d6c61]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
@@ -489,7 +494,7 @@ export default function FamilyPage() {
             <Card className={panelClass}>
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Upload Log</p>
+                  <p className="text-xs font-black text-[#b0823d]">测量记录</p>
                   <CardTitle className="mt-2 text-3xl font-black tracking-[-0.03em]">最近自动上传</CardTitle>
                 </div>
                 {patient ? (
@@ -509,7 +514,7 @@ export default function FamilyPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-lg font-black text-[#17251f]">{formatTime(record.recordedAt)}</p>
-                          <p className="mt-1 text-sm text-[#718174]">来源：智能护膝自动采集</p>
+                          <p className="mt-1 text-sm text-[#718174]">来源：{record.source === "HARDWARE" ? "真实设备测量" : record.source === "MANUAL" ? "人工记录" : record.source === "DEMO" ? "演示数据" : "智能护具"}</p>
                         </div>
                         <Badge variant={record.flexionAngle < 78 ? "destructive" : "success"}>{record.flexionAngle.toFixed(0)}°</Badge>
                       </div>
@@ -531,7 +536,7 @@ export default function FamilyPage() {
           <div className="family-view-enter grid gap-5 lg:grid-cols-2">
             <Card className={cn(panelClass, "bg-[#fff6e6]") }>
               <CardHeader>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Clinical Reading</p>
+                <p className="text-xs font-black text-[#b0823d]">分析与人工确认</p>
                 <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
                   <Sparkles className="size-7 text-[#b0823d]" />
                   护士评估
@@ -541,7 +546,7 @@ export default function FamilyPage() {
                 {latestAnalysis ? (
                   <div className="rounded-[1.5rem] border border-[#eadfce] bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge className="bg-[#17251f] text-white">护士端已分析</Badge>
+                      <Badge className="bg-[#17251f] text-white">系统初步分析 · 等待护士确认</Badge>
                       <span className="text-sm text-[#718174]">{formatTime(latestAnalysis.createdAt)}</span>
                     </div>
                     <p className="mt-4 text-base leading-7 text-[#4c5b50]">{latestAnalysis.report}</p>
@@ -562,7 +567,7 @@ export default function FamilyPage() {
 
             <Card className={panelClass}>
               <CardHeader>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Nurse Timeline</p>
+                <p className="text-xs font-black text-[#b0823d]">护士处理记录</p>
                 <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
                   <FileText className="size-7 text-[#5b876f]" />
                   护士处理动态
@@ -599,7 +604,7 @@ export default function FamilyPage() {
                 {!latestAlert && !latestGuidance ? (
                   <div className="rounded-[1.5rem] border border-dashed border-[#d8c8ad] bg-white/60 p-5 text-[#718174]">
                     <p className="text-lg font-bold text-[#17251f]">暂无新的护士处理动态</p>
-                    <p className="mt-2 leading-7">暂时没有新的处理动态，说明当前不需要额外干预。若家属仍然担心，可以通过预约护理把疑问交给护士一起看。</p>
+                    <p className="mt-2 leading-7">暂时没有新的护士留言，这不代表身体一定没有问题。如有疼痛、肿胀或不放心，请暂停训练并预约护士一起看。</p>
                   </div>
                 ) : null}
 

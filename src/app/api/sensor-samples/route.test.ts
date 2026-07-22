@@ -51,7 +51,7 @@ test("accepts a queued hardware upload exactly once", async () => {
     receipt: { captureSequence: number; integrity: string; values: { az: number } };
   };
   assert.equal(accepted.duplicate, false);
-  assert.equal(accepted.record?.source, "HARDWARE");
+  assert.equal(accepted.record, null);
   assert.equal(accepted.receipt.captureSequence, 17);
   assert.equal(accepted.receipt.integrity, "MATCHED");
   assert.equal(accepted.receipt.values.az, 1.01);
@@ -62,7 +62,7 @@ test("accepts a queued hardware upload exactly once", async () => {
   assert.equal(replayed.record, null);
   assert.equal(session.sampleCount, 1);
   assert.equal(getDemoSensorLiveSnapshot(patientId).sampleCount, 1);
-  assert.equal(getDemoDashboardData().records.length, initialRecordCount + 1);
+  assert.equal(getDemoDashboardData().records.length, initialRecordCount);
 
   const conflicting = await upload({ ...payload, captureSequence: 18 });
   assert.equal(conflicting.status, 409);
@@ -94,21 +94,27 @@ test("exposes identity and timing provenance on the live snapshot", async () => 
 test("returns the explainable rehab metrics contract after eligible dual-sensor uploads", async () => {
   resetDemoStore();
   const patientId = seedPatients[0].id;
-  const angles = [5, 25, 70, 95, 65, 8];
+  const angles = [5, 25, 70, 95, 65, 8, 30, 75, 100, 60, 20, 7];
   const startedAt = Date.now() - angles.length * 1_000;
 
   for (let index = 0; index < angles.length; index += 1) {
-    const response = await upload({
-      gatewaySampleId: `metrics-contract-${index}`,
-      patientId,
-      source: "HARDWARE",
-      placement: "SHANK",
-      recordedAt: new Date(startedAt + index * 1_000).toISOString(),
-      flexionAngle: angles[index],
-      confidence: 0.92,
-      raw: { kneeAngleMode: "DUAL_SENSOR" },
-    });
-    assert.equal(response.status, 200);
+    for (const [placement, deviceId, offset] of [
+      ["THIGH", "demo-device-thigh", 0],
+      ["SHANK", "demo-device-shank", 50],
+    ] as const) {
+      const response = await upload({
+        gatewaySampleId: `metrics-contract-${placement.toLowerCase()}-${index}`,
+        patientId,
+        deviceId,
+        source: "HARDWARE",
+        placement,
+        recordedAt: new Date(startedAt + index * 1_000 + offset).toISOString(),
+        flexionAngle: angles[index],
+        confidence: 0.92,
+        raw: { kneeAngleMode: "DUAL_SENSOR" },
+      });
+      assert.equal(response.status, 200);
+    }
   }
 
   const response = await GET(new Request(`http://localhost/api/sensor-samples?patientId=${patientId}&limit=60`));

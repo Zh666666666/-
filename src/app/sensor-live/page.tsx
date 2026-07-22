@@ -7,7 +7,6 @@ import {
   BrainCircuit,
   Calculator,
   CheckCircle2,
-  ClipboardCopy,
   Fingerprint,
   Gauge,
   Loader2,
@@ -256,8 +255,10 @@ export default function SensorLivePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
-  const [streamState, setStreamState] = useState<"CONNECTING" | "LIVE" | "FALLBACK">("CONNECTING");
+  const [, setStreamState] = useState<"CONNECTING" | "LIVE" | "FALLBACK">("CONNECTING");
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [viewerRole, setViewerRole] = useState<"family" | "nurse" | null>(null);
+  const [showProfessional, setShowProfessional] = useState(false);
   const selectedPatientIdRef = useRef<string | null>(null);
   const liveRequestRef = useRef<{ patientId: string; controller: AbortController } | null>(null);
 
@@ -294,11 +295,20 @@ export default function SensorLivePage() {
       setError(null);
 
       try {
-        const dashboardResponse = await fetch("/api/dashboard", { cache: "no-store" });
+        const [dashboardResponse, roleResponse] = await Promise.all([
+          fetch("/api/dashboard", { cache: "no-store" }),
+          fetch("/api/auth/role", { cache: "no-store" }),
+        ]);
         if (!dashboardResponse.ok) {
           throw new Error("患者列表读取失败");
         }
         const dashboard = (await dashboardResponse.json()) as DashboardData;
+        let resolvedRole: "family" | "nurse" | null = null;
+        if (roleResponse.ok) {
+          const rolePayload = (await roleResponse.json()) as { role?: "family" | "nurse" | null };
+          resolvedRole = rolePayload.role ?? null;
+          setViewerRole(resolvedRole);
+        }
         const firstPatient = dashboard.patients[0];
         if (!firstPatient) {
           throw new Error("没有可监测的患者档案");
@@ -306,7 +316,9 @@ export default function SensorLivePage() {
         if (cancelled) return;
 
         const requestedId = new URLSearchParams(window.location.search).get("patientId");
-        const selectedPatient = dashboard.patients.find((patient) => patient.id === requestedId) ?? firstPatient;
+        const selectedPatient = resolvedRole === "nurse"
+          ? dashboard.patients.find((patient) => patient.id === requestedId) ?? firstPatient
+          : firstPatient;
         const latestAnalyses = Object.fromEntries(
           dashboard.patients.map((patient) => [
             patient.id,
@@ -435,13 +447,33 @@ export default function SensorLivePage() {
 
   const latest = live?.latest ?? null;
   const dualActive = Boolean(live?.dualActive);
-  const clinicalReady = (live?.clinicalRecords.length ?? 0) > 0;
+  const clinicalReady = Boolean(live?.metrics?.clinicalEligible);
   const metrics = live?.metrics ?? null;
   const thighSample = live?.latestByPlacement?.THIGH;
   const shankSample = live?.latestByPlacement?.SHANK;
   const realtimeQualified = isTrustedRealtimeSample(thighSample, nowMs)
     && isTrustedRealtimeSample(shankSample, nowMs);
-  const latestFrameAge = endToEndLatency(latest, nowMs);
+  const urgentWarning = metrics?.warnings.find((warning) => warning.severity === "HIGH") ?? null;
+  const measurementStatus = metrics?.dataQuality.measurementStatus ?? "COLLECTING";
+  const familySafetyTitle = urgentWarning
+    ? "请先确认家人是否安全"
+    : clinicalReady
+      ? "本次监测未发现明显异常"
+      : "暂时无法判断训练质量";
+  const familySafetyDetail = urgentWarning
+    ? urgentWarning.action
+    : clinicalReady
+      ? "可以继续按护士给出的方案训练；如出现明显疼痛、肿胀或不适，请暂停并联系护士。"
+      : "系统不会用不完整的数据下结论。请先按下方提示检查设备和佩戴状态。";
+  const nextAction = measurementStatus === "SETUP_REQUIRED"
+    ? "请确认两只设备佩戴位置，并在设备页重新完成零点校准。"
+    : measurementStatus === "TECHNICAL_ISSUE"
+      ? "数据存在不同步或异常跳变，请暂停使用本次结果并检查蓝牙连接。"
+      : measurementStatus === "COLLECTING"
+        ? dualActive
+          ? "两只设备已经连接，请缓慢完成至少一次完整的弯曲再伸直。"
+          : "还需要连接大腿和小腿两只设备，当前读数只作实时观察。"
+        : "数据质量已经满足训练监测要求，可以查看本次完成情况。";
 
   function selectPatient(nextPatientId: string) {
     selectedPatientIdRef.current = nextPatientId;
@@ -467,30 +499,37 @@ export default function SensorLivePage() {
             <div>
               <Badge className="gap-2 border border-white/15 bg-white/10 px-3 py-1 text-sm text-white">
                 <Activity className="size-4" />
-                真实硬件 · 实时数据中枢
+                家人康复 · 实时动作
               </Badge>
               <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white md:text-5xl">
-                两只传感器，一条可信数据链。
+                现在练得怎么样，一眼看明白。
               </h1>
               <p className="mt-3 max-w-3xl text-base leading-7 text-[#cfe0e9]">
-                手机采集、服务器接收和网页显示使用同一个样本 ID。目标延迟 1–2 秒；超时、患者不一致或数值未核验都会明确显示，不用猜数据到底有没有上传。
+                这里先告诉您设备是否正常、动作完成情况和下一步怎么做。系统拿不准时会明确说“暂时无法判断”，不会把不完整数据当成结论。
               </p>
               <p className="mt-3 text-sm text-[#9fc0d2]">
                 患者 {patientName}
-                {patientId ? ` · ${patientId}` : ""} · 网页观测 {formatClock(lastRefresh)} · {streamState === "LIVE" ? "事件流在线" : streamState === "FALLBACK" ? "轮询兜底" : "正在连接事件流"}
+                 · 最近更新 {formatClock(lastRefresh)}
               </p>
             </div>
             <div className="grid min-w-full gap-3 rounded-xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur lg:min-w-[360px]">
-              <label className="grid gap-2 text-sm font-bold text-[#cfe0e9]">
-                <span className="flex items-center gap-2"><UsersRound className="size-4" />当前监测患者</span>
-                <select
-                  value={patientId ?? ""}
-                  onChange={(event) => selectPatient(event.target.value)}
-                  className="h-11 rounded-lg border border-white/15 bg-[#173b54] px-3 text-sm font-semibold text-white outline-none"
-                >
-                  {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.id}</option>)}
-                </select>
-              </label>
+              {viewerRole === "nurse" ? (
+                <label className="grid gap-2 text-sm font-bold text-[#cfe0e9]">
+                  <span className="flex items-center gap-2"><UsersRound className="size-4" />当前监测患者</span>
+                  <select
+                    value={patientId ?? ""}
+                    onChange={(event) => selectPatient(event.target.value)}
+                    className="h-11 rounded-lg border border-white/15 bg-[#173b54] px-3 text-sm font-semibold text-white outline-none"
+                  >
+                    {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.id}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <div className="rounded-lg border border-white/10 bg-white/10 px-3 py-3">
+                  <p className="text-xs text-[#9fc0d2]">当前家人</p>
+                  <p className="mt-1 font-bold text-white">{patientName}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
@@ -504,21 +543,16 @@ export default function SensorLivePage() {
                 <Button
                   variant="outline"
                   className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white"
-                  disabled={!patientId}
-                  onClick={async () => {
-                    if (!patientId) return;
-                    await navigator.clipboard.writeText(patientId);
-                    setMessage(`患者 ID 已复制：${patientId}`);
-                  }}
+                  onClick={() => setShowProfessional((current) => !current)}
                 >
-                  <ClipboardCopy className="size-4" />
-                  复制 ID
+                  <BrainCircuit className="size-4" />
+                  {showProfessional ? "返回易懂视图" : "专业详情"}
                 </Button>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs text-[#cfe0e9]">
-                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{streamState === "LIVE" ? "SSE" : "1s"}</b>刷新</span>
-                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{formatLatency(latestFrameAge)}</b>帧龄</span>
-                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{live?.sampleCount ?? 0}</b>缓存帧</span>
+                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{realtimeQualified ? "正常" : "检查中"}</b>数据上传</span>
+                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{dualActive ? "2 只" : latest ? "1 只" : "0 只"}</b>设备数据</span>
+                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{clinicalReady ? "可用" : "等待"}</b>训练评估</span>
               </div>
             </div>
           </div>
@@ -527,6 +561,63 @@ export default function SensorLivePage() {
         {error ? <StatusNotice tone="error">{error}</StatusNotice> : null}
         {message ? <StatusNotice tone="success">{message}</StatusNotice> : null}
 
+        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]" aria-label="家属易懂实时状态">
+          <Card className={`border-2 shadow-sm ${urgentWarning ? "border-red-200 bg-red-50" : clinicalReady ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <CardContent className="p-5 md:p-6">
+              <div className="flex items-start gap-3">
+                {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : clinicalReady ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
+                <div>
+                  <p className="text-sm font-bold text-slate-500">现在是否需要注意</p>
+                  <h2 className="mt-1 text-2xl font-black text-[#12304a]">{familySafetyTitle}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">{familySafetyDetail}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+            <CardContent className="p-5 md:p-6">
+              <p className="text-sm font-bold text-slate-500">现在该怎么做</p>
+              <p className="mt-2 text-lg font-black leading-8 text-[#12304a]">{nextAction}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge variant={realtimeQualified ? "success" : "warning"}>{realtimeQualified ? "两只设备上传正常" : dualActive ? "正在核对数据" : "设备未连接完整"}</Badge>
+                <Badge variant={clinicalReady ? "success" : "outline"}>{clinicalReady ? "本次结果可用于训练监测" : "暂不输出训练结论"}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="本次训练完成情况">
+          {[
+            { label: "本次活动范围", value: metrics?.rom.value, suffix: "°", note: "膝盖从伸直到弯曲的变化范围" },
+            { label: "最深弯曲角度", value: metrics?.rom.peakFlexion, suffix: "°", note: `本阶段目标 ${metrics?.rom.targetFlexion ?? "--"}°，目标因人而异` },
+            { label: "完成完整屈伸", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后再回到起始位置才算一次" },
+            { label: "实际训练时间", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "静止和长时间断开不会计入" },
+          ].map((item) => (
+            <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
+              <CardContent className="p-5">
+                <p className="text-sm font-semibold text-slate-500">{item.label}</p>
+                <p className="mt-2 text-3xl font-black tabular-nums text-[#12304a]">
+                  {typeof item.value === "number" ? formatNumber(item.value, Number.isInteger(item.value) ? 0 : 1) : "--"}
+                  <span className="ml-1 text-sm text-slate-500">{item.suffix}</span>
+                </p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{item.note}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
+        {!showProfessional ? (
+          <button type="button" onClick={() => setShowProfessional(true)} className="flex w-full items-center justify-between rounded-lg border border-[#d9e2e9] bg-white px-5 py-4 text-left shadow-sm hover:bg-slate-50">
+            <span>
+              <b className="block text-[#12304a]">查看专业详情</b>
+              <span className="mt-1 block text-sm text-slate-500">包含数据一致性、3D 姿态、原始传感器数值、质量门和公式</span>
+            </span>
+            <BrainCircuit className="size-5 text-emerald-700" />
+          </button>
+        ) : null}
+
+        {showProfessional ? <>
         <section className="border border-[#d9e2e9] bg-white px-4 py-2 shadow-sm md:px-6" aria-labelledby="provenance-title">
           <div className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -562,8 +653,8 @@ export default function SensorLivePage() {
               <p className="text-sm font-semibold text-slate-500">最新膝角</p>
               <p className="text-2xl font-black text-[#12304a]">{formatNumber(latest?.flexionAngle)}°</p>
               <p className="text-xs text-slate-500">
-                置信度 {formatNumber(typeof latest?.confidence === "number" ? latest.confidence * 100 : null, 0)}%
-                {latest?.clinicalEligible ? " · 可进临床" : " · 仅原始"}
+                网关预览置信度 {formatNumber(typeof latest?.confidence === "number" ? latest.confidence * 100 : null, 0)}%
+                {latest?.clinicalEligible ? " · 双路预览" : " · 仅原始"}
               </p>
             </CardContent>
           </Card>
@@ -576,9 +667,9 @@ export default function SensorLivePage() {
           </Card>
           <Card className="border-[#d9e2e9] bg-white shadow-sm">
             <CardContent className="space-y-2 p-5">
-              <p className="text-sm font-semibold text-slate-500">临床趋势点</p>
+              <p className="text-sm font-semibold text-slate-500">10 秒聚合点</p>
               <p className="text-2xl font-black text-[#12304a]">{live?.clinicalRecords.length ?? 0}</p>
-              <p className="text-xs text-slate-500">{clinicalReady ? "可供分析 API 使用" : "尚无高置信聚合"}</p>
+              <p className="text-xs text-slate-500">{clinicalReady ? "当前质量门已通过" : "当前质量门未通过"}</p>
             </CardContent>
           </Card>
         </div>
@@ -587,7 +678,7 @@ export default function SensorLivePage() {
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <ShieldAlert className="mt-0.5 size-5 shrink-0" />
             <p>
-              当前只有原始样本或低置信单传感器读数时，网站会显示 Acc/Gyro/Angle，但不会生成临床趋势或告警，内置分析也不会把这些临时值当结论。接上第二只传感器并完成双传感器校准后，可信膝角才会进入分析。
+              当前质量门未通过。网站仍保留 Acc/Gyro/Angle、3D 和同帧凭证用于排查，但不会输出活动范围、训练次数或关注优先级。需要真实硬件、匹配的 GOOD 校准、200ms 内双路配对、连续采样和至少一次完整屈伸。
             </p>
           </div>
         ) : null}
@@ -596,7 +687,7 @@ export default function SensorLivePage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-bold text-emerald-700">实时评估引擎</p>
-              <h2 id="rehab-metrics-title" className="mt-1 text-2xl font-bold text-[#12304a]">ROM、训练质量与安全预警</h2>
+              <h2 id="rehab-metrics-title" className="mt-1 text-2xl font-bold text-[#12304a]">训练测量、质量门与复核提示</h2>
             </div>
             {metrics ? (
               <div className="flex items-center gap-2">
@@ -610,12 +701,12 @@ export default function SensorLivePage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
             {[
-              { label: "本次 ROM", value: metrics?.rom.value, suffix: "°", note: "P95 - P05", icon: Calculator },
+              { label: "活动范围（ROM）", value: metrics?.rom.value, suffix: "°", note: "P95 - P05", icon: Calculator },
               { label: "峰值屈曲", value: metrics?.rom.peakFlexion, suffix: "°", note: `目标 ${metrics?.rom.targetFlexion ?? "--"}°`, icon: Gauge },
-              { label: "伸直缺失", value: metrics?.rom.extensionDeficit, suffix: "°", note: "越接近 0 越好", icon: Activity },
-              { label: "完整重复", value: metrics?.training.repetitions, suffix: " 次", note: `${formatNumber(metrics?.training.cadencePerMinute)} 次/分`, icon: RefreshCw },
+              { label: "距完全伸直", value: metrics?.rom.extensionDeficit, suffix: "°", note: "校准后越接近 0 越好", icon: Activity },
+              { label: "完整屈伸", value: metrics?.training.repetitions, suffix: " 次", note: `${formatNumber(metrics?.training.cadencePerMinute)} 次/分`, icon: RefreshCw },
               { label: "有效活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "排除静止与长断帧", icon: Timer },
-              { label: "数据质量", value: metrics?.dataQuality.score, suffix: " 分", note: `${metrics?.dataQuality.eligibleSamples ?? 0} 个合格样本`, icon: ShieldCheck },
+              { label: "数据质量", value: metrics?.dataQuality.score, suffix: " 分", note: `${metrics?.dataQuality.synchronizedPairs ?? 0} 对同步帧`, icon: ShieldCheck },
             ].map((item) => (
               <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
                 <CardContent className="p-4">
@@ -633,25 +724,56 @@ export default function SensorLivePage() {
             ))}
           </div>
 
+          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <ShieldCheck className="size-5 text-emerald-700" />
+                测量质量诊断
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                {[
+                  ["同步帧对", `${metrics?.dataQuality.synchronizedPairs ?? 0} 对`],
+                  ["P95 配对误差", formatLatency(metrics?.dataQuality.pairGapP95Ms)],
+                  ["连续观察", `${formatNumber(metrics?.dataQuality.observationSeconds)} 秒`],
+                  ["采样连续性", `${formatNumber(metrics?.dataQuality.samplingRegularityPercent, 0)}%`],
+                  ["动作合理性", `${formatNumber(metrics?.dataQuality.motionPlausibilityPercent, 0)}%`],
+                  ["校准匹配", metrics?.dataQuality.calibrationStatus ?? "--"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg bg-slate-50 px-3 py-3">
+                    <p className="text-xs font-semibold text-slate-500">{label}</p>
+                    <p className="mt-1 font-mono text-sm font-black text-[#12304a]">{value}</p>
+                  </div>
+                ))}
+              </div>
+              {(metrics?.dataQuality.reasonCodes.length ?? 0) > 0 ? (
+                <p className="mt-3 break-words rounded-lg bg-amber-50 px-3 py-2 font-mono text-xs leading-5 text-amber-900">
+                  失败关闭原因：{metrics?.dataQuality.reasonCodes.join(" · ")}
+                </p>
+              ) : <p className="mt-3 text-sm font-semibold text-emerald-700">全部质量门已通过。</p>}
+            </CardContent>
+          </Card>
+
           <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
             <Card className="border-[#d9e2e9] bg-white shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
                   <ShieldAlert className="size-5 text-amber-700" />
-                  风险计算链路
+                  关注优先级计算链路
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="border-l-4 border-[#2b6f88] bg-[#f3f8fa] px-4 py-3">
                   <p className="text-xs font-bold text-[#2b6f88]">1 · 基础输入</p>
                   <p className="mt-1 text-sm leading-6 text-slate-700">
-                    双传感器合格样本 {metrics?.dataQuality.eligibleSamples ?? 0} 个；P95 屈曲 {formatNumber(metrics?.rom.peakFlexion)}°；P05 {formatNumber(metrics?.rom.minimumFlexion)}°；近期趋势 {formatNumber(metrics?.trend.changeDegrees)}°；疼痛来自最近一次人工记录。
+                    同步帧 {metrics?.dataQuality.synchronizedPairs ?? 0} 对；P95 屈曲 {formatNumber(metrics?.rom.peakFlexion)}°；P05 {formatNumber(metrics?.rom.minimumFlexion)}°；近期趋势 {formatNumber(metrics?.trend.changeDegrees)}°；疼痛只读取最近一次人工填写记录。
                   </p>
                 </div>
                 <div className={`border-l-4 px-4 py-3 ${metrics?.clinicalEligible ? "border-emerald-600 bg-emerald-50" : "border-amber-500 bg-amber-50"}`}>
                   <p className="text-xs font-bold text-slate-700">2 · 质量门</p>
                   <p className="mt-1 text-sm leading-6 text-slate-700">
-                    Q={metrics?.dataQuality.score ?? 0}；要求至少 5 个双传感器样本且 Q≥55。{metrics?.clinicalEligible ? "已通过，可以继续计算。" : "未通过，风险分保持为空。"}
+                    Q={metrics?.dataQuality.score ?? 0}；同时检查真实来源、校准设备、200ms 配对、观察时长、连续性、动作合理性和完整周期。{metrics?.clinicalEligible ? "已通过，可以继续计算。" : "任一条件未通过，关注优先级保持为空。"}
                   </p>
                 </div>
                 <div className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
@@ -665,7 +787,7 @@ export default function SensorLivePage() {
                 </div>
                 <div className="flex items-end justify-between gap-4 border-l-4 border-[#12304a] bg-slate-50 px-4 py-3">
                   <div>
-                    <p className="text-xs font-bold text-[#12304a]">4 · 结果与动作</p>
+                    <p className="text-xs font-bold text-[#12304a]">4 · 复核优先级与动作</p>
                     <p className="mt-1 text-4xl font-black tabular-nums text-[#12304a]">
                       {typeof metrics?.risk.score === "number" ? metrics.risk.score : "--"}
                       <span className="ml-1 text-base text-slate-400">/100</span>
@@ -675,7 +797,7 @@ export default function SensorLivePage() {
                     {metrics ? riskLabel(metrics.risk.level) : "等待计算"}
                   </Badge>
                 </div>
-                <p className="text-xs leading-5 text-slate-500">风险提示用于监测和分流，不是诊断；任何高风险项都必须结合患者主诉与人工确认。</p>
+                <p className="text-xs leading-5 text-slate-500">该分数只是“先看谁”的复核优先级，不是并发症概率或医学严重程度；任何提示都必须结合患者主诉与人工确认。</p>
               </CardContent>
             </Card>
 
@@ -697,11 +819,17 @@ export default function SensorLivePage() {
                     <p className="mt-2 text-sm leading-6 text-amber-950">{warning.evidence}</p>
                     <p className="mt-1 text-sm font-semibold leading-6 text-slate-700">处置：{warning.action}</p>
                   </div>
-                )) : (
+                )) : !metrics?.clinicalEligible ? (
+                  <div className="flex min-h-36 flex-col items-center justify-center text-center">
+                    <ShieldAlert className="size-8 text-amber-700" />
+                    <p className="mt-3 font-bold text-[#12304a]">暂时无法判断</p>
+                    <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">当前测量质量不足，因此系统不会显示“无异常”。请先完成设备连接、校准和一次完整屈伸。</p>
+                  </div>
+                ) : (
                   <div className="flex min-h-36 flex-col items-center justify-center text-center">
                     <ShieldCheck className="size-8 text-emerald-700" />
-                    <p className="mt-3 font-bold text-[#12304a]">当前无规则预警</p>
-                    <p className="mt-1 text-sm text-slate-500">仍需结合患者主诉和护士评估。</p>
+                    <p className="mt-3 font-bold text-[#12304a]">本次监测未发现明显异常</p>
+                    <p className="mt-1 text-sm text-slate-500">仍需结合家人感受和护士评估；明显疼痛或肿胀时请暂停。</p>
                   </div>
                 )}
               </CardContent>
@@ -752,7 +880,7 @@ export default function SensorLivePage() {
                   {loading ? "加载中…" : "等待 Android 网关上传 HARDWARE 样本"}
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                   <LineChart data={waveform}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
@@ -782,7 +910,7 @@ export default function SensorLivePage() {
                   尚无临床聚合点。单传感器 confidence=0.35 只保留原始帧。
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                   <LineChart data={clinicalSeries}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={20} />
@@ -891,6 +1019,7 @@ export default function SensorLivePage() {
             </table>
           </CardContent>
         </Card>
+        </> : null}
       </section>
     </main>
   );

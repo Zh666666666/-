@@ -6,6 +6,7 @@ import {
   clinicalRecordIntervalMs,
   isClinicalKneeAngle,
   minimumClinicalConfidence,
+  resolveTrustedClinicalPairAngle,
   shouldMaterializeClinicalRecord,
 } from "./sensor-ingestion";
 
@@ -35,6 +36,37 @@ test("throttles clinical records to one point per interval", () => {
     ),
     true,
   );
+});
+
+test("materializes an angle only from a calibrated synchronized hardware pair", () => {
+  const current = {
+    source: "HARDWARE",
+    placement: "SHANK",
+    deviceId: "device-shank",
+    recordedAt: "2026-07-22T10:00:00.100Z",
+    flexionAngle: 82,
+    confidence: 0.92,
+    kneeAngleMode: "DUAL_SENSOR",
+  };
+  const opposite = {
+    source: "HARDWARE",
+    placement: "THIGH",
+    deviceId: "device-thigh",
+    recordedAt: "2026-07-22T10:00:00.000Z",
+    flexionAngle: 80,
+    confidence: 0.9,
+    kneeAngleMode: "DUAL_SENSOR",
+  };
+  const calibration = {
+    quality: "GOOD",
+    thighDeviceId: "device-thigh",
+    shankDeviceId: "device-shank",
+  };
+
+  assert.equal(resolveTrustedClinicalPairAngle({ current, opposite, calibration, currentBindingMatches: true }), 81);
+  assert.equal(resolveTrustedClinicalPairAngle({ current, opposite: { ...opposite, recordedAt: "2026-07-22T10:00:00.400Z" }, calibration, currentBindingMatches: true }), null);
+  assert.equal(resolveTrustedClinicalPairAngle({ current, opposite, calibration: { ...calibration, quality: "FAIR" }, currentBindingMatches: true }), null);
+  assert.equal(resolveTrustedClinicalPairAngle({ current, opposite, calibration, currentBindingMatches: false }), null);
 });
 
 test("keeps alert cooldown at thirty minutes", () => {

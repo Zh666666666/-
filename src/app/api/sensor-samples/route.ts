@@ -22,6 +22,7 @@ import {
   alertCooldownMs,
   clinicalRecordIntervalMs,
   isClinicalKneeAngle,
+  resolveTrustedClinicalPairAngle,
 } from "@/lib/sensor-ingestion";
 
 const sensorSampleSchema = z.object({
@@ -176,7 +177,7 @@ export async function GET(request: Request) {
     return NextResponse.json(getDemoSensorLiveSnapshot(patientId));
   }
 
-  const [samples, clinicalRecords, patient] = await Promise.all([
+  const [samples, clinicalRecords, patient, calibration] = await Promise.all([
     prisma.sensorSample.findMany({
       where: { patientId },
       orderBy: { recordedAt: "desc" },
@@ -190,6 +191,11 @@ export async function GET(request: Request) {
     prisma.patient.findUnique({
       where: { id: patientId },
       select: { targetFlexion: true },
+    }),
+    prisma.calibrationRecord.findFirst({
+      where: { patientId },
+      orderBy: { createdAt: "desc" },
+      select: { quality: true, thighDeviceId: true, shankDeviceId: true },
     }),
   ]);
 
@@ -207,6 +213,7 @@ export async function GET(request: Request) {
     samples: serialized,
     clinicalRecords: serializedClinicalRecords,
     targetFlexion: patient?.targetFlexion,
+    calibration,
   });
 
   return NextResponse.json({
@@ -354,7 +361,76 @@ export async function POST(request: Request) {
       });
     }
 
-    const nearbyClinicalRecord = typeof body.flexionAngle === "number" && isClinicalKneeAngle(body.confidence)
+    const currentMode = resolveKneeAngleMode(body.raw, body.confidence);
+    const oppositePlacement = body.placement === "THIGH" ? "SHANK" : body.placement === "SHANK" ? "THIGH" : null;
+    const calibration = source === "HARDWARE" && oppositePlacement
+      ? await transaction.calibrationRecord.findFirst({
+          where: { patientId: body.patientId, quality: "GOOD" },
+          orderBy: { createdAt: "desc" },
+          select: { quality: true, thighDeviceId: true, shankDeviceId: true },
+        })
+      : null;
+    const expectedOppositeDeviceId = oppositePlacement === "THIGH"
+      ? calibration?.thighDeviceId
+      : oppositePlacement === "SHANK"
+        ? calibration?.shankDeviceId
+        : null;
+    const [currentBinding, oppositeCandidates] = calibration && body.deviceId && expectedOppositeDeviceId
+      ? await Promise.all([
+          transaction.deviceBinding.findFirst({
+            where: {
+              patientId: body.patientId,
+              deviceId: body.deviceId,
+              placement: body.placement,
+              active: true,
+            },
+            select: { id: true },
+          }),
+          transaction.sensorSample.findMany({
+            where: {
+              patientId: body.patientId,
+              source: "HARDWARE",
+              placement: oppositePlacement!,
+              deviceId: expectedOppositeDeviceId,
+              confidence: { gte: 0.7 },
+              flexionAngle: { not: null },
+              recordedAt: {
+                gte: new Date(recordedAt.getTime() - 200),
+                lte: new Date(recordedAt.getTime() + 200),
+              },
+            },
+            orderBy: { recordedAt: "desc" },
+            take: 4,
+          }),
+        ])
+      : [null, []];
+    const oppositeSample = oppositeCandidates
+      .filter((candidate) => resolveKneeAngleMode(candidate.raw, candidate.confidence) === "DUAL_SENSOR")
+      .sort((a, b) => Math.abs(a.recordedAt.getTime() - recordedAt.getTime()) - Math.abs(b.recordedAt.getTime() - recordedAt.getTime()))[0] ?? null;
+    const trustedPairAngle = resolveTrustedClinicalPairAngle({
+      current: {
+        source,
+        placement: body.placement,
+        deviceId: body.deviceId,
+        recordedAt,
+        flexionAngle: body.flexionAngle,
+        confidence: body.confidence,
+        kneeAngleMode: currentMode,
+      },
+      opposite: oppositeSample ? {
+        source: oppositeSample.source,
+        placement: oppositeSample.placement,
+        deviceId: oppositeSample.deviceId,
+        recordedAt: oppositeSample.recordedAt,
+        flexionAngle: oppositeSample.flexionAngle,
+        confidence: oppositeSample.confidence,
+        kneeAngleMode: resolveKneeAngleMode(oppositeSample.raw, oppositeSample.confidence),
+      } : null,
+      calibration,
+      currentBindingMatches: Boolean(currentBinding),
+    });
+
+    const nearbyClinicalRecord = trustedPairAngle !== null
       ? await transaction.kneeDataRecord.findFirst({
           where: {
             patientId: body.patientId,
@@ -368,16 +444,14 @@ export async function POST(request: Request) {
         })
       : null;
 
-    const shouldCreateKneeRecord = typeof body.flexionAngle === "number"
-      && isClinicalKneeAngle(body.confidence)
-      && !nearbyClinicalRecord;
+    const shouldCreateKneeRecord = trustedPairAngle !== null && !nearbyClinicalRecord;
 
     const kneeRecord = shouldCreateKneeRecord
       ? await transaction.kneeDataRecord.create({
           data: {
             patientId: body.patientId,
-            flexionAngle: body.flexionAngle!,
-            extensionAngle: body.extensionAngle ?? 0,
+            flexionAngle: trustedPairAngle!,
+            extensionAngle: Math.max(0, body.extensionAngle ?? 0),
             activityFrequency: 1,
             activityDuration: 1,
             painScore: 0,
