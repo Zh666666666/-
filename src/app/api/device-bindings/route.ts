@@ -12,6 +12,7 @@ const bindingSchema = z.object({
   deviceId: z.string().min(1),
   patientId: z.string().min(1),
   placement: z.enum(["THIGH", "SHANK", "BRACE", "UNKNOWN"]),
+  placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
 });
 
 export async function GET(request: Request) {
@@ -56,33 +57,54 @@ export async function POST(request: Request) {
 
   await ensureDemoPatients();
 
-  await prisma.deviceBinding.updateMany({
-    where: {
-      patientId: body.patientId,
-      placement: body.placement,
-      active: true,
-    },
-    data: {
-      active: false,
-      unboundAt: new Date(),
-    },
-  });
+  const binding = await prisma.$transaction(async (transaction) => {
+    const now = new Date();
+    await transaction.sensorSession.updateMany({
+      where: {
+        patientId: body.patientId,
+        status: "ACTIVE",
+        placementRevision: { not: body.placementRevision },
+      },
+      data: { status: "ABORTED", endedAt: now },
+    });
+    await transaction.deviceBinding.updateMany({
+      where: {
+        patientId: body.patientId,
+        active: true,
+        OR: [
+          { placementRevision: { not: body.placementRevision } },
+          { placement: body.placement, deviceId: { not: body.deviceId } },
+          { deviceId: body.deviceId, placement: { not: body.placement } },
+        ],
+      },
+      data: { active: false, unboundAt: now },
+    });
 
-  const binding = await prisma.deviceBinding.create({
-    data: {
-      deviceId: body.deviceId,
-      patientId: body.patientId,
-      placement: body.placement,
-    },
-    include: { device: true },
-  });
+    const existing = await transaction.deviceBinding.findFirst({
+      where: {
+        deviceId: body.deviceId,
+        patientId: body.patientId,
+        placement: body.placement,
+        placementRevision: body.placementRevision,
+        active: true,
+      },
+      include: { device: true },
+    });
+    const result = existing ?? await transaction.deviceBinding.create({
+      data: {
+        deviceId: body.deviceId,
+        patientId: body.patientId,
+        placement: body.placement,
+        placementRevision: body.placementRevision,
+      },
+      include: { device: true },
+    });
 
-  await prisma.device.update({
-    where: { id: body.deviceId },
-    data: {
-      status: "ONLINE",
-      lastSeenAt: new Date(),
-    },
+    await transaction.device.update({
+      where: { id: body.deviceId },
+      data: { status: "ONLINE", lastSeenAt: now },
+    });
+    return result;
   });
 
   return NextResponse.json(serializeDeviceBinding(binding));

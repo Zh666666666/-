@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 const sessionSchema = z.object({
   patientId: z.string().min(1),
   source: z.enum(["SMART_BRACE", "HARDWARE", "MANUAL", "DEMO"]).optional(),
+  placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
 });
 
 export async function POST(request: Request) {
@@ -35,12 +36,40 @@ export async function POST(request: Request) {
 
   await ensureDemoPatients();
 
-  const session = await prisma.sensorSession.create({
-    data: {
-      patientId: body.patientId,
-      source: body.source ?? "HARDWARE",
-    },
+  const session = await prisma.$transaction(async (transaction) => {
+    const bindingCount = await transaction.deviceBinding.count({
+      where: {
+        patientId: body.patientId,
+        placementRevision: body.placementRevision,
+        active: true,
+        placement: { in: ["THIGH", "SHANK"] },
+      },
+    });
+    if ((body.source ?? "HARDWARE") === "HARDWARE" && bindingCount < 1) {
+      throw new Error("PLACEMENT_REVISION_NOT_BOUND");
+    }
+    await transaction.sensorSession.updateMany({
+      where: { patientId: body.patientId, status: "ACTIVE" },
+      data: { status: "ABORTED", endedAt: new Date() },
+    });
+    return transaction.sensorSession.create({
+      data: {
+        patientId: body.patientId,
+        source: body.source ?? "HARDWARE",
+        placementRevision: body.placementRevision,
+      },
+    });
+  }).catch((error: unknown) => {
+    if (error instanceof Error && error.message === "PLACEMENT_REVISION_NOT_BOUND") return null;
+    throw error;
   });
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "No active device binding matches placementRevision", code: "PLACEMENT_REVISION_NOT_BOUND" },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json(serializeSensorSession(session));
 }

@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Field gateway screen with official-app style live visualization:
@@ -67,6 +68,8 @@ public final class MainActivity extends AppCompatActivity {
     private String connectedShankAddress = "";
     private boolean thighConnected;
     private boolean shankConnected;
+    private LinearLayout sessionActions;
+    private final AtomicBoolean stopInProgress = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,7 +123,17 @@ public final class MainActivity extends AppCompatActivity {
                         public void onError(String message, Exception error) {
                             renderStatus(message + detail(error));
                         }
-                    }
+
+                        @Override
+                        public void onDrainComplete() {
+                            runOnUiThread(() -> {
+                                if (evidenceStore == null || !evidenceStore.isActive()) {
+                                    start.setEnabled(true);
+                                }
+                            });
+                        }
+                    },
+                    preferences
             );
         } catch (Exception error) {
             renderStatus("加密离线队列初始化失败" + detail(error));
@@ -161,6 +174,22 @@ public final class MainActivity extends AppCompatActivity {
                 @Override
                 public void onStatus(String message) {
                     renderStatus(message);
+                }
+
+                @Override
+                public void onPlacementRevisionChanged(long revision) {
+                    runOnUiThread(() -> handlePlacementRevisionChanged(revision));
+                }
+
+                @Override
+                public void onSoftwareZeroApplied(SensorPlacement placement) {
+                    runOnUiThread(() -> {
+                        if (placement == SensorPlacement.THIGH) {
+                            thighPanel.showSoftwareZero();
+                        } else {
+                            shankPanel.showSoftwareZero();
+                        }
+                    });
                 }
             });
         } catch (Throwable error) {
@@ -245,6 +274,7 @@ public final class MainActivity extends AppCompatActivity {
                 0xFF7A4E00,
                 0xFFFFF8E1
         );
+        stabilizeLines(linkState, 1);
         content.addView(linkState);
 
         TextView steps = banner(
@@ -259,6 +289,7 @@ public final class MainActivity extends AppCompatActivity {
                 0xFF5D4037,
                 0xFFFFF3E0
         );
+        stabilizeLines(syncState, 3);
         content.addView(syncState);
 
         sampleSummary = banner(
@@ -266,6 +297,7 @@ public final class MainActivity extends AppCompatActivity {
                 0xFF0F2942,
                 0xFFE3F2FD
         );
+        stabilizeLines(sampleSummary, 5);
         content.addView(sampleSummary);
 
         content.addView(sectionTitle("佩戴姿态（转动传感器应同步变化）"));
@@ -315,6 +347,7 @@ public final class MainActivity extends AppCompatActivity {
 
         content.addView(sectionTitle("开始训练"));
         sessionState = banner("采集状态：未开始（仅预览实时数据）", 0xFF7A4E00, 0xFFFFF8E1);
+        stabilizeLines(sessionState, 1);
         content.addView(sessionState);
 
         localEvidenceState = banner(
@@ -322,16 +355,19 @@ public final class MainActivity extends AppCompatActivity {
                 0xFF0F2942,
                 0xFFFFFFFF
         );
+        stabilizeLines(localEvidenceState, 3);
         content.addView(localEvidenceState);
 
-        LinearLayout sessionActions = new LinearLayout(this);
+        sessionActions = new LinearLayout(this);
         sessionActions.setOrientation(LinearLayout.HORIZONTAL);
+        sessionActions.setBackgroundColor(0xFFFFFFFF);
+        sessionActions.setPadding(padding, dp(8), padding, dp(8));
+        sessionActions.setElevation(dp(8));
         start = actionButton("开始记录并上传", 0xFF2E7D32, view -> startSession());
         sessionActions.addView(start, weightedButton());
         stop = actionButton("结束本次训练", 0xFFC62828, view -> stopSession());
         stop.setEnabled(false);
         sessionActions.addView(stop, weightedButton());
-        content.addView(sessionActions);
 
         exportEvidence = actionButton("导出最近证据包", 0xFF455A64, view -> exportLatestEvidence());
         exportEvidence.setEnabled(false);
@@ -378,13 +414,27 @@ public final class MainActivity extends AppCompatActivity {
                 0xFF0F2942,
                 0xFFFFFFFF
         );
+        stabilizeLines(status, 3);
         content.addView(status);
 
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         scrollView.setBackgroundColor(0xFFEEF3F7);
         scrollView.addView(content);
-        return scrollView;
+
+        LinearLayout screen = new LinearLayout(this);
+        screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setBackgroundColor(0xFFEEF3F7);
+        screen.addView(scrollView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1
+        ));
+        screen.addView(sessionActions, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        return screen;
     }
 
     private TextView sectionTitle(String text) {
@@ -411,6 +461,12 @@ public final class MainActivity extends AppCompatActivity {
         params.bottomMargin = dp(8);
         view.setLayoutParams(params);
         return view;
+    }
+
+    private static void stabilizeLines(TextView view, int lines) {
+        view.setMinLines(lines);
+        view.setMaxLines(lines);
+        view.setGravity(Gravity.CENTER_VERTICAL);
     }
 
     private Button actionButton(String text, int color, View.OnClickListener listener) {
@@ -485,6 +541,10 @@ public final class MainActivity extends AppCompatActivity {
         if (stop.isEnabled()) {
             return;
         }
+        if (platformGateway != null && platformGateway.isDraining()) {
+            renderStatus("上一次训练仍在补传并关闭平台会话，请等待“平台会话已可靠关闭”后再开始。");
+            return;
+        }
         if (evidenceStore == null) {
             renderStatus("本地证据存储不可用，已阻止采集，避免产生不可追溯数据。");
             return;
@@ -535,11 +595,17 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void stopSession() {
+        if (!stopInProgress.compareAndSet(false, true)) {
+            return;
+        }
+        stop.setEnabled(false);
         if (platformGateway != null) {
             platformGateway.stop();
         }
         if (evidenceStore == null) {
             renderStatus("本地证据存储不可用，无法封存任务。");
+            stop.setEnabled(true);
+            stopInProgress.set(false);
             return;
         }
         try {
@@ -550,16 +616,19 @@ public final class MainActivity extends AppCompatActivity {
             sessionState.setTextColor(0xFFC62828);
             sessionState.setBackground(rounded(0xFFFFEBEE, dp(14)));
             renderStatus("结束任务时封存证据失败，数据仍保留在加密存储中，请重试" + detail(error));
+            stop.setEnabled(true);
+            stopInProgress.set(false);
             return;
         }
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        start.setEnabled(true);
+        start.setEnabled(platformGateway == null || !platformGateway.isDraining());
         stop.setEnabled(false);
         exportEvidence.setEnabled(true);
         sessionState.setText("采集状态：本地任务已结束（仍可预览实时数据）");
         sessionState.setTextColor(0xFF7A4E00);
         sessionState.setBackground(rounded(0xFFFFF8E1, dp(14)));
         renderStatus("本地任务已封存。可导出证据包到微信、文件或电脑，再由 Web 回放和处理异常事件。");
+        stopInProgress.set(false);
     }
 
     private void exportLatestEvidence() {
@@ -656,6 +725,11 @@ public final class MainActivity extends AppCompatActivity {
             if (!requireBleGateway()) {
                 return;
             }
+            if (address.equals(connectedShankAddress)) {
+                connectedShankAddress = "";
+                shankConnected = false;
+                shankPanel.markDisconnected();
+            }
             connectedThighAddress = address;
             thighConnected = false;
             thighPanel.markConnected(name + "（连接中）", address);
@@ -667,6 +741,11 @@ public final class MainActivity extends AppCompatActivity {
         Button shank = actionButton("设为小腿", 0xFF1E88E5, view -> {
             if (!requireBleGateway()) {
                 return;
+            }
+            if (address.equals(connectedThighAddress)) {
+                connectedThighAddress = "";
+                thighConnected = false;
+                thighPanel.markDisconnected();
             }
             connectedShankAddress = address;
             shankConnected = false;
@@ -737,6 +816,29 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void handlePlacementRevisionChanged(long revision) {
+        if (platformGateway != null) {
+            platformGateway.onPlacementRevisionChanged(revision);
+        }
+        if (evidenceStore != null && evidenceStore.isActive()) {
+            try {
+                evidenceStore.finish("PLACEMENT_CHANGED");
+                renderEvidenceSummary(evidenceStore.start(
+                        patientId.getText().toString(),
+                        BuildConfig.VERSION_NAME
+                ));
+            } catch (Exception error) {
+                renderStatus("佩戴位置已更新，但本地任务切换失败" + detail(error));
+                return;
+            }
+        }
+        syncState.setText(
+                "网页同步：佩戴位置版本 " + revision
+                        + "\n旧任务已隔离，新帧将重新绑定大腿/小腿"
+                        + "\n等待双路服务器回执…"
+        );
+    }
+
     private void maybeStartAfterDualConnection() {
         if (!thighConnected || !shankConnected) return;
         GatewayConfig.Validation validation = GatewayConfig.validate(
@@ -750,6 +852,9 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
         if (stop.isEnabled()) {
+            if (platformGateway == null || platformGateway.isStartRequested()) {
+                return;
+            }
             persistPlatformConfiguration(validation);
             syncState.setText("网页同步：双路已恢复，正在重新验证患者与 Token…");
             platformGateway.start(
@@ -792,23 +897,32 @@ public final class MainActivity extends AppCompatActivity {
     private void renderLiveReading(SensorSample sample) {
         liveSampleCount += 1;
         runOnUiThread(() -> {
+            boolean connectionStateChanged = false;
             if (sample.placement == SensorPlacement.THIGH) {
                 if (connectedThighAddress.isEmpty()) {
                     connectedThighAddress = sample.deviceName;
                 }
-                thighConnected = true;
-                thighPanel.markConnected("大腿传感器", sample.deviceName);
+                if (!thighConnected) {
+                    thighConnected = true;
+                    connectionStateChanged = true;
+                    thighPanel.markConnected("大腿传感器", sample.deviceName);
+                }
                 thighPanel.update(sample, false);
             } else {
                 if (connectedShankAddress.isEmpty()) {
                     connectedShankAddress = sample.deviceName;
                 }
-                shankConnected = true;
-                shankPanel.markConnected("小腿传感器", sample.deviceName);
+                if (!shankConnected) {
+                    shankConnected = true;
+                    connectionStateChanged = true;
+                    shankPanel.markConnected("小腿传感器", sample.deviceName);
+                }
                 shankPanel.update(sample, false);
             }
-            updateLinkState();
-            maybeStartAfterDualConnection();
+            if (connectionStateChanged) {
+                updateLinkState();
+                maybeStartAfterDualConnection();
+            }
             sampleSummary.setText(
                     "实时帧数：" + liveSampleCount
                             + "\n最新设备：" + sample.deviceName

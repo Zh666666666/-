@@ -99,6 +99,7 @@ export function serializeDeviceBinding(binding: {
   deviceId: string;
   patientId: string;
   placement: DevicePlacement;
+  placementRevision?: number;
   active: boolean;
   boundAt: Date | string;
   unboundAt: Date | string | null;
@@ -109,6 +110,7 @@ export function serializeDeviceBinding(binding: {
     deviceId: binding.deviceId,
     patientId: binding.patientId,
     placement: binding.placement,
+    placementRevision: binding.placementRevision ?? 0,
     active: binding.active,
     boundAt: new Date(binding.boundAt).toISOString(),
     unboundAt: binding.unboundAt ? new Date(binding.unboundAt).toISOString() : null,
@@ -121,12 +123,14 @@ export function serializeSensorSession(session: {
   patientId: string;
   status: SensorSessionItem["status"];
   source: SensorSessionItem["source"];
+  placementRevision?: number;
   startedAt: Date | string;
   endedAt: Date | string | null;
   sampleCount: number;
 }): SensorSessionItem {
   return {
     ...session,
+    placementRevision: session.placementRevision ?? 0,
     startedAt: new Date(session.startedAt).toISOString(),
     endedAt: session.endedAt ? new Date(session.endedAt).toISOString() : null,
   };
@@ -138,6 +142,7 @@ export function serializeCalibrationRecord(record: {
   sessionId: string | null;
   thighDeviceId: string | null;
   shankDeviceId: string | null;
+  placementRevision?: number;
   quality: CalibrationRecordItem["quality"];
   zeroFlexionAngle: number;
   notes: string | null;
@@ -145,6 +150,7 @@ export function serializeCalibrationRecord(record: {
 }): CalibrationRecordItem {
   return {
     ...record,
+    placementRevision: record.placementRevision ?? 0,
     createdAt: new Date(record.createdAt).toISOString(),
   };
 }

@@ -84,6 +84,84 @@ function sourceLabel(status: UploadItem["status"]) {
 }
 
 export default function HardwareDemoPage() {
+  const demoMode = process.env.NEXT_PUBLIC_APP_MODE === "demo";
+
+  return demoMode ? <DemoHardwarePage /> : <ProductionHardwareDiagnostic />;
+}
+
+function ProductionHardwareDiagnostic() {
+  return (
+    <main className="rehab-grid min-h-screen overflow-x-hidden px-4 py-4 text-[#142536] md:px-8 md:py-6">
+      <section className="mx-auto grid w-full min-w-0 max-w-5xl gap-4">
+        <header className="min-w-0 overflow-hidden rounded-lg border border-[#d9e2e9] bg-white p-5 shadow-sm md:p-7">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="success" className="gap-2 px-3 py-1">
+              <Bluetooth className="size-4" />
+              真实硬件诊断
+            </Badge>
+            <Badge variant="outline">生产环境</Badge>
+          </div>
+          <h1 className="mt-4 text-2xl font-black text-[#12304a] md:text-4xl">BT50 采集链路检查</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-[#607063] md:text-base">
+            生产环境不会生成模拟传感器帧。请从实时页查看 Android App 实际上传的大腿与小腿数据；
+            没有真实上传时，实时页会明确显示设备离线并保留最后姿态。
+          </p>
+        </header>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="min-w-0 border-[#b7dde1] bg-[#eef9fa] shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <Activity className="size-5 text-emerald-700" />
+                查看真实实时数据
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-6 text-[#4c5b50]">
+                核对双路原始帧、端到端延迟、3D 姿态、离线状态以及质量门诊断。页面只读取服务器收到的真实 App 样本。
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/sensor-live">
+                  <Wifi className="size-4" />
+                  进入实时诊断
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <ShieldCheck className="size-5 text-emerald-700" />
+                检查绑定与校准
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-6 text-[#607063]">
+                核对当前患者的大腿、小腿设备分配和最近一次基础校准。设备关闭后，本页不会继续显示变化数据。
+              </p>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/family/devices">
+                  <Bluetooth className="size-4" />
+                  打开设备管理
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex gap-3 border-l-4 border-amber-500 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-950">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+          <p>
+            当前页面没有收到任何样本，也不会自行造数。真实设备是否在线、数据是否新鲜，请以实时诊断页的帧时间与“实时/离线”标识为准。
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function DemoHardwarePage() {
   const [running, setRunning] = useState(true);
   const [calibrated, setCalibrated] = useState(true);
   const nextSampleIndex = useRef(1);
@@ -180,15 +258,15 @@ export default function HardwareDemoPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="success" className="gap-2 px-3 py-1">
                   <Bluetooth className="size-4" />
-                  WT9011DCL-BT50 双传感器演示
+                  DEMO · WT9011DCL-BT50 双传感器模拟
                 </Badge>
                 <Badge variant={alertOpen ? "warning" : "secondary"} className="px-3 py-1">
                   {angleStatus}
                 </Badge>
               </div>
-              <h1 className="mt-3 break-words text-2xl font-black md:text-4xl">膝关节真实采集闭环工作台</h1>
+              <h1 className="mt-3 break-words text-2xl font-black md:text-4xl">膝关节模拟闭环工作台</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#607063] md:text-base">
-                大腿和小腿两个 WT9011DCL-BT50 的姿态样本会被转换成膝关节屈曲角度，再进入上传、预警和护理处置链路。
+                本页仅在 Demo 模式生成明确标注的模拟姿态，用于演示上传、预警和护理处置流程，不代表真实硬件采集。
               </p>
             </div>
             <div className="flex min-w-0 flex-wrap gap-2">

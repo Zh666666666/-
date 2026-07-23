@@ -1,5 +1,7 @@
 package cn.tkarehab.gateway;
 
+import android.content.SharedPreferences;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -12,7 +14,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,6 +31,7 @@ final class PlatformGateway {
         void onStatus(String message);
         void onUploadReceipt(UploadReceipt receipt);
         void onError(String message, Exception error);
+        void onDrainComplete();
     }
 
     private final EncryptedSampleQueue queue;
@@ -35,18 +40,36 @@ final class PlatformGateway {
     private final Map<String, String> platformDeviceIds = new HashMap<>();
     private final Map<String, String> sessionIds = new HashMap<>();
     private final Map<SensorPlacement, TimedPitch> latestPitch = new EnumMap<>(SensorPlacement.class);
-    private final Map<SensorPlacement, Long> lastQueuedAtMs = new EnumMap<>(SensorPlacement.class);
-    private static final long MIN_QUEUE_INTERVAL_MS = 500L;
+    private final Map<SensorPlacement, CalibrationBaseline> calibrationBaselines =
+            new EnumMap<>(SensorPlacement.class);
+    private final Set<Long> completionPendingRevisions = new HashSet<>();
+    private final Set<String> completionPendingSessionIds = new HashSet<>();
+    private final Map<String, JSONObject> pendingCalibrationPayloads = new HashMap<>();
+    private final Set<String> publishedCalibrationKeys = new HashSet<>();
+    private final SharedPreferences statePreferences;
 
     private String baseUrl;
     private String patientId;
     private String bearerToken;
     private volatile boolean startRequested;
     private volatile boolean active;
+    private volatile boolean accepting;
+    private volatile long currentPlacementRevision;
+    private long lastCalibrationAttemptAtMs;
 
     PlatformGateway(EncryptedSampleQueue queue, Listener listener) {
+        this(queue, listener, null);
+    }
+
+    PlatformGateway(
+            EncryptedSampleQueue queue,
+            Listener listener,
+            SharedPreferences statePreferences
+    ) {
         this.queue = queue;
         this.listener = listener;
+        this.statePreferences = statePreferences;
+        restorePendingState();
         worker.scheduleWithFixedDelay(this::retryQueuedSamples, 15, 15, TimeUnit.SECONDS);
     }
 
@@ -61,9 +84,9 @@ final class PlatformGateway {
         this.bearerToken = bearerToken;
         sessionIds.remove(patientId);
         latestPitch.clear();
-        lastQueuedAtMs.clear();
         this.startRequested = true;
         this.active = false;
+        this.accepting = false;
         listener.onStatus("正在验证网关 Token 与患者 ID；通过后自动上传 " + queue.size() + " 条离线数据…");
         worker.execute(this::preflightAndActivate);
     }
@@ -88,35 +111,70 @@ final class PlatformGateway {
 
     void stop() {
         startRequested = false;
-        active = false;
-        worker.execute(latestPitch::clear);
+        accepting = false;
+        long revisionToComplete = currentPlacementRevision;
+        worker.execute(() -> {
+            completionPendingRevisions.add(revisionToComplete);
+            scheduleKnownSessionsForCompletion(revisionToComplete);
+            persistPendingState();
+            latestPitch.clear();
+            listener.onStatus(
+                    "训练已停止接收新帧；正在补传结束前已加密保存的 " + queue.size() + " 条数据。"
+            );
+            flushOnWorker();
+        });
+    }
+
+    boolean isStartRequested() {
+        return startRequested;
+    }
+
+    boolean isDraining() {
+        return active && !accepting;
+    }
+
+    void onPlacementRevisionChanged(long revision) {
+        long previousRevision = currentPlacementRevision;
+        currentPlacementRevision = revision;
+        worker.execute(() -> {
+            if (previousRevision > 0L && previousRevision != revision) {
+                completionPendingRevisions.add(previousRevision);
+                scheduleKnownSessionsForCompletion(previousRevision);
+                persistPendingState();
+            }
+            latestPitch.clear();
+            calibrationBaselines.clear();
+            listener.onStatus(
+                    "佩戴位置版本已更新为 " + revision
+                            + "；下一帧将重新绑定设备并创建独立训练会话。"
+            );
+        });
     }
 
     void close() {
         startRequested = false;
         active = false;
+        accepting = false;
         worker.shutdownNow();
     }
 
     void accept(SensorSample sample) {
-        if (!active) {
+        if (!active || !accepting) {
             return;
         }
         String targetPatientId = patientId;
         worker.execute(() -> {
-            if (!active) {
+            if (!active || !accepting) {
                 return;
             }
             try {
                 latestPitch.put(sample.placement, new TimedPitch(sample.recordedAtMs, sample.pitch));
-                // Keep live BLE high-rate for UI, but only queue ~2Hz for upload.
-                long previousQueuedAt = lastQueuedAtMs.containsKey(sample.placement)
-                        ? lastQueuedAtMs.get(sample.placement)
-                        : 0L;
-                if (sample.recordedAtMs - previousQueuedAt < MIN_QUEUE_INTERVAL_MS) {
-                    return;
+                if (sample.softwareZero.calibrated) {
+                    calibrationBaselines.put(
+                            sample.placement,
+                            CalibrationBaseline.fromSample(sample)
+                    );
                 }
-                lastQueuedAtMs.put(sample.placement, sample.recordedAtMs);
 
                 JSONObject payload = sample.toUploadJson();
                 payload.put("patientId", targetPatientId);
@@ -168,6 +226,7 @@ final class PlatformGateway {
             if (!startRequested) return;
             JSONObject patient = ready.getJSONObject("patient");
             active = true;
+            accepting = true;
             listener.onStatus(
                     "上传已启动：" + patient.optString("name", "康复患者")
                             + " / " + patient.getString("id")
@@ -176,6 +235,7 @@ final class PlatformGateway {
             flushOnWorker();
         } catch (Exception error) {
             active = false;
+            accepting = false;
             if (!startRequested) return;
             listener.onStatus(
                     "未启动网页上传：" + summarize(error)
@@ -214,7 +274,8 @@ final class PlatformGateway {
                     normalizeLegacyIdentity(sample);
                     String deviceId = ensureDevice(sample);
                     String samplePatientId = sample.getString("patientId");
-                    String activeSessionId = ensureSession(samplePatientId);
+                    long samplePlacementRevision = sample.optLong("placementRevision", 0L);
+                    String activeSessionId = ensureSession(samplePatientId, samplePlacementRevision);
                     sample.put("deviceId", deviceId);
                     sample.put("sessionId", activeSessionId);
                     // Avoid shipping local-only queue fields to the platform schema.
@@ -222,6 +283,7 @@ final class PlatformGateway {
                     JSONObject response = postJson("/api/sensor-samples", sample);
                     UploadReceipt receipt = UploadReceipt.verify(sample, response);
                     queue.acknowledgeOne();
+                    maybePublishCalibration(samplePatientId, activeSessionId, samplePlacementRevision);
                     listener.onUploadReceipt(receipt);
                     uploaded += 1;
                 } catch (HttpStatusException error) {
@@ -246,6 +308,17 @@ final class PlatformGateway {
                     worker.execute(this::flushOnWorker);
                 }
             }
+            if (remaining == 0) {
+                attemptPendingCalibrations();
+            }
+            if (remaining == 0 && pendingCalibrationPayloads.isEmpty()) {
+                completePendingSessions();
+            }
+            if (remaining == 0 && !accepting && completionPendingRevisions.isEmpty()) {
+                active = false;
+                listener.onStatus("训练已结束，结束前样本已全部同步，平台会话已可靠关闭。");
+                listener.onDrainComplete();
+            }
         } catch (Exception error) {
             listener.onStatus(
                     "上传暂缓；" + queue.size() + " 条数据仍在加密队列中，15 秒后自动重试。"
@@ -263,6 +336,10 @@ final class PlatformGateway {
         }
         if (!sample.has("captureSequence")) {
             sample.put("captureSequence", 0L);
+            migrated = true;
+        }
+        if (!sample.has("placementRevision")) {
+            sample.put("placementRevision", 0L);
             migrated = true;
         }
         if (!migrated) return;
@@ -300,7 +377,9 @@ final class PlatformGateway {
     private String ensureDevice(JSONObject sample) throws Exception {
         String gatewayDeviceId = sample.getString("gatewayDeviceId");
         String samplePatientId = sample.getString("patientId");
-        String cacheKey = samplePatientId + "\u0000" + gatewayDeviceId + "\u0000" + sample.getString("placement");
+        long samplePlacementRevision = sample.optLong("placementRevision", 0L);
+        String cacheKey = samplePatientId + "\u0000" + gatewayDeviceId + "\u0000"
+                + sample.getString("placement") + "\u0000" + samplePlacementRevision;
         String cached = platformDeviceIds.get(cacheKey);
         if (cached != null) {
             return cached;
@@ -314,25 +393,258 @@ final class PlatformGateway {
         JSONObject device = postJson("/api/devices", devicePayload);
         String deviceId = device.getString("id");
 
-        JSONObject bindingPayload = new JSONObject();
-        bindingPayload.put("deviceId", deviceId);
-        bindingPayload.put("patientId", samplePatientId);
-        bindingPayload.put("placement", sample.getString("placement"));
+        JSONObject bindingPayload = buildBindingPayload(
+                deviceId,
+                samplePatientId,
+                sample.getString("placement"),
+                samplePlacementRevision
+        );
         postJson("/api/device-bindings", bindingPayload);
         platformDeviceIds.put(cacheKey, deviceId);
         return deviceId;
     }
 
-    private String ensureSession(String samplePatientId) throws Exception {
-        String sessionId = sessionIds.get(samplePatientId);
+    private String ensureSession(String samplePatientId, long samplePlacementRevision) throws Exception {
+        String sessionKey = samplePatientId + "\u0000" + samplePlacementRevision;
+        String sessionId = sessionIds.get(sessionKey);
         if (sessionId == null) {
-            JSONObject sessionPayload = new JSONObject();
-            sessionPayload.put("patientId", samplePatientId);
-            sessionPayload.put("source", "HARDWARE");
+            JSONObject sessionPayload = buildSessionPayload(samplePatientId, samplePlacementRevision);
             sessionId = postJson("/api/sensor-sessions", sessionPayload).getString("id");
-            sessionIds.put(samplePatientId, sessionId);
+            sessionIds.put(sessionKey, sessionId);
+            if (completionPendingRevisions.contains(samplePlacementRevision)) {
+                completionPendingSessionIds.add(
+                        completionToken(samplePlacementRevision, sessionId)
+                );
+                persistPendingState();
+            }
         }
         return sessionId;
+    }
+
+    static JSONObject buildBindingPayload(
+            String deviceId,
+            String samplePatientId,
+            String placement,
+            long samplePlacementRevision
+    ) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("deviceId", deviceId);
+        payload.put("patientId", samplePatientId);
+        payload.put("placement", placement);
+        payload.put("placementRevision", samplePlacementRevision);
+        return payload;
+    }
+
+    static JSONObject buildSessionPayload(String samplePatientId, long samplePlacementRevision)
+            throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("patientId", samplePatientId);
+        payload.put("source", "HARDWARE");
+        payload.put("placementRevision", samplePlacementRevision);
+        return payload;
+    }
+
+    static JSONObject buildCalibrationPayload(
+            String samplePatientId,
+            String sessionId,
+            String thighDeviceId,
+            String shankDeviceId,
+            long revision,
+            CalibrationBaseline thigh,
+            CalibrationBaseline shank
+    ) throws Exception {
+        JSONObject baseline = new JSONObject();
+        baseline.put("thigh", thigh.toJson());
+        baseline.put("shank", shank.toJson());
+
+        JSONObject payload = new JSONObject();
+        payload.put("patientId", samplePatientId);
+        payload.put("sessionId", sessionId);
+        payload.put("thighDeviceId", thighDeviceId);
+        payload.put("shankDeviceId", shankDeviceId);
+        payload.put("placementRevision", revision);
+        payload.put("quality", "GOOD");
+        payload.put("baseline", baseline);
+        return payload;
+    }
+
+    private void maybePublishCalibration(
+            String samplePatientId,
+            String sessionId,
+            long samplePlacementRevision
+    ) {
+        CalibrationBaseline thigh = calibrationBaselines.get(SensorPlacement.THIGH);
+        CalibrationBaseline shank = calibrationBaselines.get(SensorPlacement.SHANK);
+        if (thigh == null || shank == null
+                || thigh.placementRevision != samplePlacementRevision
+                || shank.placementRevision != samplePlacementRevision) {
+            return;
+        }
+        String thighDeviceId = cachedPlatformDeviceId(
+                samplePatientId, thigh.gatewayDeviceId, "THIGH", samplePlacementRevision
+        );
+        String shankDeviceId = cachedPlatformDeviceId(
+                samplePatientId, shank.gatewayDeviceId, "SHANK", samplePlacementRevision
+        );
+        if (thighDeviceId == null || shankDeviceId == null) {
+            return;
+        }
+        try {
+            JSONObject payload = buildCalibrationPayload(
+                    samplePatientId,
+                    sessionId,
+                    thighDeviceId,
+                    shankDeviceId,
+                    samplePlacementRevision,
+                    thigh,
+                    shank
+            );
+            String calibrationKey = calibrationKeyFromPayload(payload);
+            if (publishedCalibrationKeys.contains(calibrationKey)) {
+                return;
+            }
+            pendingCalibrationPayloads.put(
+                    calibrationKey,
+                    payload
+            );
+            persistPendingState();
+            attemptPendingCalibrations();
+        } catch (Exception error) {
+            listener.onStatus("无法构造软件零点校准请求，仍保留待重试状态：" + summarize(error));
+        }
+    }
+
+    private void attemptPendingCalibrations() {
+        if (pendingCalibrationPayloads.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastCalibrationAttemptAtMs < 5_000L) {
+            return;
+        }
+        lastCalibrationAttemptAtMs = now;
+        for (Map.Entry<String, JSONObject> entry :
+                new HashMap<>(pendingCalibrationPayloads).entrySet()) {
+            try {
+                postJson("/api/device-calibrations", entry.getValue());
+                pendingCalibrationPayloads.remove(entry.getKey());
+                publishedCalibrationKeys.add(entry.getKey());
+                persistPendingState();
+                listener.onStatus(
+                        "双传感器软件零点已登记为 GOOD 校准，版本 "
+                                + entry.getValue().optLong("placementRevision") + "。"
+                );
+            } catch (Exception error) {
+                listener.onStatus(
+                        "软件零点已保存在手机，但平台校准登记待重试：" + summarize(error)
+                );
+                return;
+            }
+        }
+    }
+
+    private String cachedPlatformDeviceId(
+            String samplePatientId,
+            String gatewayDeviceId,
+            String placement,
+            long revision
+    ) {
+        return platformDeviceIds.get(
+                samplePatientId + "\u0000" + gatewayDeviceId + "\u0000"
+                        + placement + "\u0000" + revision
+        );
+    }
+
+    private void completePendingSessions() throws Exception {
+        for (String token : new HashSet<>(completionPendingSessionIds)) {
+            int separator = token.indexOf('|');
+            String sessionId = separator >= 0 ? token.substring(separator + 1) : token;
+            JSONObject body = new JSONObject();
+            body.put("status", "COMPLETED");
+            patchJson("/api/sensor-sessions/" + urlPath(sessionId), body);
+            completionPendingSessionIds.remove(token);
+            sessionIds.entrySet().removeIf(entry -> sessionId.equals(entry.getValue()));
+            persistPendingState();
+        }
+        for (Long revision : new HashSet<>(completionPendingRevisions)) {
+            String suffix = "\u0000" + revision;
+            boolean hasSession = sessionIds.keySet().stream().anyMatch(key -> key.endsWith(suffix));
+            boolean hasPendingId = completionPendingSessionIds.stream()
+                    .anyMatch(token -> token.startsWith(revision + "|"));
+            if (!hasSession && !hasPendingId) {
+                completionPendingRevisions.remove(revision);
+                persistPendingState();
+            }
+        }
+    }
+
+    private void scheduleKnownSessionsForCompletion(long revision) {
+        String suffix = "\u0000" + revision;
+        for (Map.Entry<String, String> entry : sessionIds.entrySet()) {
+            if (entry.getKey().endsWith(suffix)) {
+                completionPendingSessionIds.add(completionToken(revision, entry.getValue()));
+            }
+        }
+    }
+
+    private static String completionToken(long revision, String sessionId) {
+        return revision + "|" + sessionId;
+    }
+
+    private void restorePendingState() {
+        if (statePreferences == null) {
+            return;
+        }
+        for (String value : statePreferences.getStringSet("pending-session-revisions", new HashSet<>())) {
+            try {
+                completionPendingRevisions.add(Long.parseLong(value));
+            } catch (NumberFormatException ignored) {
+                // Ignore damaged state and preserve the remaining retry entries.
+            }
+        }
+        completionPendingSessionIds.addAll(
+                statePreferences.getStringSet("pending-session-completions", new HashSet<>())
+        );
+        publishedCalibrationKeys.addAll(
+                statePreferences.getStringSet("published-calibration-keys", new HashSet<>())
+        );
+        for (String encoded : statePreferences.getStringSet("pending-calibrations", new HashSet<>())) {
+            try {
+                JSONObject payload = new JSONObject(encoded);
+                pendingCalibrationPayloads.put(calibrationKeyFromPayload(payload), payload);
+            } catch (Exception ignored) {
+                // A damaged retry entry must not prevent the gateway from starting.
+            }
+        }
+    }
+
+    private void persistPendingState() {
+        if (statePreferences == null) {
+            return;
+        }
+        Set<String> revisions = new HashSet<>();
+        for (Long revision : completionPendingRevisions) {
+            revisions.add(String.valueOf(revision));
+        }
+        Set<String> calibrations = new HashSet<>();
+        for (JSONObject payload : pendingCalibrationPayloads.values()) {
+            calibrations.add(payload.toString());
+        }
+        statePreferences.edit()
+                .putStringSet("pending-session-revisions", revisions)
+                .putStringSet("pending-session-completions", new HashSet<>(completionPendingSessionIds))
+                .putStringSet("pending-calibrations", calibrations)
+                .putStringSet("published-calibration-keys", new HashSet<>(publishedCalibrationKeys))
+                .apply();
+    }
+
+    private static String calibrationKeyFromPayload(JSONObject payload) throws Exception {
+        JSONObject baseline = payload.getJSONObject("baseline");
+        return payload.getString("patientId") + "\u0000"
+                + payload.getLong("placementRevision") + "\u0000"
+                + baseline.getJSONObject("thigh").getJSONObject("offset").toString()
+                + "\u0000"
+                + baseline.getJSONObject("shank").getJSONObject("offset").toString();
     }
 
     private JSONObject postJson(String path, JSONObject body) throws Exception {
@@ -344,6 +656,20 @@ final class PlatformGateway {
                 output.write(body.toString().getBytes(StandardCharsets.UTF_8));
             }
             return readJsonResponse(connection, "POST " + path);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private JSONObject patchJson(String path, JSONObject body) throws Exception {
+        HttpURLConnection connection = open(path);
+        try {
+            connection.setRequestMethod("PATCH");
+            connection.setDoOutput(true);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            return readJsonResponse(connection, "PATCH " + path);
         } finally {
             connection.disconnect();
         }
@@ -440,6 +766,74 @@ final class PlatformGateway {
         TimedPitch(long recordedAtMs, double pitch) {
             this.recordedAtMs = recordedAtMs;
             this.pitch = pitch;
+        }
+    }
+
+    private static String urlPath(String value) throws Exception {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");
+    }
+
+    static final class CalibrationBaseline {
+        final String gatewayDeviceId;
+        final long placementRevision;
+        final double rawRoll;
+        final double rawPitch;
+        final double rawYaw;
+        final double zeroRoll;
+        final double zeroPitch;
+        final double zeroYaw;
+
+        CalibrationBaseline(
+                String gatewayDeviceId,
+                long placementRevision,
+                double rawRoll,
+                double rawPitch,
+                double rawYaw,
+                double zeroRoll,
+                double zeroPitch,
+                double zeroYaw
+        ) {
+            this.gatewayDeviceId = gatewayDeviceId;
+            this.placementRevision = placementRevision;
+            this.rawRoll = rawRoll;
+            this.rawPitch = rawPitch;
+            this.rawYaw = rawYaw;
+            this.zeroRoll = zeroRoll;
+            this.zeroPitch = zeroPitch;
+            this.zeroYaw = zeroYaw;
+        }
+
+        static CalibrationBaseline fromSample(SensorSample sample) {
+            return new CalibrationBaseline(
+                    sample.gatewayDeviceId,
+                    sample.placementRevision,
+                    sample.softwareZero.roll,
+                    sample.softwareZero.pitch,
+                    sample.softwareZero.yaw,
+                    sample.softwareZero.roll,
+                    sample.softwareZero.pitch,
+                    sample.softwareZero.yaw
+            );
+        }
+
+        JSONObject toJson() throws Exception {
+            JSONObject raw = new JSONObject();
+            raw.put("roll", rawRoll);
+            raw.put("pitch", rawPitch);
+            raw.put("yaw", rawYaw);
+            JSONObject offset = new JSONObject();
+            offset.put("roll", zeroRoll);
+            offset.put("pitch", zeroPitch);
+            offset.put("yaw", zeroYaw);
+            JSONObject value = new JSONObject();
+            value.put("gatewayDeviceId", gatewayDeviceId);
+            value.put("raw", raw);
+            value.put("offset", offset);
+            return value;
+        }
+
+        String zeroKey() {
+            return zeroRoll + "," + zeroPitch + "," + zeroYaw;
         }
     }
 }

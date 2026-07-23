@@ -50,7 +50,7 @@ jobs:
           SIGNING_KEY_ALIAS: android-ci
           SIGNING_STORE_PASSWORD: android-ci-only
           SIGNING_KEY_PASSWORD: android-ci-only
-          SIGNED_APK: ${{ github.workspace }}/mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1-ci.apk
+          SIGNED_APK: ${{ github.workspace }}/mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2-ci.apk
         run: |
           keytool -genkeypair -noprompt \
             -keystore "$SIGNING_KEYSTORE" \
@@ -69,10 +69,10 @@ jobs:
           if-no-files-found: error
           path: |
             mobile-gateway-android/app/build/outputs/apk/debug/app-debug.apk
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1-ci.apk
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1-ci.apk.idsig
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1-ci.apk.verify.txt
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1-ci.apk.v4-verify.txt
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2-ci.apk
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2-ci.apk.idsig
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2-ci.apk.verify.txt
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2-ci.apk.v4-verify.txt
             mobile-gateway-android/app/build/reports/tests/testDebugUnitTest/
             mobile-gateway-android/app/build/reports/lint-results-debug.html
 
@@ -85,7 +85,7 @@ jobs:
       SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
       SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
       SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-      SIGNED_APK: ${{ github.workspace }}/mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1.apk
+      SIGNED_APK: ${{ github.workspace }}/mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2.apk
 
     steps:
       - name: Check out repository
@@ -120,7 +120,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
           path: |
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1.apk
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1.apk.idsig
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1.apk.verify.txt
-            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.1.apk.v4-verify.txt
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2.apk
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2.apk.idsig
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2.apk.verify.txt
+            mobile-gateway-android/app/build/outputs/apk/release/TKA-Gateway-v0.4.2.apk.v4-verify.txt

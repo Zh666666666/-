@@ -33,6 +33,8 @@ final class LiveSensorPanel {
     private final LinearLayout advancedContent;
     private int sampleCount;
     private long lastRenderAtMs;
+    private String connectedAddress = "";
+    private boolean receiving;
 
     LiveSensorPanel(Context context, String placementLabel, int accentColor) {
         this.placementLabel = placementLabel;
@@ -113,8 +115,12 @@ final class LiveSensorPanel {
     }
 
     void markConnected(String deviceName, String address) {
-        title.setText(placementLabel + " · 已连接");
-        subtitle.setText(deviceName + "\n" + address);
+        if (!address.equals(connectedAddress)) {
+            receiving = false;
+            connectedAddress = address;
+            title.setText(placementLabel + " · 已连接");
+            subtitle.setText(deviceName + " · " + address);
+        }
     }
 
     void markDisconnected() {
@@ -122,6 +128,8 @@ final class LiveSensorPanel {
         subtitle.setText("等待分配传感器");
         meta.setText("帧数：0");
         sampleCount = 0;
+        receiving = false;
+        connectedAddress = "";
         acceleration.setValues(0, 0, 0);
         gyroscope.setValues(0, 0, 0);
         angle.setValues(0, 0, 0);
@@ -140,8 +148,12 @@ final class LiveSensorPanel {
         boolean renderUi = force || now - lastRenderAtMs >= 80L || sampleCount <= 2;
         if (renderUi) {
             lastRenderAtMs = now;
-            title.setText(placementLabel + " · 数据中");
-            subtitle.setText(sample.deviceName);
+            if (!receiving || !sample.deviceName.equals(connectedAddress)) {
+                receiving = true;
+                connectedAddress = sample.deviceName;
+                title.setText(placementLabel + " · 数据中");
+                subtitle.setText(sample.deviceName);
+            }
             meta.setText("帧数：" + sampleCount + "    刷新：" + formatTime(sample.recordedAtMs));
             acceleration.setValues(sample.ax, sample.ay, sample.az);
             gyroscope.setValues(sample.gx, sample.gy, sample.gz);
@@ -153,6 +165,12 @@ final class LiveSensorPanel {
         angleWave.push((float) sample.roll, (float) sample.pitch, (float) sample.yaw);
         accWave.push((float) sample.ax, (float) sample.ay, (float) sample.az);
         gyroWave.push((float) sample.gx, (float) sample.gy, (float) sample.gz);
+    }
+
+    void showSoftwareZero() {
+        angle.setValues(0, 0, 0);
+        cube.setAttitude(0, 0, 0);
+        meta.setText("软件归零已保存 · 等待下一帧");
     }
 
     private static WaveformView addWave(
