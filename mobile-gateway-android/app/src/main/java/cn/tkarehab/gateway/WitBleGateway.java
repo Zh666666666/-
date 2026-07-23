@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.provider.Settings;
 
 import com.wit.witsdk.Bluetooth.WitBluetoothManager;
@@ -22,14 +23,14 @@ import java.util.Map;
  * readings and never depends on the SDK's human-readable display strings.
  */
 final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
-    private static final long MIN_SAMPLE_INTERVAL_MS = 100L;
-
     interface Listener {
         void onDeviceFound(String address, String name);
         void onConnectionChanged(String address, boolean connected);
         void onReading(SensorSample sample);
         void onError(String message, Exception error);
         void onStatus(String message);
+        void onPlacementRevisionChanged(long revision);
+        void onSoftwareZeroApplied(SensorPlacement placement);
     }
 
     private final Activity activity;
@@ -37,8 +38,10 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private final DeviceManager deviceManager = DeviceManager.getInstance();
     private final Map<String, BluetoothDevice> discoveredDevices = new HashMap<>();
     private final Map<String, SensorPlacement> placements = new HashMap<>();
-    private final Map<String, Long> lastSampleAt = new HashMap<>();
     private final Map<String, Long> captureSequences = new HashMap<>();
+    private final Map<String, RawAttitude> latestRawAttitudes = new HashMap<>();
+    private final SharedPreferences calibrationPreferences;
+    private long placementRevision;
     private boolean waitingForPermissions;
     private boolean resumeScanWhenReady;
     private boolean scanning;
@@ -47,6 +50,8 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     WitBleGateway(Activity activity, Listener listener) {
         this.activity = activity;
         this.listener = listener;
+        calibrationPreferences = activity.getSharedPreferences("sensor-software-zero", Activity.MODE_PRIVATE);
+        placementRevision = calibrationPreferences.getLong("placement-revision", 0L);
         deviceManager.AddDeviceListener(this);
         deviceManager.AddDeviceFindListener(this);
     }
@@ -181,7 +186,15 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
             existing.CloseDevice();
             deviceManager.RemoveDevice(address);
         }
+        SensorPlacement previousPlacement = placements.get(address);
         placements.put(address, placement);
+        if (previousPlacement != placement) {
+            placementRevision += 1L;
+            calibrationPreferences.edit()
+                    .putLong("placement-revision", placementRevision)
+                    .apply();
+            listener.onPlacementRevisionChanged(placementRevision);
+        }
         DeviceModel deviceModel = new DeviceModel(address, device);
         deviceManager.AddDevice(address, deviceModel);
         try {
@@ -195,12 +208,22 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     void setAngleZero(SensorPlacement placement) {
         for (Map.Entry<String, SensorPlacement> entry : placements.entrySet()) {
             if (entry.getValue() == placement) {
-                DeviceModel device = deviceManager.GetDevice(entry.getKey());
-                if (device != null) {
-                    device.SetAngle0();
-                    listener.onStatus(placementLabel(placement) + " 已发送归零命令。");
+                RawAttitude latest = latestRawAttitudes.get(entry.getKey());
+                if (latest == null) {
+                    listener.onError("尚未收到 " + placementLabel(placement) + " 姿态帧，请保持连接后重试。", null);
                     return;
                 }
+                SoftwareZeroCalibration zero = new SoftwareZeroCalibration(
+                        latest.roll,
+                        latest.pitch,
+                        latest.yaw
+                );
+                calibrationPreferences.edit()
+                        .putString(zeroKey(entry.getKey()), zero.encode())
+                        .apply();
+                listener.onSoftwareZeroApplied(placement);
+                listener.onStatus(placementLabel(placement) + " 软件归零已保存；原始角度仍会随样本上传。");
+                return;
             }
         }
         listener.onError("请先把 " + placementLabel(placement) + " 传感器扫描并连接。", null);
@@ -220,7 +243,7 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         deviceManager.RemoveDeviceFindListener(this);
         placements.clear();
         discoveredDevices.clear();
-        lastSampleAt.clear();
+        latestRawAttitudes.clear();
     }
 
     @Override
@@ -253,13 +276,16 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
         }
 
         long now = System.currentTimeMillis();
-        Long last = lastSampleAt.get(address);
-        if (last != null && now - last < MIN_SAMPLE_INTERVAL_MS) {
-            return;
-        }
-        lastSampleAt.put(address, now);
         long captureSequence = captureSequences.getOrDefault(address, 0L) + 1L;
         captureSequences.put(address, captureSequence);
+
+        double rawRoll = readKey(device, "AngX");
+        double rawPitch = readKey(device, "AngY");
+        double rawYaw = readKey(device, "AngZ");
+        latestRawAttitudes.put(address, new RawAttitude(rawRoll, rawPitch, rawYaw));
+        SoftwareZeroCalibration zero = SoftwareZeroCalibration.decode(
+                calibrationPreferences.getString(zeroKey(address), "")
+        );
 
         SensorSample sample = new SensorSample(
                 "BLE-" + address.replace(":", ""),
@@ -267,9 +293,11 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
                 placement,
                 captureSequence,
                 now,
-                readKey(device, "AngX"),
-                readKey(device, "AngY"),
-                readKey(device, "AngZ"),
+                placementRevision,
+                rawRoll,
+                rawPitch,
+                rawYaw,
+                zero,
                 readKey(device, "AccX"),
                 readKey(device, "AccY"),
                 readKey(device, "AccZ"),
@@ -292,5 +320,21 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private static double readKey(DeviceModel device, String key) {
         Double value = device.GetData(key);
         return value == null ? 0.0d : value;
+    }
+
+    private static String zeroKey(String address) {
+        return "zero-" + address;
+    }
+
+    private static final class RawAttitude {
+        final double roll;
+        final double pitch;
+        final double yaw;
+
+        RawAttitude(double roll, double pitch, double yaw) {
+            this.roll = roll;
+            this.pitch = pitch;
+            this.yaw = yaw;
+        }
     }
 }

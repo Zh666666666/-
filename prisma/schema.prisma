@@ -250,35 +250,38 @@ model Device {
 }
 
 model DeviceBinding {
-  id          String          @id @default(cuid())
-  deviceId    String          @map("device_id")
-  patientId   String          @map("patient_id")
-  placement   DevicePlacement @default(UNKNOWN)
-  active      Boolean         @default(true)
-  boundAt     DateTime        @default(now()) @map("bound_at")
-  unboundAt   DateTime?       @map("unbound_at")
-  device      Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  patient     Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  id                String          @id @default(cuid())
+  deviceId          String          @map("device_id")
+  patientId         String          @map("patient_id")
+  placement         DevicePlacement @default(UNKNOWN)
+  placementRevision Int             @default(0) @map("placement_revision")
+  active            Boolean         @default(true)
+  boundAt           DateTime        @default(now()) @map("bound_at")
+  unboundAt         DateTime?       @map("unbound_at")
+  device            Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  patient           Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, active])
+  @@index([patientId, placementRevision, active])
   @@index([deviceId, active])
   @@map("device_bindings")
 }
 
 model SensorSession {
-  id              String              @id @default(cuid())
-  patientId       String              @map("patient_id")
-  status          SensorSessionStatus @default(ACTIVE)
-  source          DeviceSource        @default(HARDWARE)
-  startedAt       DateTime            @default(now()) @map("started_at")
-  endedAt         DateTime?           @map("ended_at")
-  sampleCount     Int                 @default(0) @map("sample_count")
-  summary         Json?
-  patient         Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  samples         SensorSample[]
+  id                String              @id @default(cuid())
+  patientId         String              @map("patient_id")
+  placementRevision Int                 @default(0) @map("placement_revision")
+  status            SensorSessionStatus @default(ACTIVE)
+  source            DeviceSource        @default(HARDWARE)
+  startedAt         DateTime            @default(now()) @map("started_at")
+  endedAt           DateTime?           @map("ended_at")
+  sampleCount       Int                 @default(0) @map("sample_count")
+  summary           Json?
+  patient           Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  samples           SensorSample[]
   calibrationRecords CalibrationRecord[]
 
-  @@index([patientId, startedAt])
+  @@index([patientId, placementRevision, startedAt])
   @@index([status])
   @@map("sensor_sessions")
 }
@@ -291,6 +294,7 @@ model SensorSample {
   patientId       String          @map("patient_id")
   source          DeviceSource    @default(HARDWARE)
   placement       DevicePlacement @default(UNKNOWN)
+  placementRevision Int           @default(0) @map("placement_revision")
   recordedAt      DateTime        @default(now()) @map("recorded_at")
   roll            Float?
   pitch           Float?
@@ -315,7 +319,7 @@ model SensorSample {
   patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, recordedAt])
-  @@index([sessionId, recordedAt])
+  @@index([sessionId, placementRevision, recordedAt])
   @@index([deviceId, recordedAt])
   @@map("sensor_samples")
 }
@@ -326,6 +330,7 @@ model CalibrationRecord {
   sessionId       String?            @map("session_id")
   thighDeviceId   String?            @map("thigh_device_id")
   shankDeviceId   String?            @map("shank_device_id")
+  placementRevision Int              @default(0) @map("placement_revision")
   quality         CalibrationQuality @default(PENDING)
   zeroFlexionAngle Float             @default(0) @map("zero_flexion_angle")
   baseline        Json?
@@ -336,7 +341,7 @@ model CalibrationRecord {
   thighDevice     Device?            @relation("ThighCalibrationDevice", fields: [thighDeviceId], references: [id], onDelete: SetNull)
   shankDevice     Device?            @relation("ShankCalibrationDevice", fields: [shankDeviceId], references: [id], onDelete: SetNull)
 
-  @@index([patientId, createdAt])
+  @@index([patientId, placementRevision, createdAt])
   @@map("calibration_records")
 }
 

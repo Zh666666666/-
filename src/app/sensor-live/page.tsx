@@ -71,6 +71,24 @@ const sourceLabels: Record<string, string> = {
   MANUAL: "人工",
 };
 
+const qualityReasonLabels: Record<string, string> = {
+  NOT_HARDWARE: "当前不是来自真实传感器的数据",
+  CALIBRATION_MISSING: "尚未完成双传感器归零",
+  CALIBRATION_MISMATCHED: "归零记录与当前大腿/小腿分配不一致，请重新归零",
+  CALIBRATION_NOT_GOOD: "本次归零未通过，请重新佩戴并归零",
+  TOO_FEW_SYNCHRONIZED_PAIRS: "两只传感器同时采集的数据还不够",
+  OBSERVATION_TOO_SHORT: "训练时间太短，请继续完成至少一次完整屈伸",
+  PAIR_SYNC_FAILED: "两只传感器的时间没有对齐，请检查连接后重新训练",
+  IRREGULAR_SAMPLING: "采集出现明显中断，请保持手机与传感器连接",
+  IMPLAUSIBLE_MOTION: "动作变化超出可信范围，请检查传感器是否松动",
+  NO_COMPLETE_MOVEMENT_CYCLE: "尚未识别到一次完整屈伸",
+  QUALITY_SCORE_LOW: "当前数据质量总分不足",
+};
+
+function qualityReasonLabel(code: string) {
+  return qualityReasonLabels[code] ?? `技术复核项：${code}`;
+}
+
 function formatClock(value: string | null | undefined) {
   if (!value) return "--:--:--";
   return new Intl.DateTimeFormat("zh-CN", {
@@ -749,7 +767,7 @@ export default function SensorLivePage() {
               </div>
               {(metrics?.dataQuality.reasonCodes.length ?? 0) > 0 ? (
                 <p className="mt-3 break-words rounded-lg bg-amber-50 px-3 py-2 font-mono text-xs leading-5 text-amber-900">
-                  失败关闭原因：{metrics?.dataQuality.reasonCodes.join(" · ")}
+                  暂不生成训练结论：{metrics?.dataQuality.reasonCodes.map(qualityReasonLabel).join("；")}
                 </p>
               ) : <p className="mt-3 text-sm font-semibold text-emerald-700">全部质量门已通过。</p>}
             </CardContent>

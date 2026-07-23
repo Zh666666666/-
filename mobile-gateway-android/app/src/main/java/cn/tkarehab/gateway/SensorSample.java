@@ -16,6 +16,11 @@ final class SensorSample {
     final SensorPlacement placement;
     final long captureSequence;
     final long recordedAtMs;
+    final long placementRevision;
+    final double rawRoll;
+    final double rawPitch;
+    final double rawYaw;
+    final SoftwareZeroCalibration softwareZero;
     final double roll;
     final double pitch;
     final double yaw;
@@ -42,15 +47,45 @@ final class SensorSample {
             double gy,
             double gz
     ) {
+        this(
+                gatewayDeviceId, deviceName, placement, captureSequence, recordedAtMs,
+                0L, roll, pitch, yaw, SoftwareZeroCalibration.NONE,
+                ax, ay, az, gx, gy, gz
+        );
+    }
+
+    SensorSample(
+            String gatewayDeviceId,
+            String deviceName,
+            SensorPlacement placement,
+            long captureSequence,
+            long recordedAtMs,
+            long placementRevision,
+            double rawRoll,
+            double rawPitch,
+            double rawYaw,
+            SoftwareZeroCalibration softwareZero,
+            double ax,
+            double ay,
+            double az,
+            double gx,
+            double gy,
+            double gz
+    ) {
         this.gatewayDeviceId = gatewayDeviceId;
         this.gatewaySampleId = UUID.randomUUID().toString();
         this.deviceName = deviceName;
         this.placement = placement;
         this.captureSequence = captureSequence;
         this.recordedAtMs = recordedAtMs;
-        this.roll = roll;
-        this.pitch = pitch;
-        this.yaw = yaw;
+        this.placementRevision = placementRevision;
+        this.rawRoll = rawRoll;
+        this.rawPitch = rawPitch;
+        this.rawYaw = rawYaw;
+        this.softwareZero = softwareZero == null ? SoftwareZeroCalibration.NONE : softwareZero;
+        this.roll = this.softwareZero.calibratedRoll(rawRoll);
+        this.pitch = this.softwareZero.calibratedPitch(rawPitch);
+        this.yaw = this.softwareZero.calibratedYaw(rawYaw);
         this.ax = ax;
         this.ay = ay;
         this.az = az;
@@ -66,6 +101,12 @@ final class SensorSample {
         raw.put("gatewayDeviceId", gatewayDeviceId);
         raw.put("deviceName", deviceName);
         raw.put("captureSequence", captureSequence);
+        raw.put("placementRevision", placementRevision);
+        raw.put("angleCalibrationMode", softwareZero.calibrated ? "SOFTWARE_ZERO" : "RAW");
+        raw.put("rawAngles", angleJson(rawRoll, rawPitch, rawYaw));
+        raw.put("originalAngles", angleJson(rawRoll, rawPitch, rawYaw));
+        raw.put("softwareZero", angleJson(softwareZero.roll, softwareZero.pitch, softwareZero.yaw));
+        raw.put("zeroOffsets", angleJson(softwareZero.roll, softwareZero.pitch, softwareZero.yaw));
 
         JSONObject payload = new JSONObject();
         payload.put("gatewayDeviceId", gatewayDeviceId);
@@ -73,6 +114,7 @@ final class SensorSample {
         payload.put("captureSequence", captureSequence);
         payload.put("patientId", "");
         payload.put("placement", placement.name());
+        payload.put("placementRevision", placementRevision);
         payload.put("recordedAt", formatRecordedAt(recordedAtMs));
         payload.put("roll", roll);
         payload.put("pitch", pitch);
@@ -94,7 +136,11 @@ final class SensorSample {
         payload.put("deviceId", gatewayDeviceId);
         payload.put("deviceName", deviceName);
         payload.put("placement", placement.name());
+        payload.put("placementRevision", placementRevision);
         payload.put("captureSequence", captureSequence);
+        payload.put("rawAngles", angleJson(rawRoll, rawPitch, rawYaw));
+        payload.put("softwareZero", angleJson(softwareZero.roll, softwareZero.pitch, softwareZero.yaw));
+        payload.put("angleCalibrationMode", softwareZero.calibrated ? "SOFTWARE_ZERO" : "RAW");
         payload.put("roll", roll);
         payload.put("pitch", pitch);
         payload.put("yaw", yaw);
@@ -105,6 +151,14 @@ final class SensorSample {
         payload.put("gy", gy);
         payload.put("gz", gz);
         return payload;
+    }
+
+    private static JSONObject angleJson(double roll, double pitch, double yaw) throws JSONException {
+        JSONObject angles = new JSONObject();
+        angles.put("roll", roll);
+        angles.put("pitch", pitch);
+        angles.put("yaw", yaw);
+        return angles;
     }
 
     static String formatRecordedAt(long recordedAtMs) {

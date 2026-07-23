@@ -43,7 +43,9 @@ to skip the Git clone attempt on a restricted network.
   and exports a `tka-local-evidence/v1` JSON package through Android sharing.
 - Records disconnects, long data gaps, long stillness and strong-motion events
   for later human review; these are engineering events, not diagnoses.
-- Sends the official `SetAngle0()` zero-reference command for an assigned sensor.
+- Stores a per-device software zero reference. Calibrated angles update
+  immediately while every upload and evidence sample retains raw angles, zero
+  offsets, and the calibration mode for audit.
 - Writes readings to an encrypted local file before network upload when a session
   is started.
 - Provisions devices, records active placements, opens a hardware session, and
@@ -53,9 +55,29 @@ to skip the Git clone attempt on a restricted network.
   location services are unavailable.
 - Resumes scanning automatically when returning from system Bluetooth/location
   settings.
-- Limits SDK callbacks to 10 samples per second per sensor, retries queued
-  uploads every 15 seconds, and keeps restored samples bound to their original
-  patient ID.
+- Consumes every official SDK callback at the BT50 default 10 Hz output rate,
+  encrypts and queues every frame without client-side downsampling,
+  retries queued uploads every 15 seconds, and keeps restored samples bound to
+  their original patient ID.
+- Ending a training session immediately stops accepting new upload frames while
+  allowing every frame already persisted in the encrypted queue to drain. The
+  network session becomes inactive only after that queue is empty.
+- Keeps the visible dashboard at the sensor's default 10 Hz rate without
+  resizing the main scroll content, and pins start/end controls to the bottom
+  action bar.
+- Increments a persistent `placementRevision` whenever a physical sensor is
+  assigned to thigh or shank. Uploads include that revision; device-binding and
+  hardware-session requests include it so the server can atomically reject
+  stale mappings and isolate old sessions.
+- A placement change schedules every session from the previous revision for
+  completion. Ending training drains the encrypted queue and then calls
+  `PATCH /api/sensor-sessions/{id}` with `{"status":"COMPLETED"}` for every
+  current-revision session. Failed completion remains pending and retries.
+- Once both platform device IDs, a hardware session, and both persistent
+  software zeros are available, the gateway posts
+  `POST /api/device-calibrations` with `quality=GOOD`, `placementRevision`, and
+  an auditable thigh/shank baseline containing raw zero-reference attitudes and
+  offsets.
 - Keeps the server URL and patient ID between launches and stores the bearer
   token in Android Keystore-backed encrypted preferences rather than plaintext.
 - Retains local startup crash diagnostics for no-USB field debugging.
@@ -95,7 +117,7 @@ disable backups and cleartext traffic, and are signed after zip alignment by
 - disable legacy v1 signing because the minimum supported system is Android 7.0
   (API 24);
 - require and verify APK Signature Scheme v2 and v3 in the APK;
-- cryptographically verify the v4 sidecar `TKA-Gateway-v0.4.1.apk.idsig` with
+- cryptographically verify the v4 sidecar `TKA-Gateway-v0.4.2.apk.idsig` with
   Android's APK signature library;
 - read passwords from environment variables so secrets do not appear in command
   arguments or the public repository.

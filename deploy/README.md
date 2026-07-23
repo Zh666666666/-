@@ -32,6 +32,11 @@ NEXT_PUBLIC_REGISTRATION_ENABLED=true
 REGISTRATION_INVITE_CODE=<random-care-team-invite-code>
 RESEND_API_KEY=<resend-api-key>
 EMAIL_FROM=TKA Rehab <verify@updates.example.com>
+AI_RESPONSES_BASE_URL=https://api.openai.com
+AI_RESPONSES_MODEL=gpt-5.5
+AI_RESPONSES_REASONING_EFFORT=xhigh
+AI_RESPONSES_API_KEY=<server-side-provider-key>
+AI_RESPONSES_ACTOR_AUTHORIZATION=
 ```
 
 `ROOT_DOMAIN` receives its own automatic certificate and permanently redirects
@@ -42,6 +47,13 @@ subdomain with Resend, set all four registration variables, then rebuild the app
 so `NEXT_PUBLIC_REGISTRATION_ENABLED=true` is included in the client bundle.
 Public registration creates family accounts only and requires the care-team
 invite code; nurse accounts remain administrator-provisioned.
+
+AI analysis is manual and fail-closed. `POST /api/ai-analyses` first recomputes
+the latest hardware session's synchronization, calibration, ROM, repetition,
+duration and quality metrics. The external Responses API is called only when
+that deterministic quality gate passes. Provider failures never fall back to a
+fabricated report. Custom OpenAI-compatible providers may omit
+`AI_RESPONSES_API_KEY` and use `AI_RESPONSES_ACTOR_AUTHORIZATION` instead.
 
 Deploy and initialize without adding fake sensor readings:
 

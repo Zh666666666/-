@@ -101,6 +101,7 @@ export type DeviceBindingItem = {
   deviceId: string;
   patientId: string;
   placement: DevicePlacement;
+  placementRevision?: number;
   active: boolean;
   boundAt: string;
   unboundAt: string | null;
@@ -112,6 +113,7 @@ export type SensorSessionItem = {
   patientId: string;
   status: SensorSessionStatus;
   source: KneeDataPoint["source"];
+  placementRevision?: number;
   startedAt: string;
   endedAt: string | null;
   sampleCount: number;
@@ -125,6 +127,7 @@ export type SensorSampleItem = {
   deviceId: string | null;
   sessionId: string | null;
   placement: DevicePlacement;
+  placementRevision?: number;
   source: KneeDataPoint["source"];
   recordedAt: string;
   receivedAt?: string | null;
@@ -156,6 +159,7 @@ export type CalibrationRecordItem = {
   sessionId: string | null;
   thighDeviceId: string | null;
   shankDeviceId: string | null;
+  placementRevision?: number;
   quality: CalibrationQuality;
   zeroFlexionAngle: number;
   notes: string | null;

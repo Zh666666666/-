@@ -33,6 +33,7 @@ const sensorSampleSchema = z.object({
   patientId: z.string().min(1),
   source: z.enum(sensorDataSources).optional(),
   placement: z.enum(["THIGH", "SHANK", "BRACE", "UNKNOWN"]).optional().default("UNKNOWN"),
+  placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
   recordedAt: z.string().datetime().optional(),
   roll: z.coerce.number().optional().nullable(),
   pitch: z.coerce.number().optional().nullable(),
@@ -105,6 +106,7 @@ function serializeSensorSample(sample: {
   deviceId: string | null;
   sessionId: string | null;
   placement: SensorSampleItem["placement"];
+  placementRevision: number;
   source: SensorSampleItem["source"];
   recordedAt: Date;
   createdAt: Date;
@@ -130,6 +132,7 @@ function serializeSensorSample(sample: {
     deviceId: sample.deviceId,
     sessionId: sample.sessionId,
     placement: sample.placement,
+    placementRevision: sample.placementRevision,
     source: sample.source,
     recordedAt: sample.recordedAt.toISOString(),
     roll: sample.roll,
@@ -177,9 +180,18 @@ export async function GET(request: Request) {
     return NextResponse.json(getDemoSensorLiveSnapshot(patientId));
   }
 
+  const session = await prisma.sensorSession.findFirst({
+    where: { patientId, source: "HARDWARE" },
+    orderBy: { startedAt: "desc" },
+    select: { id: true, status: true, placementRevision: true, startedAt: true, endedAt: true },
+  });
   const [samples, clinicalRecords, patient, calibration] = await Promise.all([
     prisma.sensorSample.findMany({
-      where: { patientId },
+      where: session ? {
+        patientId,
+        sessionId: session.id,
+        placementRevision: session.placementRevision,
+      } : { patientId, sessionId: null },
       orderBy: { recordedAt: "desc" },
       take: safeLimit,
     }),
@@ -193,9 +205,12 @@ export async function GET(request: Request) {
       select: { targetFlexion: true },
     }),
     prisma.calibrationRecord.findFirst({
-      where: { patientId },
+      where: {
+        patientId,
+        placementRevision: session?.placementRevision ?? 0,
+      },
       orderBy: { createdAt: "desc" },
-      select: { quality: true, thighDeviceId: true, shankDeviceId: true },
+      select: { quality: true, thighDeviceId: true, shankDeviceId: true, placementRevision: true },
     }),
   ]);
 
@@ -207,7 +222,13 @@ export async function GET(request: Request) {
     UNKNOWN: serialized.find((sample) => sample.placement === "UNKNOWN") ?? null,
   };
   const latest = serialized[0] ?? null;
-  const dualActive = Boolean(latestByPlacement.THIGH && latestByPlacement.SHANK);
+  const now = Date.now();
+  const isFresh = (sample: SensorSampleItem | null) => {
+    if (!sample) return false;
+    const timestamp = new Date(sample.receivedAt ?? sample.recordedAt).getTime();
+    return Number.isFinite(timestamp) && now - timestamp <= 3_000;
+  };
+  const dualActive = isFresh(latestByPlacement.THIGH) && isFresh(latestByPlacement.SHANK);
   const serializedClinicalRecords = clinicalRecords.map(serializeKneeRecord).reverse();
   const metrics = calculateRehabMetrics({
     samples: serialized,
@@ -218,6 +239,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     patientId,
+    session,
+    placementRevision: session?.placementRevision ?? 0,
     updatedAt: latest?.recordedAt ?? new Date().toISOString(),
     sampleCount: serialized.length,
     dualActive,
@@ -290,15 +313,41 @@ export async function POST(request: Request) {
   const session = body.sessionId
     ? await prisma.sensorSession.findFirst({
         where: { id: body.sessionId, patientId: body.patientId },
-        select: { source: true },
+        select: { source: true, status: true, placementRevision: true },
       })
     : null;
 
   if (body.sessionId && !session) {
     return NextResponse.json({ error: "Sensor session was not found for this patient" }, { status: 404 });
   }
-
+  if (session && session.status !== "ACTIVE") {
+    return NextResponse.json({ error: "Sensor session is not active", code: "SESSION_NOT_ACTIVE" }, { status: 409 });
+  }
+  if (session && session.placementRevision !== body.placementRevision) {
+    return NextResponse.json(
+      { error: "Sample placement revision does not match the active session", code: "PLACEMENT_REVISION_MISMATCH" },
+      { status: 409 },
+    );
+  }
   const source = resolveSensorDataSource(session?.source, body.source);
+  if (source === "HARDWARE" && body.deviceId && body.sessionId) {
+    const activeBinding = await prisma.deviceBinding.findFirst({
+      where: {
+        patientId: body.patientId,
+        deviceId: body.deviceId,
+        placement: body.placement,
+        placementRevision: body.placementRevision,
+        active: true,
+      },
+      select: { id: true },
+    });
+    if (!activeBinding) {
+      return NextResponse.json(
+        { error: "Device placement does not match the active assignment", code: "DEVICE_PLACEMENT_MISMATCH" },
+        { status: 409 },
+      );
+    }
+  }
 
   const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
   const ingestRaw = buildIngestRaw(body.raw, body.captureSequence);
@@ -310,6 +359,7 @@ export async function POST(request: Request) {
     patientId: body.patientId,
     source,
     placement: body.placement,
+    placementRevision: body.placementRevision,
     recordedAt,
     roll: body.roll ?? null,
     pitch: body.pitch ?? null,
@@ -365,7 +415,11 @@ export async function POST(request: Request) {
     const oppositePlacement = body.placement === "THIGH" ? "SHANK" : body.placement === "SHANK" ? "THIGH" : null;
     const calibration = source === "HARDWARE" && oppositePlacement
       ? await transaction.calibrationRecord.findFirst({
-          where: { patientId: body.patientId, quality: "GOOD" },
+          where: {
+            patientId: body.patientId,
+            quality: "GOOD",
+            placementRevision: body.placementRevision,
+          },
           orderBy: { createdAt: "desc" },
           select: { quality: true, thighDeviceId: true, shankDeviceId: true },
         })
@@ -382,6 +436,7 @@ export async function POST(request: Request) {
               patientId: body.patientId,
               deviceId: body.deviceId,
               placement: body.placement,
+              placementRevision: body.placementRevision,
               active: true,
             },
             select: { id: true },
@@ -391,6 +446,8 @@ export async function POST(request: Request) {
               patientId: body.patientId,
               source: "HARDWARE",
               placement: oppositePlacement!,
+              placementRevision: body.placementRevision,
+              sessionId: body.sessionId ?? null,
               deviceId: expectedOppositeDeviceId,
               confidence: { gte: 0.7 },
               flexionAngle: { not: null },

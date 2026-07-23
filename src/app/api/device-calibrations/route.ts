@@ -13,6 +13,7 @@ const calibrationSchema = z.object({
   sessionId: z.string().optional().nullable(),
   thighDeviceId: z.string().optional().nullable(),
   shankDeviceId: z.string().optional().nullable(),
+  placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
   quality: z.enum(["PENDING", "GOOD", "FAIR", "POOR"]).optional(),
   zeroFlexionAngle: z.coerce.number().min(-30).max(30).optional(),
   baseline: z.unknown().optional(),
@@ -61,12 +62,34 @@ export async function POST(request: Request) {
 
   await ensureDemoPatients();
 
+  const activeBindings = await prisma.deviceBinding.findMany({
+    where: {
+      patientId: body.patientId,
+      placementRevision: body.placementRevision,
+      active: true,
+      placement: { in: ["THIGH", "SHANK"] },
+    },
+    select: { deviceId: true, placement: true },
+  });
+  const activeThigh = activeBindings.find((binding) => binding.placement === "THIGH")?.deviceId ?? null;
+  const activeShank = activeBindings.find((binding) => binding.placement === "SHANK")?.deviceId ?? null;
+  if (
+    body.quality === "GOOD"
+    && (!activeThigh || !activeShank || body.thighDeviceId !== activeThigh || body.shankDeviceId !== activeShank)
+  ) {
+    return NextResponse.json(
+      { error: "Calibration devices do not match the active placement revision", code: "CALIBRATION_BINDING_MISMATCH" },
+      { status: 409 },
+    );
+  }
+
   const record = await prisma.calibrationRecord.create({
     data: {
       patientId: body.patientId,
       sessionId: body.sessionId ?? null,
       thighDeviceId: body.thighDeviceId ?? null,
       shankDeviceId: body.shankDeviceId ?? null,
+      placementRevision: body.placementRevision,
       quality: body.quality ?? "GOOD",
       zeroFlexionAngle: body.zeroFlexionAngle ?? 0,
       baseline: body.baseline == null ? undefined : body.baseline,
