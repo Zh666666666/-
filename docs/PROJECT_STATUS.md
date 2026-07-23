@@ -227,10 +227,37 @@
 
 待完成：
 
-- 本机复核 Android clean 构建与 APK v2/v3/v4 签名。
+- GitHub Actions 使用长期证书生成并核验 APK v2/v3/v4 签名；本机没有发布密钥，不在本地伪造正式包。
 - 将 AI 提供方配置写入服务器私有环境。无 Authorization 的最小请求返回 401，凭据不得进入 Git。
 - 提交并推送代码，部署数据库迁移与 Web，运行生产验收。
 - 安装新 APK 后完成换绑、归零、单侧断开、结束会话、断网补传、质量门和手动 AI 分析真机验收。
+
+### 2026-07-23 v0.4.2 本地发布检查点
+
+已完成：
+
+- Android 本地构建链已复核；Debug 与 Release/R8 均成功，发布脚本和 GitHub Actions 的产物名已统一为 `TKA-Gateway-v0.4.2`。
+- Web、API、数据库迁移与 AI 质量门代码已进入同一改造分支，等待 GitHub CI 和生产部署。
+
+当前状态：
+
+- Debug APK：`mobile-gateway-android/app/build/outputs/apk/debug/app-debug.apk`。
+- Debug APK SHA256：`8EB9F5F2DB86C7BA8C7FFF23B04DA78377F9066DCDAE51F93E6863E3D5B2391A`。
+- 未签名 Release APK SHA256：`32910CAE97F164675FFD6990904C981C71530958BADE90486C016547B4D6FC2E`；该文件仅用于构建核验，不可作为正式升级包交付。
+
+验证：
+
+- `npm test`：41/41 通过。
+- `npm run lint`：通过。
+- `npm run build`：41 路由生产构建通过。
+- `powershell -ExecutionPolicy Bypass -File scripts/verify-debug.ps1 -SkipSdkSync`：Android JVM、Lint、Debug 构建通过。
+- `gradlew.bat assembleRelease --no-daemon`：Release、R8、资源压缩通过。
+
+下一步：
+
+- 推送改造分支并等待 Build 与 Android Gateway CI；下载长期证书签名的 v0.4.2 产物，核对 v2/v3/v4 和 SHA256。
+- 合并后备份并部署生产数据库迁移/Web，私密写入 AI Responses API 配置，执行健康、来源边界、演示禁用和 AI 质量门验收。
+- 用户安装正式 v0.4.2 后完成两只 BT50 的真实换绑、归零、断开、结束、断网补传、质量门和 AI 人工触发验收。
 
 ## Agent 更新规则
 
