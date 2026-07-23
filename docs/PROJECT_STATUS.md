@@ -259,6 +259,38 @@
 - 合并后备份并部署生产数据库迁移/Web，私密写入 AI Responses API 配置，执行健康、来源边界、演示禁用和 AI 质量门验收。
 - 用户安装正式 v0.4.2 后完成两只 BT50 的真实换绑、归零、断开、结束、断网补传、质量门和 AI 人工触发验收。
 
+### 2026-07-23 v0.4.2 合并与部署交接检查点
+
+已完成：
+
+- PR #31 已 squash 合并到 `main`，生产候选提交为 `c3a0729e598e1c67ef94960920c08236d794564e`。
+- GitHub Build `30022323013` 通过；Android Gateway `30022323161` 的 JVM、Lint、Debug、Release/R8 与临时 v2/v3/v4 签名验证通过。
+- 手动正式签名流水线 `30022615165` 使用长期证书成功生成 `TKA-Gateway-v0.4.2.apk`、`.idsig` 和签名验证凭据。
+- 正式 APK SHA256：`CE6D2E19619076D1E330A70D4C7ADD4093BBA759FA5572D071DAD4F0BE5862BE`。
+- 正式 APK 签名凭据：v2 `true`、v3 `true`、独立 v4 验证 `Overall verified: true` / `Verified using v4 scheme: true`。
+- 本地生产构建浏览器验收：1280px 专业详情无横向溢出；390x844 家属摘要无横向溢出；移动端 3D 画布为 343x338，包含大腿与小腿双模型标签。
+
+当前生产状态：
+
+- `https://www.dorianaistudio.cloud/api/health/ready` 返回 200，现有生产版本、PostgreSQL、认证和网关鉴权仍健康。
+- 新提交尚未部署。服务器 `103.242.13.17:22` TCP 可达，但 SSH 在密钥交换前持续由远端关闭；多次密钥连接和 `ssh-keyscan` 均复现，未执行数据库迁移或容器重建。
+- 自定义 Responses API 使用授权后已越过 401，但最小无患者数据请求返回 HTTP 400 `upstream_error`。项目保持 fail-closed，不会生成伪造分析；生产配置不得因此改用假数据或静默本地结论。
+
+恢复后的准确执行顺序：
+
+1. 从云控制台重启 SSH 服务或服务器，并先验证新的密钥会话可进入；不要关闭仍可用的控制台会话。
+2. 在 `/opt/tka-rehab` 运行 `sh deploy/backup.sh`，确认新备份非空。
+3. 将 `AI_RESPONSES_BASE_URL`、`AI_RESPONSES_MODEL`、`AI_RESPONSES_REASONING_EFFORT`、`AI_RESPONSES_API_KEY` 和 `AI_RESPONSES_ACTOR_AUTHORIZATION` 写入服务器私有 `.env.production`；不得输出或提交凭据。
+4. 拉取 `main` 的 `c3a0729`，运行 `docker compose -f compose.production.yml up -d --build`；启动过程执行 Prisma 迁移。
+5. 运行容器内 `node deploy/verify-production.mjs`，再从公网核验 ready、根域跳转、生产 `/hardware-demo` 禁止模拟、实时页和 AI 质量门。
+6. 部署证据通过后更新本日志并合并本交接分支。
+
+用户侧最终实物验收：
+
+- 安装 SHA256 为 `CE6D...62BE` 的正式 v0.4.2 APK。
+- 使用两只 BT50 验证 App 手动换绑后 Web 同步换位、软件归零、单侧关机冻结、结束训练停止上传、断网补传、质量门通过后的手动 AI 调用。
+- AI 提供方若仍返回 `upstream_error`，记录请求时间与供应商响应 ID，联系该兼容服务提供方；不得把供应商故障解释为传感器数据不可信。
+
 ## Agent 更新规则
 
 每个 Agent 完成代码任务时必须：
