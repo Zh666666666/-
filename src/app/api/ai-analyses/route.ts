@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { buildAiProviderEvidence } from "@/lib/ai-evidence";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { calculateRehabMetrics } from "@/lib/rehab-metrics";
@@ -264,40 +265,16 @@ export async function POST(request: Request) {
 
   const evidenceSamples = serializedSamples
     .filter((_, index) => index % Math.max(1, Math.floor(serializedSamples.length / 80)) === 0)
-    .slice(0, 80)
-    .map((sample) => ({
-      at: sample.recordedAt,
-      placement: sample.placement,
-      deviceId: sample.deviceId,
-      roll: sample.roll,
-      pitch: sample.pitch,
-      yaw: sample.yaw,
-      ax: sample.ax,
-      ay: sample.ay,
-      az: sample.az,
-      gx: sample.gx,
-      gy: sample.gy,
-      gz: sample.gz,
-      kneeAngle: sample.flexionAngle,
-    }));
-  const evidence = {
-    boundary: "工程康复分析，非疾病诊断，不替代医生或治疗处方",
-    patient: {
-      id: patient.id,
-      targetFlexion: patient.targetFlexion,
-      surgicalSide: patient.surgicalSide,
-      surgeryDate: patient.surgeryDate.toISOString(),
-    },
-    session: {
-      id: session.id,
-      status: session.status,
-      placementRevision: session.placementRevision,
-      startedAt: session.startedAt.toISOString(),
-      endedAt: session.endedAt?.toISOString() ?? null,
-    },
+    .slice(0, 80);
+  const evidence = buildAiProviderEvidence({
+    targetFlexion: patient.targetFlexion,
+    surgicalSide: patient.surgicalSide,
+    sessionStatus: session.status,
+    sessionStartedAt: session.startedAt,
+    sessionEndedAt: session.endedAt,
     metrics,
-    rawEvidence: evidenceSamples,
-  };
+    samples: evidenceSamples,
+  });
 
   let draft: AnalysisDraft;
   try {
