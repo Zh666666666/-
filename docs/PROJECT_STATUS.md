@@ -291,6 +291,28 @@
 - 使用两只 BT50 验证 App 手动换绑后 Web 同步换位、软件归零、单侧关机冻结、结束训练停止上传、断网补传、质量门通过后的手动 AI 调用。
 - AI 提供方若仍返回 `upstream_error`，记录请求时间与供应商响应 ID，联系该兼容服务提供方；不得把供应商故障解释为传感器数据不可信。
 
+### 2026-07-24 OpenRouter 免费模型与隐私检查点
+
+已完成：
+
+- 从 OpenRouter 实时模型目录选择 `nvidia/nemotron-3-super-120b-a12b:free`：免费、262144 上下文，支持 reasoning、response format 与 structured outputs。
+- 使用项目相同的 `/api/v1/responses` 请求格式完成无患者数据兼容测试，模型成功返回 `report` / `recommendation` 严格 JSON。
+- 新增 AI 外发证据最小化：删除患者 ID、设备 ID、会话 ID、绝对采集时间和手术日期，仅发送目标角度、侧别、相对时间、质量指标及运动学证据。
+- 新增回归测试，确保外发 JSON 不包含标识符或绝对日期。
+
+当前状态：
+
+- 本地 42 项 Web/网关/API 测试、ESLint 和 41 路由生产构建通过。
+- OpenRouter API Key 仅用于本机兼容测试，未写入代码、Git 或日志；生产环境尚未配置。
+- 服务器重启后 HTTPS ready 仍正常，但 `103.242.13.17:22` 仍在 SSH 密钥交换前由远端关闭，尚不能备份、部署或写入私密环境变量。
+
+下一步：
+
+1. 从量芯云网页远程终端检查 `sshd -t`、`systemctl status ssh`、`journalctl -u ssh` 和 22 端口监听，恢复密钥 SSH。
+2. 备份数据库后部署本分支并将 OpenRouter base URL、模型、`medium` reasoning effort 和 API Key 写入服务器私有 `.env.production`。
+3. 验收质量门不通过时不调用模型、质量门通过时匿名证据调用成功，以及生产页面不暴露凭据。
+4. 完成后轮换本次在对话中暴露过的 OpenRouter Key。
+
 ## Agent 更新规则
 
 每个 Agent 完成代码任务时必须：
