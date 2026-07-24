@@ -313,6 +313,59 @@
 3. 验收质量门不通过时不调用模型、质量门通过时匿名证据调用成功，以及生产页面不暴露凭据。
 4. 完成后轮换本次在对话中暴露过的 OpenRouter Key。
 
+### 2026-07-24 OpenRouter 生产部署与 SSH 恢复
+
+已完成事项：
+
+- PR #33 已合并到 `main`，生产部署提交为
+  `0633071aca51f19c55a8a82e2bdfd0740d10d638`。
+- 部署前已生成并校验非空数据库备份
+  `/opt/tka-rehab/backups/tka-rehab-20260724T123007Z.dump`，大小 143,798 字节。
+- 服务器私有 `.env.production` 已配置 OpenRouter Responses API：
+  `https://openrouter.ai/api/v1`、模型
+  `nvidia/nemotron-3-super-120b-a12b:free`、推理强度 `medium`；API Key
+  未写入代码、Git 或日志。
+- `docker compose -f compose.production.yml up -d --build` 已完成，PostgreSQL、
+  Next.js 与 Caddy 容器均启动，数据库与应用健康检查通过。
+- 容器内 `node deploy/verify-production.mjs` 已通过健康检查、家属/护士角色隔离、
+  受保护数据、网关鉴权、实时页和 SSE 实时流验收；公网
+  `https://www.dorianaistudio.cloud/api/health/ready` 返回 HTTP 200。
+- 从生产应用容器直接调用 OpenRouter Responses API 返回 HTTP 200，并获得有效输出。
+- 对 `prod-patient-1` 调用生产 AI 分析入口返回 HTTP 422
+  `QUALITY_GATE_FAILED`；当前数据不满足确定性质量门，因此没有调用模型或生成诊断，
+  fail-closed 链路符合设计。
+- SSH 22 端口因公网未认证扫描占满握手队列而持续 banner 超时；已增加抗突发参数与
+  备用端口 2222，并用项目密钥验证直连成功。已安装 `deploy/sshd-tka.conf`，
+  禁用 SSH 密码和交互式认证，仅保留密钥登录；noVNC 控制台仍可用于紧急恢复。
+
+当前状态：
+
+- Web v0.4.2、双传感器实时链路、匿名化 AI 证据构造和 OpenRouter 生产配置均已上线。
+- AI 服务可用，但只有完成双传感器同步、匹配校准、连续采样和完整动作周期后，
+  质量门才允许生成分析；本次未伪造一段“合格”患者数据来强行通过。
+- 本次 Docker 构建显示依赖审计存在 3 个 moderate 与 5 个 high 项；构建、类型检查
+  与运行验收不受影响，但应另开安全维护任务逐项确认可利用性和兼容升级范围。
+
+下一步任务：
+
+1. 使用两只 BT50 完成一次真实完整训练：确认 App 手动换绑同步到 Web、归零后保持
+   静止、连续屈伸至少一个完整周期并点击“结束本次训练”。
+2. 在 Web 复核双路同步帧、校准匹配、连续观察时长、ROM、峰值屈曲、完整屈伸次数和
+   数据质量；质量门通过后手动点击 AI 分析，核对报告仅引用匿名化的本次证据。
+3. 实测手机断网采集、恢复联网补传、去重与时间顺序，并确认补传不会把已结束会话
+   重新标记为实时。
+4. 轮换本次曾在对话中暴露的 OpenRouter API Key 和服务器 root 密码；轮换后只更新
+   服务器私有配置，不提交凭据。
+5. 审计 `npm audit` 的 8 个依赖项，优先修复可远程利用且不需要破坏性主版本升级的项。
+
+验证记录：
+
+- `npm test`：42 项通过；`npm run lint`：通过；`npm run build`：41 路由通过。
+- GitHub Build `30089904911`：通过。
+- 生产容器验收：通过；公网 ready：HTTP 200；OpenRouter 容器内兼容测试：HTTP 200。
+- 生产 AI 质量门拒绝测试：HTTP 422 `QUALITY_GATE_FAILED`，未生成虚假分析。
+- 密钥 SSH 新会话：`KEY_ONLY_SSH_OK`。
+
 ## Agent 更新规则
 
 每个 Agent 完成代码任务时必须：
