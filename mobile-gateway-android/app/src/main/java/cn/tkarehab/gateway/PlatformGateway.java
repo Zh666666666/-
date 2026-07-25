@@ -3,6 +3,7 @@ package cn.tkarehab.gateway;
 import android.content.SharedPreferences;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -13,14 +14,18 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Mirrors the shared TypeScript gateway's order of operations: persist, provision,
@@ -37,11 +42,14 @@ final class PlatformGateway {
     private final EncryptedSampleQueue queue;
     private final Listener listener;
     private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
+    private final ExecutorService captureWorker = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean flushScheduled = new AtomicBoolean(false);
     private final Map<String, String> platformDeviceIds = new HashMap<>();
     private final Map<String, String> sessionIds = new HashMap<>();
-    private final Map<SensorPlacement, TimedPitch> latestPitch = new EnumMap<>(SensorPlacement.class);
+    private final Map<SensorPlacement, TimedPitch> latestPitch =
+            Collections.synchronizedMap(new EnumMap<>(SensorPlacement.class));
     private final Map<SensorPlacement, CalibrationBaseline> calibrationBaselines =
-            new EnumMap<>(SensorPlacement.class);
+            Collections.synchronizedMap(new EnumMap<>(SensorPlacement.class));
     private final Set<Long> completionPendingRevisions = new HashSet<>();
     private final Set<String> completionPendingSessionIds = new HashSet<>();
     private final Map<String, JSONObject> pendingCalibrationPayloads = new HashMap<>();
@@ -113,16 +121,17 @@ final class PlatformGateway {
         startRequested = false;
         accepting = false;
         long revisionToComplete = currentPlacementRevision;
-        worker.execute(() -> {
-            completionPendingRevisions.add(revisionToComplete);
-            scheduleKnownSessionsForCompletion(revisionToComplete);
-            persistPendingState();
-            latestPitch.clear();
-            listener.onStatus(
-                    "训练已停止接收新帧；正在补传结束前已加密保存的 " + queue.size() + " 条数据。"
-            );
-            flushOnWorker();
-        });
+        captureWorker.execute(() -> worker.execute(() -> {
+                completionPendingRevisions.add(revisionToComplete);
+                scheduleKnownSessionsForCompletion(revisionToComplete);
+                persistPendingState();
+                latestPitch.clear();
+                listener.onStatus(
+                        "训练已停止接收新帧；正在补传结束前已加密保存的 " + queue.size() + " 条数据。"
+                );
+                requestFlush(0L);
+            })
+        );
     }
 
     boolean isStartRequested() {
@@ -155,6 +164,7 @@ final class PlatformGateway {
         startRequested = false;
         active = false;
         accepting = false;
+        captureWorker.shutdown();
         worker.shutdownNow();
     }
 
@@ -163,10 +173,7 @@ final class PlatformGateway {
             return;
         }
         String targetPatientId = patientId;
-        worker.execute(() -> {
-            if (!active || !accepting) {
-                return;
-            }
+        captureWorker.execute(() -> {
             try {
                 latestPitch.put(sample.placement, new TimedPitch(sample.recordedAtMs, sample.pitch));
                 if (sample.softwareZero.calibrated) {
@@ -206,7 +213,7 @@ final class PlatformGateway {
                     }
                 }
                 queue.append(payload);
-                flushOnWorker();
+                requestFlush(queue.size() >= 24 ? 0L : 120L);
             } catch (Exception error) {
                 listener.onError("Could not save a sensor reading locally.", error);
             }
@@ -215,7 +222,7 @@ final class PlatformGateway {
 
     void flush() {
         if (active) {
-            worker.execute(this::flushOnWorker);
+            requestFlush(0L);
         }
     }
 
@@ -232,7 +239,7 @@ final class PlatformGateway {
                             + " / " + patient.getString("id")
                             + "；待上传 " + queue.size() + " 条。"
             );
-            flushOnWorker();
+            requestFlush(0L);
         } catch (Exception error) {
             active = false;
             accepting = false;
@@ -250,7 +257,7 @@ final class PlatformGateway {
         }
         try {
             getJson(gatewayReadyPath(patientId));
-            flushOnWorker();
+            requestFlush(0L);
         } catch (Exception error) {
             listener.onStatus(
                     "上传暂缓；" + queue.size() + " 条仍在加密队列。"
@@ -261,41 +268,62 @@ final class PlatformGateway {
     }
 
     private void flushOnWorker() {
+        flushScheduled.set(false);
         if (!active) {
             return;
         }
         int uploaded = 0;
         int isolated = 0;
         try {
-            JSONObject sample;
-            // Cap each flush burst so the UI can keep rendering BLE frames.
-            while (uploaded + isolated < 40 && (sample = queue.peek()) != null) {
-                try {
+            List<JSONObject> samples = queue.peekBatch(80);
+            if (!samples.isEmpty()) {
+                JSONArray payloads = new JSONArray();
+                for (JSONObject sample : samples) {
                     normalizeLegacyIdentity(sample);
                     String deviceId = ensureDevice(sample);
                     String samplePatientId = sample.getString("patientId");
-                    long samplePlacementRevision = sample.optLong("placementRevision", 0L);
-                    String activeSessionId = ensureSession(samplePatientId, samplePlacementRevision);
+                    long revision = sample.optLong("placementRevision", 0L);
                     sample.put("deviceId", deviceId);
-                    sample.put("sessionId", activeSessionId);
-                    // Avoid shipping local-only queue fields to the platform schema.
+                    sample.put("sessionId", ensureSession(samplePatientId, revision));
                     sample.remove("gatewayDeviceId");
-                    JSONObject response = postJson("/api/sensor-samples", sample);
-                    UploadReceipt receipt = UploadReceipt.verify(sample, response);
-                    queue.acknowledgeOne();
-                    maybePublishCalibration(samplePatientId, activeSessionId, samplePlacementRevision);
-                    listener.onUploadReceipt(receipt);
-                    uploaded += 1;
-                } catch (HttpStatusException error) {
-                    if (!isPermanentSampleFailure(error.status)) {
-                        throw error;
+                    payloads.put(sample);
+                }
+
+                try {
+                    JSONObject batchBody = new JSONObject();
+                    batchBody.put("samples", payloads);
+                    JSONObject batchResponse = postJson("/api/sensor-samples/batch", batchBody);
+                    JSONArray results = batchResponse.getJSONArray("results");
+                    UploadReceipt latestReceipt = null;
+                    for (int index = 0; index < samples.size(); index += 1) {
+                        JSONObject result = results.getJSONObject(index);
+                        int status = result.getInt("status");
+                        if (status >= 200 && status < 300) {
+                            JSONObject sample = samples.get(index);
+                            latestReceipt = UploadReceipt.verify(sample, result.getJSONObject("body"));
+                            uploaded += 1;
+                            continue;
+                        }
+                        if (isPermanentSampleFailure(status) && index == uploaded) {
+                            queue.acknowledge(uploaded);
+                            uploaded = 0;
+                            queue.quarantineOne("http-" + status);
+                            isolated += 1;
+                            requestFlush(0L);
+                            return;
+                        }
+                        throw new HttpStatusException(status, String.valueOf(result.opt("body")));
                     }
-                    queue.quarantineOne("http-" + error.status);
-                    isolated += 1;
-                    listener.onStatus(
-                            "已隔离 1 条无法恢复的旧队列数据（HTTP " + error.status
-                                    + "），后续实时帧继续上传。"
+                    queue.acknowledge(uploaded);
+                    if (latestReceipt != null) listener.onUploadReceipt(latestReceipt);
+                    JSONObject last = samples.get(samples.size() - 1);
+                    maybePublishCalibration(
+                            last.getString("patientId"),
+                            last.getString("sessionId"),
+                            last.optLong("placementRevision", 0L)
                     );
+                } catch (Exception error) {
+                    throw error;
                 }
             }
             int remaining = queue.size();
@@ -305,7 +333,7 @@ final class PlatformGateway {
                                 + (remaining > 0 ? "；队列还剩 " + remaining + " 条。" : "；队列已清空。")
                 );
                 if (remaining > 0) {
-                    worker.execute(this::flushOnWorker);
+                    requestFlush(30L);
                 }
             }
             if (remaining == 0) {
@@ -325,6 +353,11 @@ final class PlatformGateway {
                             + " 原因：" + summarize(error)
             );
         }
+    }
+
+    private void requestFlush(long delayMs) {
+        if (!active || !flushScheduled.compareAndSet(false, true)) return;
+        worker.schedule(this::flushOnWorker, Math.max(0L, delayMs), TimeUnit.MILLISECONDS);
     }
 
     static void normalizeLegacyIdentity(JSONObject sample) throws Exception {

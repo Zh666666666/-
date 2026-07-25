@@ -358,11 +358,12 @@ export function calculateRehabMetrics({
         ? "COLLECTING"
         : "TECHNICAL_ISSUE";
   const angles = synchronizedPairs.map((pair) => pair.flexionAngle);
-  const minimumFlexion = clinicalEligible ? quantile(angles, 0.05) : null;
-  const peakFlexion = clinicalEligible ? quantile(angles, 0.95) : null;
+  const hasObservableMeasurement = synchronizedPairs.length >= 2 && observationSeconds >= 1;
+  const minimumFlexion = hasObservableMeasurement ? quantile(angles, 0.05) : null;
+  const peakFlexion = hasObservableMeasurement ? quantile(angles, 0.95) : null;
   const rom = minimumFlexion !== null && peakFlexion !== null ? Math.max(0, peakFlexion - minimumFlexion) : null;
-  const activeDurationSeconds = clinicalEligible ? calculateActiveDuration(pairedSamples) : null;
-  const repetitions = clinicalEligible ? repetitionsBeforeGate : null;
+  const activeDurationSeconds = hasObservableMeasurement ? calculateActiveDuration(pairedSamples) : null;
+  const repetitions = hasObservableMeasurement ? repetitionsBeforeGate : null;
   const cadence = repetitions !== null && activeDurationSeconds !== null && activeDurationSeconds >= 10
     ? repetitions / (activeDurationSeconds / 60)
     : null;

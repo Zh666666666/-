@@ -279,6 +279,7 @@ export default function SensorLivePage() {
   const [showProfessional, setShowProfessional] = useState(false);
   const selectedPatientIdRef = useRef<string | null>(null);
   const liveRequestRef = useRef<{ patientId: string; controller: AbortController } | null>(null);
+  const streamRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadLive = useCallback(async (id: string) => {
     if (liveRequestRef.current?.patientId === id) return;
@@ -392,7 +393,11 @@ export default function SensorLivePage() {
     const eventSource = new EventSource(`/api/sensor-samples/stream?patientId=${encodeURIComponent(patientId)}`);
     eventSource.onopen = () => setStreamState("LIVE");
     eventSource.addEventListener("sample", () => {
-      void loadLive(patientId).catch(() => setStreamState("FALLBACK"));
+      if (streamRefreshRef.current) clearTimeout(streamRefreshRef.current);
+      streamRefreshRef.current = setTimeout(() => {
+        streamRefreshRef.current = null;
+        void loadLive(patientId).catch(() => setStreamState("FALLBACK"));
+      }, 180);
     });
     eventSource.onerror = () => setStreamState("FALLBACK");
 
@@ -405,6 +410,7 @@ export default function SensorLivePage() {
     return () => {
       cancelled = true;
       clearInterval(timer);
+      if (streamRefreshRef.current) clearTimeout(streamRefreshRef.current);
       eventSource.close();
       if (liveRequestRef.current?.patientId === patientId) {
         liveRequestRef.current.controller.abort();
@@ -473,16 +479,22 @@ export default function SensorLivePage() {
     && isTrustedRealtimeSample(shankSample, nowMs);
   const urgentWarning = metrics?.warnings.find((warning) => warning.severity === "HIGH") ?? null;
   const measurementStatus = metrics?.dataQuality.measurementStatus ?? "COLLECTING";
+  const hasObservedTraining = typeof metrics?.rom.value === "number"
+    || typeof metrics?.training.activeDurationSeconds === "number";
   const familySafetyTitle = urgentWarning
     ? "请先确认家人是否安全"
     : clinicalReady
       ? "本次监测未发现明显异常"
-      : "暂时无法判断训练质量";
+      : hasObservedTraining
+        ? "动作数据已收到，结论仍待核对"
+        : "正在接收本次训练数据";
   const familySafetyDetail = urgentWarning
     ? urgentWarning.action
     : clinicalReady
       ? "可以继续按护士给出的方案训练；如出现明显疼痛、肿胀或不适，请暂停并联系护士。"
-      : "系统不会用不完整的数据下结论。请先按下方提示检查设备和佩戴状态。";
+      : hasObservedTraining
+        ? "下方数值来自两只传感器的同步实测；质量门未通过前仅作训练预览，不触发风险结论。"
+        : "先保持两只设备连接，并缓慢完成一次弯曲再伸直；系统不会把不完整数据当成结论。";
   const nextAction = measurementStatus === "SETUP_REQUIRED"
     ? "请确认两只设备佩戴位置，并在设备页重新完成零点校准。"
     : measurementStatus === "TECHNICAL_ISSUE"
@@ -598,7 +610,7 @@ export default function SensorLivePage() {
               <p className="text-sm font-bold text-slate-500">现在该怎么做</p>
               <p className="mt-2 text-lg font-black leading-8 text-[#12304a]">{nextAction}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Badge variant={realtimeQualified ? "success" : "warning"}>{realtimeQualified ? "两只设备上传正常" : dualActive ? "正在核对数据" : "设备未连接完整"}</Badge>
+                <Badge variant={realtimeQualified ? "success" : "warning"}>{realtimeQualified ? "两只设备上传正常" : dualActive ? "两只设备有数据，正在追赶实时" : "等待两只设备实时数据"}</Badge>
                 <Badge variant={clinicalReady ? "success" : "outline"}>{clinicalReady ? "本次结果可用于训练监测" : "暂不输出训练结论"}</Badge>
               </div>
             </CardContent>
@@ -607,10 +619,10 @@ export default function SensorLivePage() {
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="本次训练完成情况">
           {[
-            { label: "本次活动范围", value: metrics?.rom.value, suffix: "°", note: "膝盖从伸直到弯曲的变化范围" },
-            { label: "最深弯曲角度", value: metrics?.rom.peakFlexion, suffix: "°", note: `本阶段目标 ${metrics?.rom.targetFlexion ?? "--"}°，目标因人而异` },
-            { label: "完成完整屈伸", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后再回到起始位置才算一次" },
-            { label: "实际训练时间", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "静止和长时间断开不会计入" },
+            { label: "本次活动范围", value: metrics?.rom.value, suffix: "°", note: clinicalReady ? "已通过质量核对" : "同步实测预览，质量核对中" },
+            { label: "最深弯曲角度", value: metrics?.rom.peakFlexion, suffix: "°", note: `目标 ${metrics?.rom.targetFlexion ?? "--"}°；未核对前不作医疗结论` },
+            { label: "完成完整屈伸", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后回到起始位置才计一次" },
+            { label: "实际训练时间", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "仅累计检测到动作的连续时间" },
           ].map((item) => (
             <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
               <CardContent className="p-5">

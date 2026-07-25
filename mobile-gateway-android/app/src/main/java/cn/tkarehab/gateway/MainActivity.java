@@ -29,7 +29,10 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Field gateway screen with official-app style live visualization:
@@ -70,6 +73,11 @@ public final class MainActivity extends AppCompatActivity {
     private boolean shankConnected;
     private LinearLayout sessionActions;
     private final AtomicBoolean stopInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean exportInProgress = new AtomicBoolean(false);
+    private final AtomicLong lastEvidenceQueuedAtMs = new AtomicLong(0L);
+    private final ExecutorService evidenceWorker = Executors.newSingleThreadExecutor();
+    private long lastThighUiAtMs;
+    private long lastShankUiAtMs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,13 +162,7 @@ public final class MainActivity extends AppCompatActivity {
                 @Override
                 public void onReading(SensorSample sample) {
                     renderLiveReading(sample);
-                    if (evidenceStore != null) {
-                        try {
-                            renderEvidenceSummary(evidenceStore.accept(sample));
-                        } catch (Exception error) {
-                            renderStatus("真实样本无法写入本地证据包" + detail(error));
-                        }
-                    }
+                    queueEvidenceSample(sample);
                     if (platformGateway != null) {
                         platformGateway.accept(sample);
                     }
@@ -216,6 +218,7 @@ public final class MainActivity extends AppCompatActivity {
         if (platformGateway != null) {
             platformGateway.close();
         }
+        evidenceWorker.shutdown();
         super.onDestroy();
     }
 
@@ -599,36 +602,42 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
         stop.setEnabled(false);
-        if (platformGateway != null) {
-            platformGateway.stop();
-        }
         if (evidenceStore == null) {
             renderStatus("本地证据存储不可用，无法封存任务。");
             stop.setEnabled(true);
             stopInProgress.set(false);
             return;
         }
-        try {
-            renderEvidenceSummary(evidenceStore.finish("USER_FINISHED"));
-        } catch (Exception error) {
-            exportEvidence.setEnabled(false);
-            sessionState.setText("采集状态：封存失败，请再次点击结束本地任务");
-            sessionState.setTextColor(0xFFC62828);
-            sessionState.setBackground(rounded(0xFFFFEBEE, dp(14)));
-            renderStatus("结束任务时封存证据失败，数据仍保留在加密存储中，请重试" + detail(error));
-            stop.setEnabled(true);
-            stopInProgress.set(false);
-            return;
-        }
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        start.setEnabled(platformGateway == null || !platformGateway.isDraining());
-        stop.setEnabled(false);
-        exportEvidence.setEnabled(true);
-        sessionState.setText("采集状态：本地任务已结束（仍可预览实时数据）");
-        sessionState.setTextColor(0xFF7A4E00);
-        sessionState.setBackground(rounded(0xFFFFF8E1, dp(14)));
-        renderStatus("本地任务已封存。可导出证据包到微信、文件或电脑，再由 Web 回放和处理异常事件。");
-        stopInProgress.set(false);
+        if (platformGateway != null) platformGateway.stop();
+        sessionState.setText("采集状态：正在后台封存，请稍候…");
+        renderStatus("正在后台封存本次训练；界面不会因样本较多而卡住。");
+        evidenceWorker.execute(() -> {
+            try {
+                LocalEvidenceStore.Summary summary = evidenceStore.finish("USER_FINISHED");
+                runOnUiThread(() -> {
+                    renderEvidenceSummary(summary);
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                    start.setEnabled(platformGateway == null || !platformGateway.isDraining());
+                    stop.setEnabled(false);
+                    exportEvidence.setEnabled(true);
+                    sessionState.setText("采集状态：本地任务已结束（仍可预览实时数据）");
+                    sessionState.setTextColor(0xFF7A4E00);
+                    sessionState.setBackground(rounded(0xFFFFF8E1, dp(14)));
+                    renderStatus("本地任务已封存。可导出证据包，网页端会继续完成剩余同步。");
+                    stopInProgress.set(false);
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    exportEvidence.setEnabled(false);
+                    sessionState.setText("采集状态：封存失败，请再次点击结束本地任务");
+                    sessionState.setTextColor(0xFFC62828);
+                    sessionState.setBackground(rounded(0xFFFFEBEE, dp(14)));
+                    renderStatus("结束任务时封存证据失败，数据仍保留在加密存储中，请重试" + detail(error));
+                    stop.setEnabled(true);
+                    stopInProgress.set(false);
+                });
+            }
+        });
     }
 
     private void exportLatestEvidence() {
@@ -636,20 +645,50 @@ public final class MainActivity extends AppCompatActivity {
             renderStatus("本地证据存储不可用，无法导出。");
             return;
         }
-        try {
-            File file = evidenceStore.exportLatest();
-            Intent share = new Intent(Intent.ACTION_SEND);
-            share.setType("application/json");
-            share.putExtra(
-                    Intent.EXTRA_STREAM,
-                    FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", file)
-            );
-            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(share, "导出 TKA 本地证据包"));
-            renderStatus("证据包已生成：" + file.getName());
-        } catch (Exception error) {
-            renderStatus("证据包导出失败" + detail(error));
+        if (!exportInProgress.compareAndSet(false, true)) return;
+        exportEvidence.setEnabled(false);
+        renderStatus("正在后台生成证据包；样本较多时可能需要几秒，请勿重复点击。");
+        evidenceWorker.execute(() -> {
+            try {
+                File file = evidenceStore.exportLatest();
+                runOnUiThread(() -> {
+                    Intent share = new Intent(Intent.ACTION_SEND);
+                    share.setType("application/json");
+                    share.putExtra(
+                            Intent.EXTRA_STREAM,
+                            FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", file)
+                    );
+                    share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(share, "导出 TKA 本地证据包"));
+                    renderStatus("证据包已生成：" + file.getName());
+                    exportEvidence.setEnabled(true);
+                    exportInProgress.set(false);
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    renderStatus("证据包导出失败" + detail(error));
+                    exportEvidence.setEnabled(true);
+                    exportInProgress.set(false);
+                });
+            }
+        });
+    }
+
+    private void queueEvidenceSample(SensorSample sample) {
+        if (evidenceStore == null || !evidenceStore.isActive()) return;
+        long previous = lastEvidenceQueuedAtMs.get();
+        if (sample.recordedAtMs - previous < 450L
+                || !lastEvidenceQueuedAtMs.compareAndSet(previous, sample.recordedAtMs)) {
+            return;
         }
+        evidenceWorker.execute(() -> {
+            try {
+                LocalEvidenceStore.Summary summary = evidenceStore.accept(sample);
+                runOnUiThread(() -> renderEvidenceSummary(summary));
+            } catch (Exception error) {
+                runOnUiThread(() -> renderStatus("真实样本无法写入本地证据包" + detail(error)));
+            }
+        });
     }
 
     private void restoreConfiguration() {
@@ -896,6 +935,14 @@ public final class MainActivity extends AppCompatActivity {
 
     private void renderLiveReading(SensorSample sample) {
         liveSampleCount += 1;
+        long now = System.currentTimeMillis();
+        if (sample.placement == SensorPlacement.THIGH) {
+            if (now - lastThighUiAtMs < 50L) return;
+            lastThighUiAtMs = now;
+        } else {
+            if (now - lastShankUiAtMs < 50L) return;
+            lastShankUiAtMs = now;
+        }
         runOnUiThread(() -> {
             boolean connectionStateChanged = false;
             if (sample.placement == SensorPlacement.THIGH) {

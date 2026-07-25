@@ -183,17 +183,28 @@ export async function GET(request: Request) {
   const session = await prisma.sensorSession.findFirst({
     where: { patientId, source: "HARDWARE" },
     orderBy: { startedAt: "desc" },
-    select: { id: true, status: true, placementRevision: true, startedAt: true, endedAt: true },
+    select: { id: true, status: true, placementRevision: true, startedAt: true, endedAt: true, sampleCount: true },
   });
-  const [samples, clinicalRecords, patient, calibration] = await Promise.all([
+  const sampleWhere = session ? {
+    patientId,
+    sessionId: session.id,
+    placementRevision: session.placementRevision,
+  } : { patientId, sessionId: null };
+  const [samples, metricThigh, metricShank, clinicalRecords, patient, calibration] = await Promise.all([
     prisma.sensorSample.findMany({
-      where: session ? {
-        patientId,
-        sessionId: session.id,
-        placementRevision: session.placementRevision,
-      } : { patientId, sessionId: null },
+      where: sampleWhere,
       orderBy: { recordedAt: "desc" },
       take: safeLimit,
+    }),
+    prisma.sensorSample.findMany({
+      where: { ...sampleWhere, placement: "THIGH" },
+      orderBy: { recordedAt: "desc" },
+      take: 1_000,
+    }),
+    prisma.sensorSample.findMany({
+      where: { ...sampleWhere, placement: "SHANK" },
+      orderBy: { recordedAt: "desc" },
+      take: 1_000,
     }),
     prisma.kneeDataRecord.findMany({
       where: { patientId },
@@ -215,6 +226,9 @@ export async function GET(request: Request) {
   ]);
 
   const serialized = samples.map(serializeSensorSample);
+  const metricSamples = [...metricThigh, ...metricShank]
+    .map(serializeSensorSample)
+    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
   const latestByPlacement = {
     THIGH: serialized.find((sample) => sample.placement === "THIGH") ?? null,
     SHANK: serialized.find((sample) => sample.placement === "SHANK") ?? null,
@@ -225,13 +239,13 @@ export async function GET(request: Request) {
   const now = Date.now();
   const isFresh = (sample: SensorSampleItem | null) => {
     if (!sample) return false;
-    const timestamp = new Date(sample.receivedAt ?? sample.recordedAt).getTime();
+    const timestamp = new Date(sample.recordedAt).getTime();
     return Number.isFinite(timestamp) && now - timestamp <= 3_000;
   };
   const dualActive = isFresh(latestByPlacement.THIGH) && isFresh(latestByPlacement.SHANK);
   const serializedClinicalRecords = clinicalRecords.map(serializeKneeRecord).reverse();
   const metrics = calculateRehabMetrics({
-    samples: serialized,
+    samples: metricSamples,
     clinicalRecords: serializedClinicalRecords,
     targetFlexion: patient?.targetFlexion,
     calibration,
@@ -242,7 +256,7 @@ export async function GET(request: Request) {
     session,
     placementRevision: session?.placementRevision ?? 0,
     updatedAt: latest?.recordedAt ?? new Date().toISOString(),
-    sampleCount: serialized.length,
+    sampleCount: session?.sampleCount ?? serialized.length,
     dualActive,
     mode: latest?.kneeAngleMode ?? (dualActive ? "DUAL_SENSOR" : latest ? "SINGLE_SENSOR_PROVISIONAL" : "UNKNOWN"),
     latest,
