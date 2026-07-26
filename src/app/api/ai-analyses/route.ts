@@ -192,7 +192,7 @@ function serializeAnalysis(analysis: {
 }
 
 export async function POST(request: Request) {
-  const parsed = analysisRequestSchema.safeParse(await request.json());
+  const parsed = analysisRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid AI analysis payload", issues: parsed.error.flatten() }, { status: 400 });
   }

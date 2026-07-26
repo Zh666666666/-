@@ -21,7 +21,7 @@ const kneeRecordSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const parsed = kneeRecordSchema.safeParse(await request.json());
+  const parsed = kneeRecordSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid knee record payload", issues: parsed.error.flatten() }, { status: 400 });

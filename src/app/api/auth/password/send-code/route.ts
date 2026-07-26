@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { localCredentials, secretsEqual } from "@/lib/local-auth";
+import { createRateLimiter } from "@/lib/rate-limit";
 import { generateVerificationCode, hashVerificationCode, registrationConfiguration } from "@/lib/registration-auth";
 import { sendVerificationCode } from "@/lib/registration-email";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 const schema = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
-const requests = new Map<string, number>();
+const requests = createRateLimiter({ windowMs: 60_000, max: 1 });
 
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
@@ -20,13 +21,12 @@ export async function POST(request: Request) {
   if (!config.ready) return NextResponse.json({ error: "邮箱服务尚未配置完成。" }, { status: 503 });
 
   const requestHeaders = await headers();
-  const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const key = `${client}:${parsed.data.email}`;
-  const last = requests.get(key) ?? 0;
-  if (Date.now() - last < 60_000) {
+  const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? requestHeaders.get("x-real-ip")
+    ?? "unknown";
+  if (!requests.check(`${client}:${parsed.data.email}`).allowed) {
     return NextResponse.json({ error: "验证码已发送，请 60 秒后再试。" }, { status: 429 });
   }
-  requests.set(key, Date.now());
 
   const account = await prisma.authAccount.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
   const matchesDefault = await Promise.all(["family", "nurse"].map(async (role) => (

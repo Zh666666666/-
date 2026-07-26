@@ -25,7 +25,7 @@ const nursingRecordSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const parsed = nursingRecordSchema.safeParse(await request.json());
+  const parsed = nursingRecordSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid nursing record payload", issues: parsed.error.flatten() }, { status: 400 });

@@ -12,7 +12,7 @@ const switchSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const parsed = switchSchema.safeParse(await request.json());
+  const parsed = switchSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });

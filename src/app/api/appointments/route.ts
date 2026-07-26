@@ -48,7 +48,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const parsed = appointmentSchema.safeParse(await request.json());
+  const parsed = appointmentSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid appointment payload", issues: parsed.error.flatten() }, { status: 400 });

@@ -1,13 +1,67 @@
 import type { NextConfig } from "next";
 
+/**
+ * 安全响应头在应用层设置，而不是只靠反向代理。
+ *
+ * deploy/Caddyfile 已经为自建服务器加了 HSTS / nosniff / X-Frame-Options /
+ * Referrer-Policy，但家属门户经由 Vercel 分发，那条链路不过 Caddy，等于没有
+ * 任何安全头。放在 Next 这一层，两条部署路径都能覆盖。
+ *
+ * CSP 说明：next/font 会注入内联样式，Next 运行时会注入内联脚本，因此
+ * style-src / script-src 保留 'unsafe-inline'。connect-src 允许 self 与
+ * https:（Supabase / Resend / AI 供应商均为 https）。frame-ancestors 'none'
+ * 与 X-Frame-Options 双写，兼容旧浏览器。
+ */
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "connect-src 'self' https:",
+  "worker-src 'self' blob:",
+  "upgrade-insecure-requests",
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "X-DNS-Prefetch-Control", value: "off" },
+];
+
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_MODE: process.env.APP_MODE ?? (process.env.NODE_ENV === "production" ? "invalid" : "demo"),
     NEXT_PUBLIC_AUTH_MODE: process.env.AUTH_MODE ?? (process.env.NODE_ENV === "production" ? "invalid" : "demo"),
     NEXT_PUBLIC_REGISTRATION_ENABLED: process.env.NEXT_PUBLIC_REGISTRATION_ENABLED ?? "false",
   },
+  poweredByHeader: false,
   turbopack: {
     root: process.cwd(),
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+      {
+        // 患者数据与认证接口一律不进入任何缓存层。
+        source: "/api/:path*",
+        headers: [
+          ...securityHeaders,
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+        ],
+      },
+    ];
   },
 };
 

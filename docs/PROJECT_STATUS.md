@@ -177,6 +177,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-26 | 缺陷排查与加固：修复限流表无界增长、16 处畸形 body 返 500、5 处记录不存在返 500；新增应用层安全响应头与 `/api/*` no-store；补 11 项单测 | 健壮性与安全边界已加固，业务语义未改；账号↔患者无关联导致的多患者越权风险已记录但未修（需架构决策） | 规划账号↔患者关联的数据库迁移与按归属过滤；审查三个大页面的客户端逻辑与 Android 并发路径 | `npm test` 55/55；ESLint 0 告警；48 路由构建通过；实测 7 个安全头下发、`/api/*` no-store 生效；11 页面 CSP 无误伤、新标签页控制台零错误 |
 | 2026-07-26 | 合并 PR #38（Web 两轮视觉 + Android 视觉统一 + v0.4.4 版本升级）至 main；用户触发长期证书签名，产出并核验 `TKA-Gateway-v0.4.4.apk` | Web 与 Android 视觉已统一在 main；签名包可交付；正式服务器尚未部署本次 Web 改版，真机观感待用户确认 | 用户安装 v0.4.4 确认观感；择期备份数据库后部署 Web 改版到正式服务器 | 合并后 main：Build `30198816777`、Android `30198816776` 通过，`npm test` 44/44；签名运行 `30200048340` 两 job 成功；APK SHA256 `E0C70E48...A9BFCFD`，v2/v3 true、v4 `Overall verified: true`，签名者 `CN=TKA Rehab Gateway` |
 | 2026-07-26 | Android 网关 UI 移植品牌设计系统：80 处色彩映射、衬线眉题、发丝描边卡片、accent 渐变卡头、品牌三色轴线/波形、主题与状态栏 | 视觉与 Web 端统一，功能零改动；Debug 构建通过，真机观感与正式签名包待验收 | 用户真机安装 Debug 包确认观感，满意后走 Actions 长期证书签名 | Android JVM 测试、Lint、assembleDebug 全过（BUILD SUCCESSFUL）；diff 功能扫描为空 |
 | 2026-07-26 | 视觉第二轮打磨：Fraunces 衬线点缀、大而轻标题、面板 vignette、按钮渐变+扫光、仪表盘度数标签、表单悬浮卡片、首页收尾 CTA；修复 twMerge 吞实色兜底问题 | 表现层完成且门禁通过，功能零改动；未截图评审、未部署生产 | 用户浏览器确认观感后合并 PR #38 并随下次发布部署 | `npm test` 44/44；ESLint 0 告警；48 路由构建；16 项对比度/布局审计全过；390×844 登录/注册无滚动 |
@@ -439,6 +440,79 @@ Agent 工作记录：
 | --- | --- | --- | --- | --- |
 | 2026-07-26 | 备份生产数据库并部署 v0.4.3 账号、历史、训练结果、保留策略与真实电量改造，应用新增数据库迁移 | 生产运行分支提交 `61acb87`；Web/API/数据库已上线，PR #37 尚待合并，真实双 BT50 长测待执行 | 合并 PR #37，生成长期签名 APK 并完成 30 分钟双实物验收 | 备份 1,450,785 字节且 `pg_restore -l` 可读；迁移成功；3 个容器正常；`verify-production.mjs` 通过；公网 ready/login 200、裸域 301 |
 | 2026-07-26 | 补齐邮箱找回/修改密码/退出、账号资料、15 天训练历史、72 小时原始帧保留、完整会话总结、自动 AI、真实 SDK 电量、低负载渲染和有序冲击规则 | 本地与 GitHub 软件门禁通过；生产部署和双实物长测待执行 | 合并 PR #37，部署迁移与 Web，再安装长期证书签名 APK 真机验收 | 本地 `npm test` 44/44、Lint、48 路由 Build、Android JVM/Lint/Debug；GitHub Build `30188926622`、Android `30188926619` 通过 |
+
+### 2026-07-26 全项目缺陷排查与加固检查点
+
+对 Web（lib / API 路由 / middleware / 部署配置）、Prisma 模型与 Android 网关
+做了一轮人工通读排查。只改健壮性与安全边界，未改任何业务语义。
+
+已修复的确凿缺陷：
+
+- **限流表无界增长（内存耗尽）**：`auth/login`、`auth/register/send-code`、
+  `auth/password/send-code` 各自维护模块级 Map，键为「客户端 IP:邮箱」，
+  且只在登录成功时删除条目。攻击者轮换 IP 或邮箱即可无上限堆积条目直至
+  进程 OOM。`password/send-code` 更粗糙：裸 `Map<string, number>` 永不清理，
+  且缺少其他路由都有的 `x-real-ip` 回退——Caddy 反代下取不到 IP 时全部塌到
+  `"unknown"` 单一桶，退化成全局单点限流。
+  修法：新增 `src/lib/rate-limit.ts`，每次读写顺带修剪过期窗口并对条目
+  总数设硬上限（默认 10000，超限淘汰最旧窗口）；三处路由统一接入并补齐
+  `x-real-ip` 回退。
+- **畸形请求体返回 500 而非 400**：16 个路由以
+  `safeParse(await request.json())` 解析，未加 `.catch(() => null)`。空 body
+  或非 JSON 会让 `request.json()` 抛错，冒泡成 500。项目内注册/改密路由本来
+  就用了正确写法，这 16 处属不一致。已全部补齐。
+- **记录不存在返回 500 而非 404**：`alerts/[id]`、`appointments/[id]`、
+  `nursing-records/[id]`、`sensor-sessions/[id]`、`devices/heartbeat` 直接
+  `prisma.x.update({ where: { id } })`，id 不存在时 Prisma 抛 P2025 冒泡成
+  500。同一路由的 demo 分支本来就返回 404，两种模式语义不一致，客户端无法
+  区分「资源不存在」与「服务故障」。
+  修法：新增 `src/lib/api-errors.ts` 的 `updateOrNull()`，只吞 P2025（连接
+  失败、唯一约束冲突等真实故障照常抛出），五处路由改为返回 404。
+
+已加固：
+
+- **应用层安全响应头**：`next.config.ts` 原先没有任何安全头。
+  `deploy/Caddyfile` 只覆盖自建服务器，家属门户经 Vercel 分发的链路不过
+  Caddy，等于裸奔；两边都缺 CSP 与 Permissions-Policy。现在在 Next 层统一
+  下发 CSP、X-Content-Type-Options、X-Frame-Options、Referrer-Policy、
+  Permissions-Policy、Cross-Origin-Opener-Policy、X-DNS-Prefetch-Control，
+  两条部署路径同时生效；`/api/*` 额外下发 `Cache-Control: no-store`，患者
+  数据与认证响应不进任何缓存层；关闭 `poweredByHeader`。
+- 新增 11 项单测（限流窗口边界、键隔离、过期修剪、条目硬上限；P2025 识别、
+  非 P2025 错误透传），并纳入 `npm run test:runtime` 门禁。
+
+已排查但确认不是缺陷：
+
+- 网关 Bearer Token 比较已用 `timingSafeEqual` 且先比长度；会话 HMAC 校验
+  拒绝多段 token 并校验过期；PBKDF2 210k 迭代、验证码 HMAC 均为常量时间比较。
+- `EmailVerification.purpose` 有 `@default(REGISTRATION)`，注册链路
+  创建时不显式传 purpose 不会导致 complete 阶段查不到。
+- Android `PlatformGateway` 网络层已设连接/读取超时、finally 断连、
+  HTTPS 强制，未发现 TLS 校验绕过。
+- family/nurse 页 hydration 报错为审计工具自身噪音（iframe 并发加载同页面
+  并附带随机查询串），全新标签页干净加载零错误，SSR 与客户端 className
+  逐字节一致（835 字符），非真实缺陷。
+
+尚未处理（需产品决策，不宜单方面改动）：
+
+- **账号与患者在数据模型上没有关联**：`AuthAccount` 无 `patientId`，
+  `Patient` 无 `accountId`，两者之间不存在外键。因此「家属只能看到自己
+  患者的数据」在当前模型下无法实现——任何已认证家属账号经 `/api/dashboard`
+  取到的都是全量患者，家属端取 `patients[0]`。当前生产库只有单个正式患者，
+  该问题不会显现；一旦接入第二位患者即构成越权。修复需要数据库迁移
+  （建立账号↔患者关联）加全部业务路由按归属过滤，属架构级改动，需在
+  部署窗口内单独规划，不适合随本轮健壮性修复一起进行。
+- 未审查 `family/page.tsx`、`nurse/page.tsx`、`sensor-live/page.tsx` 的
+  客户端状态逻辑，以及 Android 加密队列与证据存储的并发路径。
+
+已验证：
+
+- `npm test` 55/55 通过（原 44 + 新增 11）。
+- `npm run lint` 零告警；`npm run build` 48 路由生产构建通过。
+- 实测响应头已下发：`/login` 返回全部 7 个安全头，`/api/health/live`
+  额外返回 `Cache-Control: no-store`。
+- CSP 未误伤：11 个页面全部 HTTP 200，Inter 与 Fraunces 正常加载，
+  关节活动度仪表盘 SVG 在位，全新标签页控制台零错误。
 
 ### 2026-07-26 Android 网关视觉统一检查点
 

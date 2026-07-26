@@ -8,7 +8,7 @@ const batchSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const parsed = batchSchema.safeParse(await request.json());
+  const parsed = batchSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid sensor sample batch", issues: parsed.error.flatten() }, { status: 400 });
   }

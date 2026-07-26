@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { updateDemoAppointment } from "@/lib/demo-store";
+import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +16,7 @@ const appointmentUpdateSchema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const parsed = appointmentUpdateSchema.safeParse(await request.json());
+  const parsed = appointmentUpdateSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid appointment update", issues: parsed.error.flatten() }, { status: 400 });
@@ -36,7 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(appointment);
   }
 
-  const appointment = await prisma.appointment.update({
+  const appointment = await updateOrNull(prisma.appointment.update({
     where: { id },
     data: {
       status: body.status,
@@ -44,7 +45,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       scheduledTime: body.scheduledTime ? new Date(body.scheduledTime) : null,
       responseNote: body.responseNote ?? null,
     },
-  });
+  }));
+
+  if (!appointment) {
+    return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+  }
 
   return NextResponse.json({
     id: appointment.id,
