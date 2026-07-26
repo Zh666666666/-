@@ -87,14 +87,14 @@
 
 ## 当前状态
 
-- 默认分支与当前交付基线：`main`；家属易读视图、专业姿态质量门和服务端可信记录物化已通过 PR #28 合并，生产部署提交为 `a33e929`。
+- 默认分支与当前交付基线：`main`；批量实时链路、后台证据处理、双路均衡指标窗口和易懂版实测预览已通过 PR #35 合并，生产部署提交为 `32ec37c`。
 - GitHub 仓库：`https://github.com/Zh666666666/-`
 - 运行时边界：`APP_MODE=demo` 始终走内存数据；生产缺数据库、网关令牌或完整的本地/Supabase 认证配置时 fail-closed（503）。
 - 健康检查：`/api/health/live` 与 `/api/health/ready` 已可用。
-- 验证状态：41 项运行时/网关/API 测试、`lint` 和 41 路由生产 `build` 通过；PR #28 的 GitHub Build 运行 `29933119386` 通过。既有 Android 发布门禁涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验；浏览器使用真实双传感器格式并发帧完成 2 秒链路验收。
+- 验证状态：43 项运行时/网关/API 测试、`lint` 和 42 路由生产 `build` 通过；PR #35 的 GitHub Build `30185084701` 与 Android verify `30185084724` 通过。Android 发布门禁涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验；浏览器使用双传感器格式并发帧完成指标和响应式验收。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；用户已确认项目 Android 网关可同时连接两只实物，并在 App 与网站看到实时数据。已知其中一只广播名为 `WT901BLE67`、地址为 `D7:0F:8A:DA:BE:DB`；地址与广播名仍不能当作已验证的厂商序列号。
-- Android 网关开发版本：v0.4.3（`versionCode=7`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。本地证据任务不要求平台配置；Debug 仍允许可选的局域网 HTTP 上传，Release 继续禁止明文 HTTP。长期签名 v0.4.3 尚待 GitHub Actions 生成。
+- Android 网关版本：v0.4.3（`versionCode=7`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。长期签名 Release 由 GitHub Actions `30185485509` 生成，安装文件 `TKA-Gateway-v0.4.3.apk`，SHA256 `A3FA169C3C398E649A0A18A08D23A7915738F901CB2499F962DD88D41D870CEE`，v2/v3 与独立 v4 验证均通过。
 - Android v0.3 保留升级前的加密离线队列并继续补传；不得因无法区分测试/真实数据而自动删除旧样本。新采集样本使用稳定幂等 ID。
 - 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
 - 网站实时看板：`/sensor-live` 使用同进程 SSE 样本事件立即触发刷新，并以 1 秒轮询兜底；当前单实例生产形态可工作，多实例扩容前需把事件总线迁移到 Redis/Postgres/Supabase。页面展示双传感器 Three.js 3D、Acc/Gyro/Angle、同帧 ID/序号、服务端回执与端到端延迟。
@@ -102,7 +102,7 @@
 - 本机联调地址：`http://192.168.31.203:3000`；Demo 患者 ID：`demo-patient-1`。
 - Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
-- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），当前源码标记为 GitHub `main` 提交 `a33e929`；本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
+- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），当前源码标记为 GitHub `main` 提交 `32ec37c`；本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
 - 实时可信链路已部署到正式服务器：部署前数据库备份成功，容器重建后健康；生产验收脚本已通过健康、角色隔离、受保护数据、网关鉴权、登录态 `/sensor-live` 页面和 SSE `ready` 事件检查。软件格式双路并发验收约 0.37-0.41 秒入库、约 1.17 秒到网页；该结果不能替代用户手机网络下的连续实物验收。
 - Android v0.4.1 正式签名包来自合并提交 `f1ec633` 的 GitHub Actions 运行 `29676758183`，产物名 `android-gateway-release-f1ec6334b9fa78662c4dd204af54a567e714ebfa`，安装文件 `TKA-Gateway-v0.4.1.apk`，大小 1,548,166 字节，SHA256 `8484EF4EA43FECD01263FC14AD62AB5316E4269348F7EC4734A968E609C72788`；v2/v3 与独立 v4 验证均通过。该包包含双路连接后自动上传、`startRequested` 预检竞态保护、受保护患者预检、Keystore Token、旧队列迁移与隔离、重连恢复和活动患者保护。此前日志中的 `48A3F349...D1402E4E` 文件不在本机或 GitHub，不再作为交付依据。部署后生产 `sensor_samples` 表仍为 0 条，因此真实双传感器连续回传仍待用户手机验收。
 - 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
@@ -171,6 +171,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-26 | 合并 PR #35，部署批量实时链路到生产服务器，并生成长期签名 v0.4.3 APK | Web/API 与签名 APK 已交付；30 分钟双实物、断网补传、结束/导出和 3D 重连仍需用户手机验收 | 安装指定 SHA256 的 v0.4.3 APK，按 30 分钟、断网、完整屈伸和二次重连清单实测 | PR Build `30185084701`、Android verify `30185084724`、签名运行 `30185485509` 通过；备份 `tka-rehab-20260726T025001Z.dump` 为 598,828 字节；容器健康、`verify-production.mjs`、公网 ready 200、裸域 301、batch 未授权 401；APK SHA256 `A3FA169C...D870CEE`，v2/v3/v4 通过 |
 | 2026-07-25 | 实现 Android/Web 批量实时链路、采集/上传/证据线程隔离、后台结束与导出、3D 重连复位、SSE 合并刷新、双路均衡指标窗口和易懂版实测预览；签名工作流产物名同步升级到 v0.4.3 | 本地代码与 Debug APK 已通过自动化；尚未部署生产或完成 30 分钟双实物验收 | 推送分支并通过 GitHub CI，生成长期签名 v0.4.3；随后备份部署生产并按 30 分钟/断网/重连清单实测 | Web 28 runtime + 9 gateway + 6 API（含 batch）通过；ESLint、42 路由 build 通过；Android ASCII 路径 JVM/Lint/Debug `BUILD SUCCESSFUL` |
 | 2026-07-22 | 将 PR #28 的家属易读视图、专业姿态质量门和可信记录物化完整部署至正式服务器；部署前生成数据库备份，并持久修正服务器 Docker Hub DNS 解析 | 正式站运行 GitHub `main` 提交 `a33e929`，PostgreSQL、Next.js、Caddy 均健康；生产环境变量与历史备份未被发布包覆盖 | 使用两只实物连续训练至少 10 分钟，核对 App/Web 同帧 ID、2 秒达标率、断网补传、校准质量门和 ROM 对照结果 | PR #28 Build `29933119386` 通过；备份 `tka-rehab-20260722T153020Z.dump`；41 路由生产构建、10 项迁移无待执行；`verify-production.mjs` 通过健康、角色隔离、受保护数据、网关鉴权、实时页和 SSE；外网 ready 200、裸域 301 保留路径和查询参数 |
 | 2026-07-22 | 以小白家属体验官和专业姿态分析师双角色复核并改良家属首页、实时页、设备校准与指标引擎；保留 3D/原始帧/公式等专业功能并默认收起；质量门与服务端记录物化均改为校准、双路同步、连续性、合理性和完整周期通过后才输出结论 | 家属默认视图已去除主要技术术语和虚假“无预警”；专业详情保留完整诊断；当前角度仍为双传感器 Pitch 差值训练预览，不冒充临床量角器 | Android 增加四元数原始姿态和功能轴校准契约，再以量角器完成 0°/30°/60°/90°/110° 对照与阈值标定 | 41/41 运行时/网关/API 测试、ESLint、41 路由生产构建通过；浏览器验证家属患者隔离、默认/专业双层视图、3D/公式保留、390×844 无横向溢出、设备三步校准及控制台 0 error/warning |
