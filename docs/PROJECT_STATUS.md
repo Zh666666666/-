@@ -98,7 +98,7 @@
 - 验证状态：43 项运行时/网关/API 测试、`lint` 和 42 路由生产 `build` 通过；PR #35 的 GitHub Build `30185084701` 与 Android verify `30185084724` 通过。Android 发布门禁涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验；浏览器使用双传感器格式并发帧完成指标和响应式验收。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；用户已确认项目 Android 网关可同时连接两只实物，并在 App 与网站看到实时数据。已知其中一只广播名为 `WT901BLE67`、地址为 `D7:0F:8A:DA:BE:DB`；地址与广播名仍不能当作已验证的厂商序列号。
-- Android 网关版本：v0.4.3（`versionCode=7`），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。长期签名 Release 由 GitHub Actions `30185485509` 生成，安装文件 `TKA-Gateway-v0.4.3.apk`，SHA256 `A3FA169C3C398E649A0A18A08D23A7915738F901CB2499F962DD88D41D870CEE`，v2/v3 与独立 v4 验证均通过。
+- Android 网关版本：v0.4.4（`versionCode=8`，含品牌视觉统一，功能与 v0.4.3 一致），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。签名产物命名已随版本升级为 `TKA-Gateway-v0.4.4`，长期签名 Release 待 Actions 手动触发后在此记录 SHA256。上一版 v0.4.3（`versionCode=7`）长期签名包由 GitHub Actions `30185485509` 生成，安装文件 `TKA-Gateway-v0.4.3.apk`，SHA256 `A3FA169C3C398E649A0A18A08D23A7915738F901CB2499F962DD88D41D870CEE`，v2/v3 与独立 v4 验证均通过。
 - Android v0.3 保留升级前的加密离线队列并继续补传；不得因无法区分测试/真实数据而自动删除旧样本。新采集样本使用稳定幂等 ID。
 - 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
 - 网站实时看板：`/sensor-live` 使用同进程 SSE 样本事件立即触发刷新，并以 1 秒轮询兜底；当前单实例生产形态可工作，多实例扩容前需把事件总线迁移到 Redis/Postgres/Supabase。页面展示双传感器 Three.js 3D、Acc/Gyro/Angle、同帧 ID/序号、服务端回执与端到端延迟。
