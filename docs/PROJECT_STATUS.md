@@ -98,7 +98,7 @@
 - 验证状态：43 项运行时/网关/API 测试、`lint` 和 42 路由生产 `build` 通过；PR #35 的 GitHub Build `30185084701` 与 Android verify `30185084724` 通过。Android 发布门禁涵盖 JVM 测试、Android Lint、Debug/Release、R8、zipalign 与 v2/v3/v4 签名校验；浏览器使用双传感器格式并发帧完成指标和响应式验收。
 - 云端无密钥时：使用 Demo 模式。
 - 目标型号：传感器外壳已确认标注为 `WT9011DCL-BT50`；用户已确认项目 Android 网关可同时连接两只实物，并在 App 与网站看到实时数据。已知其中一只广播名为 `WT901BLE67`、地址为 `D7:0F:8A:DA:BE:DB`；地址与广播名仍不能当作已验证的厂商序列号。
-- Android 网关版本：v0.4.4（`versionCode=8`，含品牌视觉统一，功能与 v0.4.3 一致），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。签名产物命名已随版本升级为 `TKA-Gateway-v0.4.4`，长期签名 Release 待 Actions 手动触发后在此记录 SHA256。上一版 v0.4.3（`versionCode=7`）长期签名包由 GitHub Actions `30185485509` 生成，安装文件 `TKA-Gateway-v0.4.3.apk`，SHA256 `A3FA169C3C398E649A0A18A08D23A7915738F901CB2499F962DD88D41D870CEE`，v2/v3 与独立 v4 验证均通过。
+- Android 网关版本：v0.4.4（`versionCode=8`，含品牌视觉统一，功能与 v0.4.3 一致），最低 Android 7.0（API 24）、目标 API 35；Debug 包名 `cn.tkarehab.gateway.debug`。长期签名 Release 由 GitHub Actions `30200048340`（`main` 提交 `74a409a`）生成，安装文件 `TKA-Gateway-v0.4.4.apk`，大小 1,556,358 字节，SHA256 `E0C70E48CE26CFAA482BC557A94CA4270CE1544A2EC64769E4CB55F25A9BFCFD`；v2/v3 验证 `true`，独立 v4 验证 `Overall verified: true`，签名者为长期证书 `CN=TKA Rehab Gateway`（证书 SHA-256 `ede8a7a5...fe0d801a`）。安装文件与 `.idsig` 已复制到 `D:\网站项目\`。上一版 v0.4.3（`versionCode=7`）长期签名包由 GitHub Actions `30185485509` 生成，安装文件 `TKA-Gateway-v0.4.3.apk`，SHA256 `A3FA169C3C398E649A0A18A08D23A7915738F901CB2499F962DD88D41D870CEE`，v2/v3 与独立 v4 验证均通过。
 - Android v0.3 保留升级前的加密离线队列并继续补传；不得因无法区分测试/真实数据而自动删除旧样本。新采集样本使用稳定幂等 ID。
 - 单传感器 `confidence=0.35` 只保存原始 `HARDWARE` 样本，不生成临床趋势或预警；双传感器可信角度（>=0.7）按 10 秒聚合，ROM 同类预警 30 分钟冷却。
 - 网站实时看板：`/sensor-live` 使用同进程 SSE 样本事件立即触发刷新，并以 1 秒轮询兜底；当前单实例生产形态可工作，多实例扩容前需把事件总线迁移到 Redis/Postgres/Supabase。页面展示双传感器 Three.js 3D、Acc/Gyro/Angle、同帧 ID/序号、服务端回执与端到端延迟。
@@ -177,6 +177,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-26 | 合并 PR #38（Web 两轮视觉 + Android 视觉统一 + v0.4.4 版本升级）至 main；用户触发长期证书签名，产出并核验 `TKA-Gateway-v0.4.4.apk` | Web 与 Android 视觉已统一在 main；签名包可交付；正式服务器尚未部署本次 Web 改版，真机观感待用户确认 | 用户安装 v0.4.4 确认观感；择期备份数据库后部署 Web 改版到正式服务器 | 合并后 main：Build `30198816777`、Android `30198816776` 通过，`npm test` 44/44；签名运行 `30200048340` 两 job 成功；APK SHA256 `E0C70E48...A9BFCFD`，v2/v3 true、v4 `Overall verified: true`，签名者 `CN=TKA Rehab Gateway` |
 | 2026-07-26 | Android 网关 UI 移植品牌设计系统：80 处色彩映射、衬线眉题、发丝描边卡片、accent 渐变卡头、品牌三色轴线/波形、主题与状态栏 | 视觉与 Web 端统一，功能零改动；Debug 构建通过，真机观感与正式签名包待验收 | 用户真机安装 Debug 包确认观感，满意后走 Actions 长期证书签名 | Android JVM 测试、Lint、assembleDebug 全过（BUILD SUCCESSFUL）；diff 功能扫描为空 |
 | 2026-07-26 | 视觉第二轮打磨：Fraunces 衬线点缀、大而轻标题、面板 vignette、按钮渐变+扫光、仪表盘度数标签、表单悬浮卡片、首页收尾 CTA；修复 twMerge 吞实色兜底问题 | 表现层完成且门禁通过，功能零改动；未截图评审、未部署生产 | 用户浏览器确认观感后合并 PR #38 并随下次发布部署 | `npm test` 44/44；ESLint 0 告警；48 路由构建；16 项对比度/布局审计全过；390×844 登录/注册无滚动 |
 | 2026-07-26 | 统一全站设计系统并重构登录页/首页；重建 UI 组件基座；归并双色板、字重、圆角与阴影；修复 `*` 描边规则未分层导致语义描边失效的缺陷 | 表现层改造完成且软件门禁通过，功能未改动；尚未部署生产，也未做人工截图评审 | 由用户在桌面与手机浏览器确认观感，再随下一次发布部署 | `npm test` 44/44；ESLint 0 告警；48 路由生产构建通过；对比度脚本在 1280px 与 390px 下覆盖 9 个页面 0 项低于 WCAG AA、0 横向溢出 |
