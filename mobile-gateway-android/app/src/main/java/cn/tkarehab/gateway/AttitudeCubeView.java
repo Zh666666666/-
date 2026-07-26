@@ -25,7 +25,7 @@ public final class AttitudeCubeView extends View {
     private double rollDeg;
     private double pitchDeg;
     private double yawDeg;
-    private int accent = 0xFF00897B;
+    private int accent = 0xFF497A62;
 
     public AttitudeCubeView(Context context) {
         super(context);
@@ -46,7 +46,7 @@ public final class AttitudeCubeView extends View {
         axisPaint.setStrokeWidth(dp(3f));
         axisPaint.setStrokeCap(Paint.Cap.ROUND);
 
-        textPaint.setColor(0xFFECEFF1);
+        textPaint.setColor(0xFFF4F1E8);
         textPaint.setTextSize(dp(11));
         textPaint.setFakeBoldText(true);
 
@@ -125,12 +125,12 @@ public final class AttitudeCubeView extends View {
                 {1, 2, 6, 5}  // right
         };
         int[] faceColors = {
-                0xAA455A64,
-                0xCC80CBC4,
-                0xAA5C6BC0,
-                0xCCFFCC80,
-                0xAAEF9A9A,
-                0xAA90CAF9
+                0xAA33443B,
+                0xCCA8C6B4,
+                0xAA9FB8C6,
+                0xCCEDD3A3,
+                0xAAE0AAA4,
+                0xAAC9D8E0
         };
 
         // Painter's algorithm: sort by average depth
@@ -151,9 +151,9 @@ public final class AttitudeCubeView extends View {
         }
 
         // Body axes
-        drawAxis(canvas, cx, cy, scale, 1.6f, 0, 0, 0xFFFF5252, "X");
-        drawAxis(canvas, cx, cy, scale, 0, 1.6f, 0, 0xFF69F0AE, "Y");
-        drawAxis(canvas, cx, cy, scale, 0, 0, 1.6f, 0xFF40C4FF, "Z");
+        drawAxis(canvas, cx, cy, scale, 1.6f, 0, 0, 0xFFE8927C, "X");
+        drawAxis(canvas, cx, cy, scale, 0, 1.6f, 0, 0xFF8FD0AC, "Y");
+        drawAxis(canvas, cx, cy, scale, 0, 0, 1.6f, 0xFFEFC583, "Z");
 
         canvas.drawText(
                 String.format(java.util.Locale.US, "R %+6.1f   P %+6.1f   Y %+6.1f", rollDeg, pitchDeg, yawDeg),
@@ -169,7 +169,7 @@ public final class AttitudeCubeView extends View {
         canvas.drawLine(cx, cy, cx + p[0], cy - p[1], axisPaint);
         textPaint.setColor(color);
         canvas.drawText(label, cx + p[0] + dp(4), cy - p[1], textPaint);
-        textPaint.setColor(0xFFECEFF1);
+        textPaint.setColor(0xFFF4F1E8);
     }
 
     private float[] project(float x, float y, float z, float scale) {

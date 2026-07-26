@@ -69,12 +69,14 @@ public final class StartupActivity extends Activity {
         int padding = dp(20);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(0xFFF7F4EC);
         content.setPadding(padding, padding, padding, padding);
 
         TextView title = new TextView(this);
         title.setText("TKA 网关启动诊断");
-        title.setTextSize(22);
-        title.setTextColor(0xFF0F2942);
+        title.setTextSize(24);
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        title.setTextColor(0xFF12211C);
         content.addView(title);
 
         TextView message = new TextView(this);
@@ -86,11 +88,18 @@ public final class StartupActivity extends Activity {
         details.setText(detailsText);
         details.setTextIsSelectable(true);
         details.setTextSize(12);
-        details.setTextColor(0xFF8A1C1C);
+        details.setTextColor(0xFF8F3830);
         content.addView(details);
 
         Button retry = new Button(this);
         retry.setText("清除诊断并重试");
+        retry.setAllCaps(false);
+        retry.setTextColor(0xFFFFFFFF);
+        android.graphics.drawable.GradientDrawable retryBg = new android.graphics.drawable.GradientDrawable();
+        retryBg.setColor(0xFF12211C);
+        retryBg.setCornerRadius(dp(14));
+        retry.setBackground(retryBg);
+        retry.setPadding(dp(12), dp(12), dp(12), dp(12));
         retry.setOnClickListener(view -> {
             TkaApplication.clearLastCrash(this);
             openGateway();
@@ -109,6 +118,7 @@ public final class StartupActivity extends Activity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setBackgroundColor(0xFFF7F4EC);
         scroll.addView(content);
         return scroll;
     }

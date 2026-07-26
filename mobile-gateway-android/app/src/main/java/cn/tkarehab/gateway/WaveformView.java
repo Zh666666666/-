@@ -27,7 +27,7 @@ public final class WaveformView extends View {
     private String title = "波形";
     private String unit = "";
     private float fixedRange = 0f;
-    private final int[] colors = {0xFFFF5252, 0xFF69F0AE, 0xFF40C4FF};
+    private final int[] colors = {0xFFE8927C, 0xFF8FD0AC, 0xFFEFC583};
     private final String[] labels = {"X", "Y", "Z"};
 
     public WaveformView(Context context) {
@@ -49,7 +49,7 @@ public final class WaveformView extends View {
         linePaint.setStrokeWidth(dp(2.2f));
         linePaint.setStrokeJoin(Paint.Join.ROUND);
         linePaint.setStrokeCap(Paint.Cap.ROUND);
-        textPaint.setColor(0xFFECEFF1);
+        textPaint.setColor(0xFFF4F1E8);
         textPaint.setTextSize(dp(11));
         setMinimumHeight(dp(132));
     }
@@ -92,8 +92,8 @@ public final class WaveformView extends View {
 
         bgPaint.setShader(new LinearGradient(
                 0, 0, 0, h,
-                0xFF102027,
-                0xFF263238,
+                0xFF0B1512,
+                0xFF1B3129,
                 Shader.TileMode.CLAMP
         ));
         canvas.drawRoundRect(0, 0, w, h, dp(14), dp(14), bgPaint);
@@ -117,7 +117,7 @@ public final class WaveformView extends View {
         if (series.isEmpty()) {
             textPaint.setColor(0x99FFFFFF);
             canvas.drawText("等待数据…", left, top + plotH / 2f, textPaint);
-            textPaint.setColor(0xFFECEFF1);
+            textPaint.setColor(0xFFF4F1E8);
             return;
         }
 
@@ -167,7 +167,7 @@ public final class WaveformView extends View {
                     textPaint
             );
         }
-        textPaint.setColor(0xFFECEFF1);
+        textPaint.setColor(0xFFF4F1E8);
         canvas.drawText(String.format(Locale.US, "±%.1f", range), left, bottom + dp(12), textPaint);
     }
 
