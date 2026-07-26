@@ -228,7 +228,7 @@ export function SensorAttitudeScene({ thigh, shank }: Props) {
 
   return (
     <section
-      className="relative min-h-[340px] overflow-hidden border-y border-[#27485f] bg-[#0d2438] md:min-h-[420px]"
+      className="relative min-h-[340px] overflow-hidden border-y border-[#264a3d] bg-[#0b1512] md:min-h-[420px]"
       aria-label="双传感器实时三维姿态"
     >
       <div
@@ -241,7 +241,7 @@ export function SensorAttitudeScene({ thigh, shank }: Props) {
           当前浏览器未能启动 3D 图形。原始姿态数据仍可在下方实时数据中核对。
         </div>
       ) : null}
-      <div className="pointer-events-none absolute inset-x-0 top-0 grid grid-cols-2 gap-6 px-4 pt-4 text-sm font-bold text-white md:px-10">
+      <div className="pointer-events-none absolute inset-x-0 top-0 grid grid-cols-2 gap-6 px-4 pt-4 text-sm font-medium text-white md:px-10">
         <div className="flex flex-col items-start gap-2">
           <span>大腿传感器</span>
           <span className={`rounded-full border px-2.5 py-1 text-xs ${statusClass(online.thigh)}`}>
@@ -255,7 +255,7 @@ export function SensorAttitudeScene({ thigh, shank }: Props) {
           </span>
         </div>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[#081b2b]/90 px-5 py-3 text-center text-xs leading-5 text-slate-200">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[#0b1512]/90 px-5 py-3 text-center text-xs leading-5 text-slate-200">
         姿态仅随 App 回传的 Roll / Pitch / Yaw 新帧更新；超过 2 秒无新帧时冻结，不生成补间动作。
       </div>
     </section>

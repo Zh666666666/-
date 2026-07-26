@@ -94,7 +94,7 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
         <header className="flex flex-col gap-4 border-b border-slate-200 bg-white/90 p-5 md:flex-row md:items-center md:justify-between">
           <div>
             <Badge variant="success" className="gap-2"><UserRound className="size-4" />{role === "family" ? "家属账号" : "护士账号"}</Badge>
-            <h1 className="mt-3 text-3xl font-black">{title}</h1>
+            <h1 className="mt-3 text-3xl font-semibold">{title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {role === "family" ? "维护你的联系方式、与患者关系和通知偏好。" : "维护你的联系方式和工作信息；患者医疗资料在患者档案中管理。"}
             </p>

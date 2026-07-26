@@ -43,20 +43,20 @@ final class LiveSensorPanel {
 
         root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackground(cardBackground(0xFFFFFFFF, dp(context, 18)));
+        root.setBackground(hairlineCard(0xFFFFFFFF, dp(context, 20)));
         root.setPadding(padding, padding, padding, padding);
-        root.setElevation(dp(context, 4));
+        root.setElevation(dp(context, 3));
 
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setBackground(cardBackground(accentColor, dp(context, 14)));
-        header.setPadding(padding, padding, padding, padding);
+        header.setBackground(headerGradient(accentColor, dp(context, 16)));
+        header.setPadding(dp(context, 14), dp(context, 12), dp(context, 14), dp(context, 12));
 
         title = new TextView(context);
         title.setText(placementLabel + " · 未连接");
         title.setTextColor(0xFFFFFFFF);
         title.setTextSize(18);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         header.addView(title);
 
         subtitle = new TextView(context);
@@ -87,9 +87,9 @@ final class LiveSensorPanel {
 
         advancedContent = new LinearLayout(context);
         advancedContent.setOrientation(LinearLayout.VERTICAL);
-        acceleration = addMetricBlock(context, advancedContent, "身体移动（加速度，g）", 0xFF0D47A1);
-        gyroscope = addMetricBlock(context, advancedContent, "转动速度（角速度，°/s）", 0xFF1B5E20);
-        angle = addMetricBlock(context, advancedContent, "佩戴姿态（角度，°）", 0xFF4A148C);
+        acceleration = addMetricBlock(context, advancedContent, "身体移动（加速度，g）", 0xFF2F6076);
+        gyroscope = addMetricBlock(context, advancedContent, "转动速度（角速度，°/s）", 0xFF27684D);
+        angle = addMetricBlock(context, advancedContent, "佩戴姿态（角度，°）", 0xFF8F6427);
 
         advancedContent.addView(sectionLabel(context, "专业数据曲线"));
         angleWave = addWave(context, advancedContent, "佩戴姿态", "°", 180f);
@@ -203,7 +203,7 @@ final class LiveSensorPanel {
     private static TextView sectionLabel(Context context, String text) {
         TextView heading = new TextView(context);
         heading.setText(text);
-        heading.setTextColor(0xFF37474F);
+        heading.setTextColor(0xFF576860);
         heading.setTextSize(14);
         heading.setTypeface(Typeface.DEFAULT_BOLD);
         heading.setPadding(0, dp(context, 10), 0, dp(context, 4));
@@ -224,6 +224,33 @@ final class LiveSensorPanel {
         return drawable;
     }
 
+    /** 发丝描边卡片：与主界面横幅同一材质语言。 */
+    private static GradientDrawable hairlineCard(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        drawable.setStroke(1, 0x1712211C);
+        return drawable;
+    }
+
+    /** 部位卡头部：accent 到深墨的斜向渐变，呼应网页端 panel-ink。 */
+    private static GradientDrawable headerGradient(int accent, int radius) {
+        GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{accent, darken(accent, 0.62f)}
+        );
+        drawable.setCornerRadius(radius);
+        return drawable;
+    }
+
+    private static int darken(int color, float factor) {
+        int a = (color >>> 24) & 0xFF;
+        int r = (int) (((color >>> 16) & 0xFF) * factor);
+        int g = (int) (((color >>> 8) & 0xFF) * factor);
+        int b = (int) ((color & 0xFF) * factor);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     private static String formatTime(long epochMs) {
         return new java.text.SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
                 .format(new java.util.Date(epochMs));
@@ -242,7 +269,7 @@ final class LiveSensorPanel {
         MetricRow(Context context, int valueColor) {
             view = new LinearLayout(context);
             view.setOrientation(LinearLayout.HORIZONTAL);
-            view.setBackground(cardBackground(0xFFF4F7FA, dp(context, 12)));
+            view.setBackground(cardBackground(0xFFF9F5ED, dp(context, 12)));
             view.setPadding(dp(context, 8), dp(context, 10), dp(context, 8), dp(context, 10));
 
             x = axis(context, "X", valueColor);
@@ -279,7 +306,7 @@ final class LiveSensorPanel {
 
             TextView axis = new TextView(context);
             axis.setText(String.valueOf(value.getTag()));
-            axis.setTextColor(0xFF78909C);
+            axis.setTextColor(0xFF61716A);
             axis.setTextSize(12);
             axis.setGravity(Gravity.CENTER);
             column.addView(axis);

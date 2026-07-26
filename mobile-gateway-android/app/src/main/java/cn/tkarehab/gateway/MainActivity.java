@@ -243,13 +243,13 @@ public final class MainActivity extends AppCompatActivity {
         int padding = dp(16);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setBackgroundColor(0xFFEEF3F7);
+        content.setBackgroundColor(0xFFF7F4EC);
         content.setPadding(padding, padding, padding, padding);
 
         LinearLayout hero = new LinearLayout(this);
         hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setBackground(gradient(0xFF0F2942, 0xFF1A5276, dp(18)));
-        hero.setPadding(padding, padding, padding, padding);
+        hero.setBackground(gradient(0xFF1B3129, 0xFF0B1512, dp(20)));
+        hero.setPadding(dp(18), dp(18), dp(18), dp(20));
         LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -257,58 +257,69 @@ public final class MainActivity extends AppCompatActivity {
         heroParams.bottomMargin = dp(12);
         hero.setLayoutParams(heroParams);
 
+        // 衬线斜体眉题：与网页端的编辑级点缀保持同一气质
+        TextView eyebrow = new TextView(this);
+        eyebrow.setText("TKA CARE OS · GATEWAY");
+        eyebrow.setTextSize(11);
+        eyebrow.setTypeface(Typeface.create(Typeface.SERIF, Typeface.ITALIC));
+        eyebrow.setLetterSpacing(0.18f);
+        eyebrow.setTextColor(0xFFEDD3A3);
+        hero.addView(eyebrow);
+
         TextView title = new TextView(this);
         title.setText("膝关节居家训练");
-        title.setTextSize(24);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextSize(26);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        title.setTextColor(0xFFF7F3EA);
+        title.setPadding(0, dp(8), 0, 0);
         hero.addView(title);
 
         TextView description = new TextView(this);
         description.setText("连接大腿与小腿传感器后，App 会自动验证平台并开始实时上传。\n每帧先加密保存，再等待服务器一致性回执。");
-        description.setTextColor(0xD9FFFFFF);
+        description.setTextColor(0x99FFFFFF);
         description.setTextSize(13);
-        description.setPadding(0, dp(6), 0, 0);
+        description.setLineSpacing(dp(3), 1f);
+        description.setPadding(0, dp(8), 0, 0);
         hero.addView(description);
         content.addView(hero);
 
         linkState = banner(
                 "连接状态：未连接传感器",
-                0xFF7A4E00,
-                0xFFFFF8E1
+                0xFF6F4C1C,
+                0xFFFBF1DD
         );
         stabilizeLines(linkState, 1);
         content.addView(linkState);
 
         TextView steps = banner(
                 "使用步骤\n1. 在平台设置中绑定正式域名、患者 ID 与 Token  2. 扫描并连接大腿/小腿  3. 双路连接后自动记录并上传",
-                0xFF0F2942,
+                0xFF12211C,
                 0xFFFFFFFF
         );
         content.addView(steps);
 
         syncState = banner(
                 "网页同步：等待双传感器连接。连接成功后自动验证患者与 Token，并开始上传。",
-                0xFF5D4037,
-                0xFFFFF3E0
+                0xFF6F4C1C,
+                0xFFFBF1DD
         );
         stabilizeLines(syncState, 3);
         content.addView(syncState);
 
         sampleSummary = banner(
                 "实时帧数：0\n转动传感器后，3D 姿态与波形应持续变化。",
-                0xFF0F2942,
-                0xFFE3F2FD
+                0xFF12211C,
+                0xFFE6EFF3
         );
         stabilizeLines(sampleSummary, 5);
         content.addView(sampleSummary);
 
         content.addView(sectionTitle("佩戴姿态（转动传感器应同步变化）"));
-        thighPanel = new LiveSensorPanel(this, "大腿", 0xFF00897B);
-        shankPanel = new LiveSensorPanel(this, "小腿", 0xFF1E88E5);
+        thighPanel = new LiveSensorPanel(this, "大腿", 0xFF497A62);
+        shankPanel = new LiveSensorPanel(this, "小腿", 0xFF2F6076);
         content.addView(thighPanel.view());
         content.addView(shankPanel.view());
-        content.addView(actionButton("显示专业数据", 0xFF546E7A, view -> {
+        content.addView(actionButton("显示专业数据", 0xFF33443B, view -> {
             advancedVisible = !advancedVisible;
             thighPanel.setAdvancedVisible(advancedVisible);
             shankPanel.setAdvancedVisible(advancedVisible);
@@ -317,8 +328,8 @@ public final class MainActivity extends AppCompatActivity {
 
         content.addView(sectionTitle("连接与佩戴"));
 
-        content.addView(actionButton("检查手机是否准备好", 0xFF546E7A, view -> runReadinessCheck()));
-        content.addView(actionButton("扫描附近传感器", 0xFF00897B, view -> {
+        content.addView(actionButton("检查手机是否准备好", 0xFF33443B, view -> runReadinessCheck()));
+        content.addView(actionButton("扫描附近传感器", 0xFF497A62, view -> {
             if (!requireBleGateway()) {
                 return;
             }
@@ -329,13 +340,13 @@ public final class MainActivity extends AppCompatActivity {
 
         LinearLayout calibration = new LinearLayout(this);
         calibration.setOrientation(LinearLayout.HORIZONTAL);
-        Button zeroThigh = actionButton("大腿归零", 0xFF00897B, view -> {
+        Button zeroThigh = actionButton("大腿归零", 0xFF497A62, view -> {
             if (requireBleGateway()) {
                 bleGateway.setAngleZero(SensorPlacement.THIGH);
             }
         });
         calibration.addView(zeroThigh, weightedButton());
-        Button zeroShank = actionButton("小腿归零", 0xFF1E88E5, view -> {
+        Button zeroShank = actionButton("小腿归零", 0xFF2F6076, view -> {
             if (requireBleGateway()) {
                 bleGateway.setAngleZero(SensorPlacement.SHANK);
             }
@@ -349,13 +360,13 @@ public final class MainActivity extends AppCompatActivity {
         content.addView(devices);
 
         content.addView(sectionTitle("开始训练"));
-        sessionState = banner("采集状态：未开始（仅预览实时数据）", 0xFF7A4E00, 0xFFFFF8E1);
+        sessionState = banner("采集状态：未开始（仅预览实时数据）", 0xFF6F4C1C, 0xFFFBF1DD);
         stabilizeLines(sessionState, 1);
         content.addView(sessionState);
 
         localEvidenceState = banner(
                 "本地证据：暂无任务。连接 BT50 后即可开始，样本会加密保存在手机。",
-                0xFF0F2942,
+                0xFF12211C,
                 0xFFFFFFFF
         );
         stabilizeLines(localEvidenceState, 3);
@@ -366,18 +377,18 @@ public final class MainActivity extends AppCompatActivity {
         sessionActions.setBackgroundColor(0xFFFFFFFF);
         sessionActions.setPadding(padding, dp(8), padding, dp(8));
         sessionActions.setElevation(dp(8));
-        start = actionButton("开始记录并上传", 0xFF2E7D32, view -> startSession());
+        start = actionButton("开始记录并上传", 0xFF27684D, view -> startSession());
         sessionActions.addView(start, weightedButton());
-        stop = actionButton("结束本次训练", 0xFFC62828, view -> stopSession());
+        stop = actionButton("结束本次训练", 0xFFB04338, view -> stopSession());
         stop.setEnabled(false);
         sessionActions.addView(stop, weightedButton());
 
-        exportEvidence = actionButton("导出最近证据包", 0xFF455A64, view -> exportLatestEvidence());
+        exportEvidence = actionButton("导出最近证据包", 0xFF33443B, view -> exportLatestEvidence());
         exportEvidence.setEnabled(false);
         content.addView(exportEvidence);
 
         content.addView(sectionTitle("管理员设置"));
-        Button toggleSettings = actionButton("展开平台设置", 0xFF455A64, view -> {
+        Button toggleSettings = actionButton("展开平台设置", 0xFF33443B, view -> {
             boolean show = platformSettings.getVisibility() != View.VISIBLE;
             platformSettings.setVisibility(show ? View.VISIBLE : View.GONE);
             ((Button) view).setText(show ? "收起平台设置" : "展开平台设置");
@@ -407,14 +418,14 @@ public final class MainActivity extends AppCompatActivity {
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
 
-        Button testConnection = actionButton("测试平台连接", 0xFF1565C0, view -> testPlatformConnection());
+        Button testConnection = actionButton("测试平台连接", 0xFF2F6076, view -> testPlatformConnection());
         platformSettings.addView(testConnection);
         content.addView(platformSettings);
 
         content.addView(sectionTitle("运行信息"));
         status = banner(
                 "先在平台设置完成一次验证，再扫描并连接两只 BT50。双路连接后会自动记录并上传；网络异常时样本留在加密队列。",
-                0xFF0F2942,
+                0xFF12211C,
                 0xFFFFFFFF
         );
         stabilizeLines(status, 3);
@@ -422,12 +433,12 @@ public final class MainActivity extends AppCompatActivity {
 
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
-        scrollView.setBackgroundColor(0xFFEEF3F7);
+        scrollView.setBackgroundColor(0xFFF7F4EC);
         scrollView.addView(content);
 
         LinearLayout screen = new LinearLayout(this);
         screen.setOrientation(LinearLayout.VERTICAL);
-        screen.setBackgroundColor(0xFFEEF3F7);
+        screen.setBackgroundColor(0xFFF7F4EC);
         screen.addView(scrollView, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
@@ -443,10 +454,11 @@ public final class MainActivity extends AppCompatActivity {
     private TextView sectionTitle(String text) {
         TextView title = new TextView(this);
         title.setText(text);
-        title.setTextSize(18);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(0xFF0F2942);
-        title.setPadding(0, dp(16), 0, dp(8));
+        title.setTextSize(17);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        title.setTextColor(0xFF12211C);
+        title.setLetterSpacing(0.01f);
+        title.setPadding(0, dp(18), 0, dp(8));
         return title;
     }
 
@@ -454,9 +466,10 @@ public final class MainActivity extends AppCompatActivity {
         TextView view = new TextView(this);
         view.setText(text);
         view.setTextColor(textColor);
-        view.setBackground(rounded(background, dp(14)));
+        view.setBackground(hairlineCard(background, dp(16)));
         view.setTextIsSelectable(true);
-        view.setPadding(dp(12), dp(12), dp(12), dp(12));
+        view.setLineSpacing(dp(2), 1f);
+        view.setPadding(dp(14), dp(12), dp(14), dp(12));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -477,7 +490,7 @@ public final class MainActivity extends AppCompatActivity {
         button.setText(text);
         button.setTextColor(0xFFFFFFFF);
         button.setAllCaps(false);
-        button.setBackground(rounded(color, dp(12)));
+        button.setBackground(rounded(color, dp(14)));
         button.setOnClickListener(listener);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -492,7 +505,7 @@ public final class MainActivity extends AppCompatActivity {
     private EditText labeledInput(LinearLayout container, String label, String hint, int inputType) {
         TextView text = new TextView(this);
         text.setText(label);
-        text.setTextColor(0xFF2D4A5E);
+        text.setTextColor(0xFF4D5C53);
         text.setPadding(0, dp(8), 0, dp(4));
         container.addView(text);
 
@@ -500,7 +513,7 @@ public final class MainActivity extends AppCompatActivity {
         input.setHint(hint);
         input.setInputType(inputType);
         input.setSingleLine(true);
-        input.setBackground(rounded(0xFFFFFFFF, dp(12)));
+        input.setBackground(hairlineCard(0xFFFFFFFF, dp(12)));
         input.setPadding(dp(12), dp(12), dp(12), dp(12));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -587,8 +600,8 @@ public final class MainActivity extends AppCompatActivity {
         sessionState.setText(uploadEnabled
                 ? "训练状态：正在记录并同步网页"
                 : "训练状态：正在保存到手机（未配置网页同步）");
-        sessionState.setTextColor(0xFF1B5E20);
-        sessionState.setBackground(rounded(0xFFE8F5E9, dp(14)));
+        sessionState.setTextColor(0xFF27684D);
+        sessionState.setBackground(hairlineCard(0xFFE6F2EA, dp(16)));
         renderStatus(uploadEnabled
                 ? "训练已开始。每帧会先保存在手机，收到服务器一致性回执后才标记为已同步。"
                 : "训练已开始。真实样本正在手机加密保存，结束后可导出证据包。");
@@ -621,8 +634,8 @@ public final class MainActivity extends AppCompatActivity {
                     stop.setEnabled(false);
                     exportEvidence.setEnabled(true);
                     sessionState.setText("采集状态：本地任务已结束（仍可预览实时数据）");
-                    sessionState.setTextColor(0xFF7A4E00);
-                    sessionState.setBackground(rounded(0xFFFFF8E1, dp(14)));
+                    sessionState.setTextColor(0xFF6F4C1C);
+                    sessionState.setBackground(hairlineCard(0xFFFBF1DD, dp(16)));
                     renderStatus("本地任务已封存。可导出证据包，网页端会继续完成剩余同步。");
                     stopInProgress.set(false);
                 });
@@ -630,8 +643,8 @@ public final class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     exportEvidence.setEnabled(false);
                     sessionState.setText("采集状态：封存失败，请再次点击结束本地任务");
-                    sessionState.setTextColor(0xFFC62828);
-                    sessionState.setBackground(rounded(0xFFFFEBEE, dp(14)));
+                    sessionState.setTextColor(0xFFB04338);
+                    sessionState.setBackground(hairlineCard(0xFFFBECEB, dp(16)));
                     renderStatus("结束任务时封存证据失败，数据仍保留在加密存储中，请重试" + detail(error));
                     stop.setEnabled(true);
                     stopInProgress.set(false);
@@ -741,7 +754,7 @@ public final class MainActivity extends AppCompatActivity {
         }
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackground(rounded(0xFFFFFFFF, dp(14)));
+        row.setBackground(hairlineCard(0xFFFFFFFF, dp(16)));
         row.setPadding(dp(12), dp(12), dp(12), dp(12));
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -753,14 +766,14 @@ public final class MainActivity extends AppCompatActivity {
         TextView label = new TextView(this);
         label.setText(name + "\n" + address);
         label.setTextIsSelectable(true);
-        label.setTextColor(0xFF0F2942);
+        label.setTextColor(0xFF12211C);
         label.setTypeface(Typeface.DEFAULT_BOLD);
         row.addView(label);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setGravity(Gravity.START);
         actions.setPadding(0, dp(8), 0, 0);
-        Button thigh = actionButton("设为大腿", 0xFF00897B, view -> {
+        Button thigh = actionButton("设为大腿", 0xFF497A62, view -> {
             if (!requireBleGateway()) {
                 return;
             }
@@ -777,7 +790,7 @@ public final class MainActivity extends AppCompatActivity {
             renderStatus(name + " 正在连接为大腿传感器。连接后绿色卡片应出现 3D 姿态与波形。");
         });
         actions.addView(thigh, weightedButton());
-        Button shank = actionButton("设为小腿", 0xFF1E88E5, view -> {
+        Button shank = actionButton("设为小腿", 0xFF2F6076, view -> {
             if (!requireBleGateway()) {
                 return;
             }
@@ -834,24 +847,24 @@ public final class MainActivity extends AppCompatActivity {
     private void updateLinkState() {
         if (thighConnected && shankConnected) {
             linkState.setText("连接状态：大腿 + 小腿 均已连接 · 正在自动启动上传");
-            linkState.setTextColor(0xFF1B5E20);
-            linkState.setBackground(rounded(0xFFE8F5E9, dp(14)));
+            linkState.setTextColor(0xFF27684D);
+            linkState.setBackground(hairlineCard(0xFFE6F2EA, dp(16)));
         } else if (thighConnected) {
             linkState.setText("连接状态：大腿已连接，小腿未连接");
-            linkState.setTextColor(0xFF00695C);
-            linkState.setBackground(rounded(0xFFE0F2F1, dp(14)));
+            linkState.setTextColor(0xFF3C6552);
+            linkState.setBackground(hairlineCard(0xFFE2EDE6, dp(16)));
         } else if (shankConnected) {
             linkState.setText("连接状态：小腿已连接，大腿未连接");
-            linkState.setTextColor(0xFF0D47A1);
-            linkState.setBackground(rounded(0xFFE3F2FD, dp(14)));
+            linkState.setTextColor(0xFF2F6076);
+            linkState.setBackground(hairlineCard(0xFFE6EFF3, dp(16)));
         } else if (!connectedThighAddress.isEmpty() || !connectedShankAddress.isEmpty()) {
             linkState.setText("连接状态：正在连接已分配的传感器…");
-            linkState.setTextColor(0xFF7A4E00);
-            linkState.setBackground(rounded(0xFFFFF8E1, dp(14)));
+            linkState.setTextColor(0xFF6F4C1C);
+            linkState.setBackground(hairlineCard(0xFFFBF1DD, dp(16)));
         } else {
             linkState.setText("连接状态：未连接传感器");
-            linkState.setTextColor(0xFF7A4E00);
-            linkState.setBackground(rounded(0xFFFFF8E1, dp(14)));
+            linkState.setTextColor(0xFF6F4C1C);
+            linkState.setBackground(hairlineCard(0xFFFBF1DD, dp(16)));
         }
     }
 
@@ -925,9 +938,9 @@ public final class MainActivity extends AppCompatActivity {
                             + " · 编号 …" + receipt.shortId()
                             + "\n手机采集 → 服务器 " + receipt.ingestLatencyMs + " ms"
             );
-            syncState.setTextColor(receipt.ingestLatencyMs <= 2_000L ? 0xFF1B5E20 : 0xFFC62828);
-            syncState.setBackground(rounded(
-                    receipt.ingestLatencyMs <= 2_000L ? 0xFFE8F5E9 : 0xFFFFEBEE,
+            syncState.setTextColor(receipt.ingestLatencyMs <= 2_000L ? 0xFF27684D : 0xFFB04338);
+            syncState.setBackground(hairlineCard(
+                    receipt.ingestLatencyMs <= 2_000L ? 0xFFE6F2EA : 0xFFFBECEB,
                     dp(14)
             ));
         });
@@ -1016,6 +1029,15 @@ public final class MainActivity extends AppCompatActivity {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
         drawable.setCornerRadius(radius);
+        return drawable;
+    }
+
+    /** 发丝描边卡片：比纯色块多一层「印刷品」的克制感。 */
+    private GradientDrawable hairlineCard(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        drawable.setStroke(dp(1), 0x1712211C);
         return drawable;
     }
 

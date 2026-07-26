@@ -3,10 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, KeyRound, Mail, ShieldCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Mail, ShieldCheck, UserPlus } from "lucide-react";
 
+import { BrandLockup, RangeOfMotionDial } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const assurances = [
+  ["邮箱验证", "验证码确认账号归属，避免误绑。"],
+  ["邀请制开通", "照护邀请码由责任护士发放。"],
+  ["角色隔离", "家属仅能看到自己患者的数据。"],
+] as const;
 
 export function RegisterForm() {
   const router = useRouter();
@@ -73,73 +80,190 @@ export function RegisterForm() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4efe5] px-4 py-6 text-[#17251f] md:px-8 md:py-10">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-5xl overflow-hidden rounded-lg border border-[#d8c8ad] bg-white shadow-[0_28px_80px_rgba(46,61,50,0.14)] lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="bg-[#17362d] p-6 text-white md:p-10">
-          <Button asChild variant="outline" size="sm" className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-            <Link href="/login"><ArrowLeft className="size-4" />返回登录</Link>
-          </Button>
-          <div className="mt-10 max-w-sm md:mt-16">
-            <div className="flex size-12 items-center justify-center rounded-lg bg-[#f2c36b] text-[#17362d]">
-              <ShieldCheck className="size-6" />
+    <main className="min-h-[100dvh] bg-canvas text-ink-900 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(27rem,32rem)]">
+      {/* ---------- 品牌面板 ---------- */}
+      <aside className="panel-ink grain rim-light relative overflow-hidden rounded-b-3xl px-5 pb-8 pt-5 lg:flex lg:flex-col lg:justify-between lg:rounded-none lg:px-14 lg:py-12 xl:px-20">
+        <div
+          className="pointer-events-none absolute -right-32 top-1/2 hidden aspect-square w-[36rem] -translate-y-1/2 opacity-50 lg:block xl:w-[44rem]"
+          aria-hidden="true"
+        >
+          <RangeOfMotionDial />
+        </div>
+
+        <div className="relative z-10 flex items-center justify-between gap-4">
+          <BrandLockup tone="light" subtitle="术后康复监测平台" />
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3.5 py-1.5 text-[0.75rem] font-medium text-white/70 backdrop-blur transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
+          >
+            <ArrowLeft className="size-3.5" />
+            返回登录
+          </Link>
+        </div>
+
+        <div className="relative z-10 mt-8 max-w-xl lg:mt-0">
+          <p className="eyebrow rise text-brass-300" style={{ ["--i" as string]: 0 }}>
+            Verified Registration
+          </p>
+          <h1
+            className="display-xl rise mt-3.5 text-[1.9rem] text-[#f7f3ea] sm:text-[2.4rem] lg:mt-6 lg:text-[3.4rem] xl:text-[3.9rem]"
+            style={{ ["--i" as string]: 1 }}
+          >
+            创建家属账号，
+            <br className="hidden sm:block" />
+            接手今日照护。
+          </h1>
+          <p
+            className="rise mt-4 max-w-lg text-[0.875rem] leading-6 text-white/55 lg:mt-7 lg:text-[1.0625rem] lg:leading-8"
+            style={{ ["--i" as string]: 2 }}
+          >
+            完成邮箱验证后进入家庭照护工作台。护士账号由平台管理员单独开通。
+          </p>
+        </div>
+
+        <div
+          className="rise relative z-10 mt-8 hidden border-t border-white/10 pt-7 lg:grid lg:grid-cols-3"
+          style={{ ["--i" as string]: 3 }}
+        >
+          {assurances.map(([title, description], index) => (
+            <div key={title} className={index > 0 ? "border-l border-white/10 pl-6 pr-6" : "pr-6"}>
+              <p className="serif-accent text-xl leading-none text-brass-400/90">0{index + 1}</p>
+              <p className="mt-3 text-[0.9375rem] font-medium text-[#f7f3ea]">{title}</p>
+              <p className="mt-1.5 text-[0.8125rem] leading-5 text-white/45">{description}</p>
             </div>
-            <h1 className="mt-6 text-2xl font-black md:text-4xl">创建家属账号</h1>
-            <p className="mt-4 text-sm leading-7 text-[#d6e4da]">完成邮箱验证后进入家庭照护工作台。护士账号由平台管理员单独开通。</p>
-          </div>
-        </section>
+          ))}
+        </div>
+      </aside>
 
-        <section className="p-5 md:p-10">
-          <div className="mb-7">
-            <p className="text-xs font-black uppercase text-[#5b876f]">Verified registration</p>
-            <h2 className="mt-2 text-2xl font-black">邮箱验证码注册</h2>
-          </div>
+      {/* ---------- 注册面板 ---------- */}
+      <section className="ambient relative flex items-center justify-center px-4 py-4 sm:px-6 lg:px-10 lg:py-12">
+        <div className="veil relative z-10 w-full max-w-[26.5rem] rounded-2xl border border-[var(--hairline)] bg-white/80 p-5 shadow-e4 backdrop-blur-md sm:p-8">
+          <header>
+            <p className="eyebrow text-brass-700">Step 1 — 验证邮箱</p>
+            <h2 className="display-md mt-3 text-[1.625rem] lg:text-[1.875rem]">邮箱验证码注册</h2>
+            <p className="mt-2.5 text-[0.875rem] leading-6 text-[var(--muted-foreground)]">
+              请使用与护士登记一致的邮箱，并填写收到的照护邀请码。
+            </p>
+          </header>
 
-          <form className="space-y-4" onSubmit={register}>
+          <form className="mt-7 space-y-4" onSubmit={register}>
             <Field label="邮箱">
-              <Input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              <Input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
             </Field>
             <Field label="照护邀请码">
-              <Input type="password" autoComplete="off" value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} required />
+              <Input
+                type="password"
+                autoComplete="off"
+                value={inviteCode}
+                onChange={(event) => setInviteCode(event.target.value)}
+                required
+              />
             </Field>
-            <Button type="button" variant="outline" className="w-full" onClick={sendCode} disabled={loading !== null || countdown > 0 || !email || !inviteCode}>
-              <Mail className="size-4" />
-              {loading === "code" ? "正在发送" : countdown > 0 ? `${countdown} 秒后可重发` : codeSent ? "重新发送验证码" : "发送邮箱验证码"}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full"
+              onClick={sendCode}
+              disabled={loading !== null || countdown > 0 || !email || !inviteCode}
+            >
+              {loading === "code" ? (
+                <span
+                  aria-hidden="true"
+                  className="size-4 animate-spin rounded-full border-2 border-ink-900/20 border-t-ink-900"
+                />
+              ) : (
+                <Mail className="size-4" />
+              )}
+              {loading === "code"
+                ? "正在发送"
+                : countdown > 0
+                  ? `${countdown} 秒后可重发`
+                  : codeSent
+                    ? "重新发送验证码"
+                    : "发送邮箱验证码"}
             </Button>
 
             {codeSent ? (
-              <div className="grid gap-4 border-t border-[#eadfce] pt-5">
+              <div className="veil grid gap-4 border-t border-[var(--hairline)] pt-5">
+                <p className="eyebrow text-brass-700">Step 2 — 完善资料</p>
                 <Field label="验证码">
-                  <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} required />
+                  <Input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+                    required
+                    className="tabular tracking-[0.4em]"
+                  />
                 </Field>
                 <Field label="姓名">
                   <Input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
                 </Field>
-                <Field label="设置密码">
-                  <Input type="password" autoComplete="new-password" minLength={12} maxLength={72} value={password} onChange={(event) => setPassword(event.target.value)} required />
-                  <p className="mt-1 text-xs text-[#718174]">至少 12 位，包含字母和数字。</p>
+                <Field label="设置密码" hint="至少 12 位，包含字母和数字。">
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={12}
+                    maxLength={72}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
                 </Field>
               </div>
             ) : null}
 
-            {message ? <p className="flex items-center gap-2 rounded-md bg-[#edf7f1] px-3 py-2 text-sm font-semibold text-[#285c43]"><CheckCircle2 className="size-4" />{message}</p> : null}
-            {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
+            {message ? (
+              <p className="flex items-center gap-2 rounded-lg border border-[rgba(47,125,92,0.18)] bg-[var(--success-soft)] px-3.5 py-2.5 text-[0.8125rem] font-medium leading-5 text-[var(--success)]">
+                <CheckCircle2 className="size-4 shrink-0" />
+                {message}
+              </p>
+            ) : null}
+            {error ? (
+              <p
+                role="alert"
+                className="rounded-lg border border-[rgba(176,67,56,0.20)] bg-[var(--destructive-soft)] px-3.5 py-2.5 text-[0.8125rem] font-medium leading-5 text-[var(--destructive)]"
+              >
+                {error}
+              </p>
+            ) : null}
 
-            <Button type="submit" className="h-12 w-full bg-[#17362d] text-white hover:bg-[#244b40]" disabled={!codeSent || loading !== null}>
-              {loading === "register" ? <KeyRound className="size-5" /> : <UserPlus className="size-5" />}
+            <Button type="submit" size="lg" className="h-12 w-full" disabled={!codeSent || loading !== null}>
+              {loading === "register" ? (
+                <span
+                  aria-hidden="true"
+                  className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-white"
+                />
+              ) : (
+                <UserPlus className="size-4" />
+              )}
               {loading === "register" ? "正在创建账号" : "验证并注册"}
             </Button>
           </form>
-        </section>
-      </div>
+
+          <p className="mt-7 flex items-center justify-center gap-2 border-t border-[var(--hairline)] pt-5 text-[0.75rem] text-[var(--subtle-foreground)]">
+            <ShieldCheck className="size-3.5" />
+            注册即代表同意按医嘱使用平台记录的康复数据
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="block text-sm font-bold text-[#4c5b50]">
-      <span className="mb-1.5 block">{label}</span>
+    <label className="block">
+      <span className="mb-1.5 block text-[0.8125rem] font-medium text-[#4d5c53]">{label}</span>
       {children}
+      {hint ? <span className="mt-1.5 block text-[0.75rem] text-[var(--subtle-foreground)]">{hint}</span> : null}
     </label>
   );
 }

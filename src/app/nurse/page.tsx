@@ -203,9 +203,9 @@ const soapTemplateOptions: Array<{ key: SoapTemplateKey; label: string; helper: 
   { key: "familyStress", label: "家属压力 SOAP", helper: "照护焦虑与沟通支持" },
 ];
 
-const nursePanelClass = "rounded-lg border border-[#d9e2e9] bg-white text-[#142536] shadow-[0_2px_8px_rgba(20,45,65,0.06)]";
-const nurseQuietPanelClass = "rounded-md border border-[#e1e9ee] bg-[#f8fbfc]";
-const nurseDarkPanelClass = "rounded-lg bg-[#12304a] text-white shadow-sm";
+const nursePanelClass = "rounded-lg border border-[#e5dbc9] bg-white text-[#12211c] shadow-e2";
+const nurseQuietPanelClass = "rounded-md border border-[#f2ebdf] bg-[#fdfbf7]";
+const nurseDarkPanelClass = "rounded-lg bg-[#12211c] text-white shadow-sm";
 
 function guidanceTemplateFor(key: GuidanceTemplateKey, patient: PatientSummary | null): Pick<GuidanceState, "guidance" | "notes"> {
   const name = patient?.name ?? "家人";
@@ -667,47 +667,45 @@ export default function NursePage() {
   const averageDuration = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.activityDuration, 0) / latestByPatient.length : 0;
 
   return (
-    <main className="relative min-h-screen bg-[#f5f8fb] pb-32 text-[#142536] md:pb-0">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_8%,rgba(91,135,111,0.28),transparent_30rem),radial-gradient(circle_at_86%_4%,rgba(235,181,95,0.22),transparent_26rem)]" />
-      <div className="pointer-events-none absolute -left-24 top-64 h-64 w-64 rounded-full bg-[#dfcaa8]/35 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-20 right-0 h-72 w-72 rounded-full bg-[#9fc4b1]/25 blur-3xl" />
+    <main className="ambient relative min-h-screen bg-canvas pb-32 text-ink-900 md:pb-0">
 
       <section className="relative mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 md:gap-5 md:px-8 md:py-5">
-        <header className="family-view-enter relative overflow-hidden rounded-lg border border-[#1c4967] bg-[#12304a] p-4 text-white shadow-[0_4px_16px_rgba(18,48,74,0.16)] md:p-6">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#d7a75f]/25 blur-3xl" />
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <header className="panel-ink grain rim-light family-view-enter relative overflow-hidden rounded-2xl border border-white/8 p-5 text-white md:p-8">
+          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-[#f8deb0] shadow-none">
-                  <span className={cn("sync-dot size-2 rounded-full", syncState === "realtime" ? "bg-emerald-300" : "bg-amber-300")} />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[0.75rem] font-medium text-[#edd3a3] backdrop-blur">
+                  <span className={cn("sync-dot size-1.5 rounded-full", syncState === "realtime" ? "bg-[#7ba892]" : "bg-[#ddb474]")} />
                   {syncState === "realtime" ? "实时数据在线" : syncState === "polling" ? "定时同步在线" : "正在连接数据"}
-                </Badge>
-                <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-white shadow-none">TKA 康复护士工作台</Badge>
+                </span>
+                <span className="inline-flex items-center rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[0.75rem] font-medium text-white/70 backdrop-blur">
+                  TKA 康复护士工作台
+                </span>
               </div>
-              <h1 className="mt-4 max-w-4xl text-3xl font-bold leading-tight text-white md:mt-5 md:text-5xl">病区护理，一屏掌握。</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-[#d6e4da] md:mt-5 md:text-lg md:leading-9">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
+              <h1 className="display-lg mt-5 max-w-4xl text-[1.75rem] text-[#f7f3ea] md:mt-6 md:text-[2.75rem]">病区护理，一屏掌握。</h1>
+              <p className="mt-3.5 max-w-3xl text-[0.875rem] leading-7 text-white/55 md:mt-5 md:text-[1.0625rem] md:leading-8">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
             </div>
             <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white lg:inline-flex">
+              <Button asChild size="lg" variant="outline" className="hidden h-11 rounded-lg border-white/15 bg-white/[0.06] px-4 text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] lg:inline-flex">
                 <Link href="/nurse/profile">护士资料</Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="hidden border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white lg:inline-flex">
+              <Button asChild size="lg" variant="outline" className="hidden h-11 rounded-lg border-white/15 bg-white/[0.06] px-4 text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] lg:inline-flex">
                 <Link href="/appointments">护理预约</Link>
               </Button>
-              <Button asChild size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm">
+              <Button asChild size="sm" variant="outline" className="h-10 rounded-lg border-white/15 bg-white/[0.06] px-2 text-[0.75rem] text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:h-11 md:px-4 md:text-sm">
                 <Link href="/hardware-demo">
                   <Radio className="size-4" />
                   硬件
                 </Link>
               </Button>
-              <RoleSwitchButton role="family" size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm">
+              <RoleSwitchButton role="family" size="sm" variant="outline" className="h-10 rounded-lg border-white/15 bg-white/[0.06] px-2 text-[0.75rem] text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:h-11 md:px-4 md:text-sm">
                 家属端
               </RoleSwitchButton>
-              <Button size="sm" variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 px-2 text-xs text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:px-4 md:text-sm" onClick={logout}>
+              <Button size="sm" variant="outline" className="h-10 rounded-lg border-white/15 bg-white/[0.06] px-2 text-[0.75rem] text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:h-11 md:px-4 md:text-sm" onClick={logout}>
                 <LogOut className="size-4" />
                 退出
               </Button>
-              <Button size="sm" className="h-10 rounded-xl bg-[#f2c36b] px-2 text-xs text-[#17251f] shadow-[0_14px_32px_rgba(242,195,107,0.20)] hover:bg-[#ffd27d] md:h-12 md:rounded-2xl md:px-4 md:text-sm md:shadow-[0_18px_42px_rgba(242,195,107,0.24)]" onClick={refreshDashboard}>
+              <Button size="sm" variant="brass" className="h-10 rounded-lg px-2 text-[0.75rem] md:h-11 md:px-4 md:text-sm" onClick={refreshDashboard}>
                 <Radio className="size-4" />
                 刷新
               </Button>
@@ -715,7 +713,7 @@ export default function NursePage() {
           </div>
         </header>
 
-        <nav className="family-view-enter grid grid-cols-5 gap-1 rounded-lg border border-[#d9e2e9] bg-white p-1 shadow-sm md:gap-2 md:p-2 lg:grid-cols-5">
+        <nav className="family-view-enter grid grid-cols-5 gap-1 rounded-xl border border-[var(--hairline)] bg-[var(--surface)] p-1 shadow-e1 md:gap-1.5 md:p-1.5 lg:grid-cols-5">
           {nurseWorkspaces.map((item, index) => {
             const Icon = item.icon;
             const active = activeWorkspace === item.value;
@@ -724,20 +722,23 @@ export default function NursePage() {
               <button
                 key={item.value}
                 type="button"
+                aria-pressed={active}
                 className={cn(
-                  "group rounded-md p-2 text-center transition-colors md:p-3 md:text-left",
-                  active ? "bg-[#12304a] text-white shadow-sm" : "text-[#516878] hover:bg-[#edf4f6] hover:text-[#12304a]",
+                  "group rounded-lg p-2 text-center transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:p-3.5 md:text-left",
+                  active
+                    ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_6px_16px_-10px_rgba(20,35,30,0.7)]"
+                    : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
                 )}
                 onClick={() => setActiveWorkspace(item.value)}
               >
                 <div className="flex items-center justify-center gap-2 md:justify-between md:gap-3">
-                  <span className={cn("flex size-8 items-center justify-center rounded-md transition md:size-9", active ? "bg-[#48b4c0] text-[#082a43]" : "bg-[#e5f1f2] text-[#087e8b] group-hover:bg-[#d5e9eb]")}>
-                    <Icon className="size-4 md:size-5" />
+                  <span className={cn("flex size-8 items-center justify-center rounded-md transition-colors duration-250 md:size-9", active ? "bg-white/10 text-[#edd3a3]" : "bg-[#e2ede6] text-[#497a62] group-hover:bg-[#d3e4da]")}>
+                    <Icon className="size-4 md:size-4.5" />
                   </span>
-                  <span className={cn("hidden text-xs font-black tracking-[0.16em] md:inline", active ? "text-[#f2c36b]" : "text-[#a28f73]")}>0{index + 1}</span>
+                  <span className={cn("eyebrow hidden md:inline", active ? "text-[#ddb474]" : "text-[#61716a]")}>0{index + 1}</span>
                 </div>
-                <p className="mt-1.5 text-sm font-black md:mt-4 md:text-lg">{item.label}</p>
-                <p className={cn("mt-1 hidden text-xs leading-5 md:block", active ? "text-[#d6e4da]" : "text-[#718174]")}>{item.helper}</p>
+                <p className="mt-1.5 text-[0.8125rem] font-medium md:mt-4 md:text-[1.0625rem] md:font-semibold md:tracking-[-0.015em]">{item.label}</p>
+                <p className={cn("mt-1 hidden text-[0.75rem] leading-5 md:block", active ? "text-white/45" : "text-[#61716a]")}>{item.helper}</p>
               </button>
             );
           })}
@@ -745,29 +746,29 @@ export default function NursePage() {
 
         {activeWorkspace === "quality" ? (
           <div className="grid gap-5">
-            <Card className={cn(nursePanelClass, "family-view-enter bg-[#fff6e6]") }>
+            <Card className={cn(nursePanelClass, "family-view-enter bg-[#fcf4e4]") }>
               <CardHeader className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <Badge className="bg-[#17251f] text-white">院内标准护理路径</Badge>
-                  <Badge className="bg-[#fff1cf] text-[#7a571b]">病区培训 · 延续护理 · 质量追踪</Badge>
+                  <Badge className="bg-[#12211c] text-white">院内标准护理路径</Badge>
+                  <Badge className="bg-[#fbf1dd] text-[#6f4c1c]">病区培训 · 延续护理 · 质量追踪</Badge>
                 </div>
-                <CardTitle className="text-3xl font-black tracking-[-0.03em] md:text-4xl">护士如何提升护理质量</CardTitle>
-                <p className="max-w-4xl text-sm leading-7 text-[#4c5b50] md:text-base">适用于病区巡查、出院随访和居家康复管理，帮助护理团队统一评估、处置、交接和复盘标准。</p>
+                <CardTitle className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">护士如何提升护理质量</CardTitle>
+                <p className="max-w-4xl text-sm leading-7 text-[#4d5c53] md:text-base">适用于病区巡查、出院随访和居家康复管理，帮助护理团队统一评估、处置、交接和复盘标准。</p>
               </CardHeader>
               <CardContent className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="grid gap-3 md:grid-cols-4">
                   {hospitalQualityModel.map((item) => (
-                    <div key={item.title} className="rounded-[1.5rem] border border-[#eadfce] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-                      <p className="font-black text-[#17251f]">{item.title}</p>
-                      <p className="mt-2 text-sm leading-6 text-[#5d6c61]">{item.description}</p>
+                    <div key={item.title} className="rounded-xl border border-[#e5dbc9] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+                      <p className="font-semibold text-[#12211c]">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-[#576860]">{item.description}</p>
                     </div>
                   ))}
                 </div>
                 <div className={cn(nurseDarkPanelClass, "p-4")}>
-                  <p className="font-black text-[#f2c36b]">护士日常使用路径</p>
+                  <p className="font-semibold text-[#ddb474]">护士日常使用路径</p>
                   <div className="mt-3 grid gap-2">
                     {nurseQualityActions.map((item) => (
-                      <p key={item} className="rounded-2xl bg-white/10 px-3 py-2 text-sm leading-6 text-[#d6e4da]">{item}</p>
+                      <p key={item} className="rounded-2xl bg-white/10 px-3 py-2 text-sm leading-6 text-[#c9d6ce]">{item}</p>
                     ))}
                   </div>
                 </div>
@@ -777,37 +778,37 @@ export default function NursePage() {
             <div className="grid gap-3 md:grid-cols-3">
               {nursingCarePrinciples.map((item) => (
                 <div key={item.title} className={cn(nursePanelClass, "p-5")}>
-                  <p className="text-lg font-black text-[#17251f]">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-[#5d6c61]">{item.description}</p>
+                  <p className="text-lg font-semibold text-[#12211c]">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#576860]">{item.description}</p>
                 </div>
               ))}
             </div>
 
             <Card className={nursePanelClass}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-3xl font-black tracking-[-0.03em]">
-                  <ClipboardCheck className="size-7 text-[#5b876f]" />
+                <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em]">
+                  <ClipboardCheck className="size-7 text-[#497a62]" />
                   为当前患者生成记录
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 lg:grid-cols-2">
                 <div className={cn(nurseQuietPanelClass, "p-4")}>
-                  <p className="font-black text-[#17251f]">远程指导草稿</p>
+                  <p className="font-semibold text-[#12211c]">远程指导草稿</p>
                   <div className="mt-3 grid gap-2">
                     {guidanceTemplateOptions.map((item) => (
-                      <button key={item.key} type="button" className="rounded-[1.25rem] bg-[#17251f] px-3 py-3 text-left text-white transition hover:bg-[#243d33]" onClick={() => applyGuidanceTemplate(item.key)}>
-                        <span className="block text-sm font-black text-white">{item.label}</span>
+                      <button key={item.key} type="button" className="rounded-xl bg-[#12211c] px-3 py-3 text-left text-white transition hover:bg-[#1b3129]" onClick={() => applyGuidanceTemplate(item.key)}>
+                        <span className="block text-sm font-semibold text-white">{item.label}</span>
                         <span className="mt-1 block text-xs leading-5 text-slate-300">{item.helper}</span>
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className={cn(nurseQuietPanelClass, "p-4")}>
-                  <p className="font-black text-[#17251f]">SOAP 记录草稿</p>
+                  <p className="font-semibold text-[#12211c]">SOAP 记录草稿</p>
                   <div className="mt-3 grid gap-2">
                     {soapTemplateOptions.map((item) => (
-                      <button key={item.key} type="button" className="rounded-[1.25rem] bg-[#17251f] px-3 py-3 text-left text-white transition hover:bg-[#243d33]" onClick={() => applySoapTemplate(item.key)}>
-                        <span className="block text-sm font-black text-white">{item.label}</span>
+                      <button key={item.key} type="button" className="rounded-xl bg-[#12211c] px-3 py-3 text-left text-white transition hover:bg-[#1b3129]" onClick={() => applySoapTemplate(item.key)}>
+                        <span className="block text-sm font-semibold text-white">{item.label}</span>
                         <span className="mt-1 block text-xs leading-5 text-slate-300">{item.helper}</span>
                       </button>
                     ))}
@@ -847,23 +848,23 @@ export default function NursePage() {
                   <div
                     key={patient.id}
                     className={cn(
-                      "rounded-[1.35rem] border p-3 transition-all md:rounded-3xl md:p-4",
-                      active ? "border-[#17251f] bg-[#17251f] text-white shadow-[0_18px_45px_rgba(23,37,31,0.18)]" : "border-[#eadfce] bg-white/72 text-[#17251f] hover:bg-white",
+                      "rounded-xl border p-3 transition-all md:rounded-3xl md:p-4",
+                      active ? "border-[#12211c] bg-[#12211c] text-white shadow-e3" : "border-[#e5dbc9] bg-white/72 text-[#12211c] hover:bg-white",
                       alert?.severity === "HIGH" || alert?.severity === "CRITICAL" ? "ring-2 ring-red-500/70" : "",
                     )}
                   >
                     <button className="w-full text-left" onClick={() => setSelectedPatientId(patient.id)}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-base font-bold md:text-lg">{patient.name}</p>
-                          <p className={cn("mt-0.5 text-xs md:mt-1 md:text-sm", active ? "text-[#d6e4da]" : "text-[#718174]")}>{patient.roomNumber ?? "居家随访"} · 术后第 {daysAfterSurgery(patient.surgeryDate)} 天</p>
+                          <p className="text-base font-medium md:text-lg">{patient.name}</p>
+                          <p className={cn("mt-0.5 text-xs md:mt-1 md:text-sm", active ? "text-[#c9d6ce]" : "text-[#576860]")}>{patient.roomNumber ?? "居家随访"} · 术后第 {daysAfterSurgery(patient.surgeryDate)} 天</p>
                         </div>
                         <Badge variant={riskVariant(patient.riskLevel)}>{patient.riskLevel}</Badge>
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[11px] md:mt-4 md:gap-2 md:text-xs">
-                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#edf2e7] text-[#315242]")}>屈曲 {latest ? `${latest.flexionAngle.toFixed(0)}°` : "--"}</span>
-                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#edf2e7] text-[#315242]")}>频次 {latest?.activityFrequency ?? "--"}</span>
-                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#fff1cf] text-[#8a5b15]")}>疼痛 {latest?.painScore ?? "--"}</span>
+                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#e2ede6] text-[#3c6552]")}>屈曲 {latest ? `${latest.flexionAngle.toFixed(0)}°` : "--"}</span>
+                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#e2ede6] text-[#3c6552]")}>频次 {latest?.activityFrequency ?? "--"}</span>
+                        <span className={cn("rounded-xl px-2 py-1.5 md:rounded-2xl md:py-2", active ? "bg-white/10" : "bg-[#fbf1dd] text-[#6f4c1c]")}>疼痛 {latest?.painScore ?? "--"}</span>
                       </div>
                     </button>
                     {alert ? <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{alert.title}</p> : null}
@@ -913,11 +914,11 @@ export default function NursePage() {
                   {chartReady ? (
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
                       <LineChart data={chartRows} margin={{ left: 4, right: 16, top: 18, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#dbe4ea" />
-                        <XAxis dataKey="time" tick={{ fontSize: 12 }} stroke="#64748b" />
-                        <YAxis stroke="#64748b" />
-                        <Tooltip contentStyle={{ borderRadius: 18, border: "1px solid #dbe4ea" }} />
-                        <Line type="monotone" dataKey="flexionAngle" name="屈曲角度" stroke="#2A78D6" strokeWidth={3} dot={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5dbc9" />
+                        <XAxis dataKey="time" tick={{ fontSize: 12 }} stroke="#576860" />
+                        <YAxis stroke="#576860" />
+                        <Tooltip contentStyle={{ borderRadius: 18, border: "1px solid #e5dbc9" }} />
+                        <Line type="monotone" dataKey="flexionAngle" name="屈曲角度" stroke="#2f6076" strokeWidth={3} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : null}
@@ -934,7 +935,7 @@ export default function NursePage() {
                     <Sparkles className="size-7 text-amber-600" />
                     智能关节评估
                   </CardTitle>
-                  <p className="mt-2 text-sm text-[#718174]">读取当前患者最新膝关节数据，生成评估报告、护理重点和家属端指导内容。</p>
+                  <p className="mt-2 text-sm text-[#576860]">读取当前患者最新膝关节数据，生成评估报告、护理重点和家属端指导内容。</p>
                 </div>
                 <Button size="lg" variant="elder" onClick={createAiAnalysis} disabled={!selectedPatient || !selectedLatest || aiState.running}>
                   <Sparkles className="size-5" />
@@ -944,7 +945,7 @@ export default function NursePage() {
               <CardContent className="space-y-3">
                 {aiState.error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{aiState.error}</p> : null}
                 {selectedAnalyses.length === 0 ? (
-                  <p className="rounded-2xl bg-[#fff6e6] p-4 text-sm text-[#718174]">暂无智能评估。生成后可查看评估报告、护理重点和家属端指导内容。</p>
+                  <p className="rounded-2xl bg-[#fcf4e4] p-4 text-sm text-[#576860]">暂无智能评估。生成后可查看评估报告、护理重点和家属端指导内容。</p>
                 ) : (
                   selectedAnalyses.slice(0, 2).map((analysis) => (
                     <div key={analysis.id} className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4">
@@ -973,7 +974,7 @@ export default function NursePage() {
                 <div className="grid gap-2 md:grid-cols-4">
                   {guidanceTemplateOptions.map((item) => (
                     <button key={item.key} type="button" className="rounded-2xl border border-sky-100 bg-sky-50 px-3 py-3 text-left transition-all hover:border-sky-300 hover:bg-sky-100" onClick={() => applyGuidanceTemplate(item.key)}>
-                      <span className="block text-sm font-black text-sky-950">{item.label}</span>
+                      <span className="block text-sm font-semibold text-sky-950">{item.label}</span>
                       <span className="mt-1 block text-xs leading-5 text-sky-700">{item.helper}</span>
                     </button>
                   ))}
@@ -1001,7 +1002,7 @@ export default function NursePage() {
           {activeWorkspace === "alerts" || activeWorkspace === "records" ? (
             <div className="min-w-0 space-y-5">
               {activeWorkspace === "alerts" ? (
-                <Card className="rounded-[2rem] border border-red-200 bg-red-50 text-red-950 shadow-[0_24px_70px_rgba(127,29,29,0.10)]">
+                <Card className="rounded-2xl border border-red-200 bg-red-50 text-red-950 shadow-e4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-xl">
                   <AlertTriangle className="size-6 text-red-300" />
@@ -1023,7 +1024,7 @@ export default function NursePage() {
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <Badge variant="destructive" className="mb-3">{alert.severity}</Badge>
-                            <p className="text-base font-bold">{alert.title}</p>
+                            <p className="text-base font-medium">{alert.title}</p>
                             <p className="mt-1 text-sm text-red-800">{patient?.name ?? "未知患者"} · {alert.message}</p>
                           </div>
                           <AlertHandlingDialog alert={alert} patient={patient ?? null} onSubmit={handleAlertAction} />
@@ -1041,35 +1042,35 @@ export default function NursePage() {
                   <CardHeader className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle className="flex items-center gap-3 text-xl">
-                    <FileText className="size-6 text-[#5b876f]" />
+                    <FileText className="size-6 text-[#497a62]" />
                     SOAP 护理记录
                   </CardTitle>
-                  <Badge className="bg-[#edf2e7] text-[#315242]">最近记录在前</Badge>
+                  <Badge className="bg-[#e2ede6] text-[#3c6552]">最近记录在前</Badge>
                 </div>
-                <div className="flex items-center gap-2 rounded-2xl border border-[#eadfce] bg-white/72 p-2">
-                  <Filter className="size-4 text-[#5b876f]" />
-                  <select className="w-full bg-transparent text-sm font-semibold text-[#17251f] outline-none" value={recordFilter} onChange={(event) => setRecordFilter(event.target.value)}>
-                    <option className="text-[#17251f]" value="ALL">全部记录</option>
-                    <option className="text-[#17251f]" value="REMOTE_GUIDANCE">远程指导</option>
-                    <option className="text-[#17251f]" value="REHAB_ADJUSTMENT">康复调整</option>
-                    <option className="text-[#17251f]" value="HOME_VISIT">上门护理</option>
-                    <option className="text-[#17251f]" value="PHONE_CALL">电话随访</option>
-                    <option className="text-[#17251f]" value="MEDICATION_REMINDER">用药提醒</option>
+                <div className="flex items-center gap-2 rounded-2xl border border-[#e5dbc9] bg-white/72 p-2">
+                  <Filter className="size-4 text-[#497a62]" />
+                  <select className="w-full bg-transparent text-sm font-semibold text-[#12211c] outline-none" value={recordFilter} onChange={(event) => setRecordFilter(event.target.value)}>
+                    <option className="text-[#12211c]" value="ALL">全部记录</option>
+                    <option className="text-[#12211c]" value="REMOTE_GUIDANCE">远程指导</option>
+                    <option className="text-[#12211c]" value="REHAB_ADJUSTMENT">康复调整</option>
+                    <option className="text-[#12211c]" value="HOME_VISIT">上门护理</option>
+                    <option className="text-[#12211c]" value="PHONE_CALL">电话随访</option>
+                    <option className="text-[#12211c]" value="MEDICATION_REMINDER">用药提醒</option>
                   </select>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2 md:grid-cols-3">
                   {soapTemplateOptions.map((item) => (
-                    <button key={item.key} type="button" className="rounded-2xl border border-[#eadfce] bg-white/72 px-3 py-3 text-left transition-all hover:bg-white" onClick={() => applySoapTemplate(item.key)}>
-                      <span className="block text-sm font-black text-[#17251f]">{item.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-[#718174]">{item.helper}</span>
+                    <button key={item.key} type="button" className="rounded-2xl border border-[#e5dbc9] bg-white/72 px-3 py-3 text-left transition-all hover:bg-white" onClick={() => applySoapTemplate(item.key)}>
+                      <span className="block text-sm font-semibold text-[#12211c]">{item.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-[#576860]">{item.helper}</span>
                     </button>
                   ))}
                 </div>
                 <SoapRecordDialog selectedPatient={selectedPatient} draft={soapDraft} setDraft={setSoapDraft} saving={soapSaving} message={soapMessage} onSubmit={createSoapRecord} />
                 {filteredNursingRecords.length === 0 ? (
-                  <p className="rounded-2xl bg-white/70 p-4 text-[#718174]">暂无匹配护理记录。</p>
+                  <p className="rounded-2xl bg-white/70 p-4 text-[#576860]">暂无匹配护理记录。</p>
                 ) : (
                   filteredNursingRecords.slice(0, 8).map((record) => <NursingRecordCard key={record.id} record={record} patients={patients} />)
                 )}
@@ -1092,7 +1093,7 @@ function PatientDetailDialog({ patient, records, alerts, nursingRecords, aiAnaly
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="mt-3 w-full border-[#d8c8ad] bg-white/85 text-[#17251f] hover:bg-white hover:text-[#17251f]">
+        <Button size="sm" variant="outline" className="mt-3 w-full border-[#e5dbc9] bg-white/85 text-[#12211c] hover:bg-white hover:text-[#12211c]">
           <Eye className="size-4" />
           查看患者详情
         </Button>
@@ -1139,8 +1140,8 @@ function PatientDetailDialog({ patient, records, alerts, nursingRecords, aiAnaly
 function DetailMetric({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
   return (
     <div className={cn("rounded-3xl border p-4", danger ? "border-red-200 bg-red-50 text-red-800" : "border-slate-200 bg-slate-50 text-slate-800")}>
-      <p className="text-xs font-bold text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-black tracking-tight">{value}</p>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
     </div>
   );
 }
@@ -1150,7 +1151,7 @@ function DetailList({ title, empty, children }: { title: string; empty: string; 
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="mb-3 text-sm font-black text-slate-700">{title}</p>
+      <p className="mb-3 text-sm font-semibold text-slate-700">{title}</p>
       <div className="grid gap-2">{hasItems ? children : <p className="rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-500">{empty}</p>}</div>
     </div>
   );
@@ -1159,13 +1160,13 @@ function DetailList({ title, empty, children }: { title: string; empty: string; 
 function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; helper: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-lg border p-3 text-left shadow-sm transition-colors hover:bg-[#f8fbfc] md:p-4", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[#d9e2e9] bg-white text-[#142536]")}>
-        <div className={cn("flex items-center justify-between", danger ? "text-red-700" : "text-[#66798a]")}>
+      <button className={cn("rounded-lg border p-3 text-left shadow-sm transition-colors hover:bg-[#fdfbf7] md:p-4", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[#e5dbc9] bg-white text-[#12211c]")}>
+        <div className={cn("flex items-center justify-between", danger ? "text-red-700" : "text-[#576860]")}>
           <span className="text-xs md:text-sm">{label}</span>
-          <Icon className={cn("size-4 md:size-5", danger ? "text-red-600" : "text-[#087e8b]")} />
+          <Icon className={cn("size-4 md:size-5", danger ? "text-red-600" : "text-[#497a62]")} />
         </div>
-        <p className="mt-2 text-2xl font-black tracking-tight md:mt-4 md:text-4xl">{value}</p>
-        <p className={cn("mt-1 text-xs md:mt-2 md:text-sm", danger ? "text-red-700" : "text-[#66798a]")}>{helper} · 点击科普</p>
+        <p className="mt-2 text-2xl font-semibold tracking-tight md:mt-4 md:text-4xl">{value}</p>
+        <p className={cn("mt-1 text-xs md:mt-2 md:text-sm", danger ? "text-red-700" : "text-[#576860]")}>{helper} · 点击科普</p>
       </button>
     </MetricEducationDialog>
   );
@@ -1174,13 +1175,13 @@ function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: 
 function PatientMetric({ icon: Icon, metric, label, value, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-lg border p-4 text-left transition-colors hover:border-[#93c7cd] hover:bg-[#f8fbfc]", danger ? "border-red-200 bg-red-50 text-red-700" : "border-[#d9e2e9] bg-white text-[#142536]")}>
+      <button className={cn("rounded-lg border p-4 text-left transition-colors hover:border-[#a8c6b4] hover:bg-[#fdfbf7]", danger ? "border-red-200 bg-red-50 text-red-700" : "border-[#e5dbc9] bg-white text-[#12211c]")}>
         <div className="flex items-center justify-between text-sm">
           <span>{label}</span>
           <Icon className="size-5" />
         </div>
-        <p className="mt-4 text-3xl font-black tracking-tight md:text-4xl">{value}</p>
-        <p className="mt-2 text-xs font-semibold text-slate-400">点击查看正常范围</p>
+        <p className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">{value}</p>
+        <p className="mt-2 text-xs font-medium text-slate-500">点击查看正常范围</p>
       </button>
     </MetricEducationDialog>
   );
@@ -1208,7 +1209,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
 
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-2 text-sm font-bold text-slate-700">
+            <label className="grid gap-2 text-sm font-medium text-slate-700">
               护理类型
               <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" value={draft.actionType} onChange={(event) => update("actionType", event.target.value)}>
                 <option value="REMOTE_GUIDANCE">远程指导</option>
@@ -1218,13 +1219,13 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
                 <option value="MEDICATION_REMINDER">用药提醒</option>
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-bold text-slate-700">
+            <label className="grid gap-2 text-sm font-medium text-slate-700">
               下次随访
               <Input type="datetime-local" value={draft.nextFollowUp} onChange={(event) => update("nextFollowUp", event.target.value)} />
             </label>
           </div>
 
-          <label className="grid gap-2 text-sm font-bold text-slate-700">
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
             常见护理诊断
             <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" value={draft.diagnosis} onChange={(event) => update("diagnosis", event.target.value)}>
               {commonNursingDiagnoses.map((item) => (
@@ -1236,7 +1237,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
             <span className="text-xs font-medium text-slate-500">保存后会把护理诊断写入 A 项，方便交接班继续查看。</span>
           </label>
 
-          <label className="grid gap-2 text-sm font-bold text-slate-700">
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
             护理指导摘要
             <Textarea value={draft.guidance} onChange={(event) => update("guidance", event.target.value)} placeholder="写给家属端可直接阅读的指导摘要：先安抚，再说明做法和停止条件" />
           </label>
@@ -1248,7 +1249,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
             <SoapField label="P 护理计划" value={draft.plan} onChange={(value) => update("plan", value)} />
           </div>
 
-          <label className="grid gap-2 text-sm font-bold text-slate-700">
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
             交接备注
             <Input value={draft.notes} onChange={(event) => update("notes", event.target.value)} placeholder="可选：交接班、家属沟通、照护压力或情绪观察备注" />
           </label>
@@ -1266,7 +1267,7 @@ function SoapRecordDialog({ selectedPatient, draft, setDraft, saving, message, o
 
 function SoapField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2 text-sm font-bold text-slate-700">
+    <label className="grid gap-2 text-sm font-medium text-slate-700">
       {label}
       <Textarea className="min-h-28" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
@@ -1275,7 +1276,7 @@ function SoapField({ label, value, onChange }: { label: string; value: string; o
 
 function AssessmentField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
   return (
-    <label className="grid gap-2 text-sm font-bold text-slate-700">
+    <label className="grid gap-2 text-sm font-medium text-slate-700">
       {label}
       <Textarea className="min-h-24" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
     </label>
@@ -1340,7 +1341,7 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="border-[#d8c8ad] bg-white/85 text-[#17251f] hover:bg-white hover:text-[#17251f]">
+        <Button size="sm" variant="outline" className="border-[#e5dbc9] bg-white/85 text-[#12211c] hover:bg-white hover:text-[#12211c]">
           处理
         </Button>
       </DialogTrigger>
@@ -1365,7 +1366,7 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
                   onClick={() => selectAction(item.value)}
                 >
                   <Icon className={cn("size-6", active ? "text-sky-700" : "text-slate-500")} />
-                  <p className="mt-3 font-bold">{item.label}</p>
+                  <p className="mt-3 font-medium">{item.label}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{item.helper}</p>
                 </button>
               );
@@ -1374,16 +1375,16 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
 
           <section className="grid gap-3">
             <div>
-              <p className="mb-2 text-sm font-bold text-slate-700">处理内容</p>
+              <p className="mb-2 text-sm font-medium text-slate-700">处理内容</p>
               <Textarea className="min-h-32" value={guidance} onChange={(event) => setGuidance(event.target.value)} />
             </div>
             <div>
-              <p className="mb-2 text-sm font-bold text-slate-700">处理记录</p>
+              <p className="mb-2 text-sm font-medium text-slate-700">处理记录</p>
               <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
             </div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-bold text-slate-700">结构化护理评估</p>
+                <p className="text-sm font-medium text-slate-700">结构化护理评估</p>
                 <span className="text-xs font-semibold text-slate-500">S / O / A / M / E</span>
               </div>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1398,7 +1399,7 @@ function AlertHandlingDialog({ alert, patient, onSubmit }: { alert: AlertItem; p
             </div>
             {action === "HOME_VISIT" ? (
               <div>
-                <p className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700">
+                <p className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
                   <CalendarClock className="size-4" />
                   预约上门时间
                 </p>
@@ -1427,26 +1428,26 @@ function NursingRecordCard({ record, patients }: { record: NursingRecordItem; pa
 
   return (
     <Dialog>
-      <div className="rounded-3xl border border-[#eadfce] bg-white/72 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+      <div className="rounded-3xl border border-[#e5dbc9] bg-white/72 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-bold text-[#17251f]">{patient?.name ?? "未知患者"}</p>
-              <Badge className="bg-[#edf2e7] text-[#315242]">{actionTypeLabel(record.actionType)}</Badge>
-              {record.soap ? <Badge className="bg-[#fff1cf] text-[#7a571b]">SOAP</Badge> : null}
+              <p className="font-medium text-[#12211c]">{patient?.name ?? "未知患者"}</p>
+              <Badge className="bg-[#e2ede6] text-[#3c6552]">{actionTypeLabel(record.actionType)}</Badge>
+              {record.soap ? <Badge className="bg-[#fbf1dd] text-[#6f4c1c]">SOAP</Badge> : null}
             </div>
-            <p className="mt-1 text-xs text-[#718174]">{record.nurseName} · {formatTime(record.createdAt)}</p>
+            <p className="mt-1 text-xs text-[#576860]">{record.nurseName} · {formatTime(record.createdAt)}</p>
           </div>
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline" className="border-[#d8c8ad] bg-white/85 text-[#17251f] hover:bg-white hover:text-[#17251f]">
+            <Button size="sm" variant="outline" className="border-[#e5dbc9] bg-white/85 text-[#12211c] hover:bg-white hover:text-[#12211c]">
               <Eye className="size-4" />
               详情
             </Button>
           </DialogTrigger>
         </div>
-        <Separator className="my-3 bg-[#eadfce]" />
-        <p className="text-sm leading-6 text-[#4c5b50]">{record.guidance}</p>
-        {record.notes ? <p className="mt-2 rounded-2xl bg-[#fff6e6] px-3 py-2 text-xs leading-6 whitespace-pre-line text-[#718174]">{record.notes}</p> : null}
+        <Separator className="my-3 bg-[#e5dbc9]" />
+        <p className="text-sm leading-6 text-[#4d5c53]">{record.guidance}</p>
+        {record.notes ? <p className="mt-2 rounded-2xl bg-[#fcf4e4] px-3 py-2 text-xs leading-6 whitespace-pre-line text-[#576860]">{record.notes}</p> : null}
       </div>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
@@ -1456,7 +1457,7 @@ function NursingRecordCard({ record, patients }: { record: NursingRecordItem; pa
         </DialogHeader>
         <div className="grid gap-4">
           <section className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-bold text-slate-500">家属端指导摘要</p>
+            <p className="text-sm font-medium text-slate-500">家属端指导摘要</p>
             <p className="mt-2 text-base leading-7 text-slate-800">{record.guidance}</p>
           </section>
           {record.soap ? (
@@ -1478,7 +1479,7 @@ function NursingRecordCard({ record, patients }: { record: NursingRecordItem; pa
 function SoapDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-black text-sky-700">{label}</p>
+      <p className="text-sm font-semibold text-sky-700">{label}</p>
       <p className="mt-2 text-sm leading-7 text-slate-700">{value || "未填写"}</p>
     </div>
   );

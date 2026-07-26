@@ -83,7 +83,7 @@ export function MetricEducationDialog({ metric, children }: { metric: MetricEduc
 
         <div className="grid gap-4">
           <section className="rounded-3xl border border-sky-100 bg-sky-50 p-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-sky-800">
+            <div className="flex items-center gap-2 text-sm font-medium text-sky-800">
               <BadgeInfo className="size-5" />
               科普解释
             </div>
@@ -91,7 +91,7 @@ export function MetricEducationDialog({ metric, children }: { metric: MetricEduc
           </section>
 
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-emerald-800">
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-800">
               <HandHeart className="size-5" />
               中医康复建议
             </div>
