@@ -18,9 +18,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_1px_2px_rgba(20,35,30,0.16),0_8px_20px_-10px_rgba(20,35,30,0.55)] hover:bg-ink-800 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_2px_4px_rgba(20,35,30,0.16),0_14px_28px_-12px_rgba(20,35,30,0.6)]",
+          "btn-solid-ink bg-gradient-to-b from-ink-800 to-ink-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(20,35,30,0.16),0_8px_20px_-10px_rgba(20,35,30,0.55)] hover:from-ink-700 hover:to-ink-900 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_2px_4px_rgba(20,35,30,0.16),0_14px_28px_-12px_rgba(20,35,30,0.6)]",
         brass:
-          "bg-brass-400 text-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_20px_-10px_rgba(169,124,55,0.7)] hover:bg-brass-300",
+          "sheen btn-solid-brass bg-gradient-to-b from-brass-300 to-brass-400 text-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-1px_0_rgba(111,76,28,0.18),0_8px_20px_-10px_rgba(169,124,55,0.75)] hover:from-brass-200 hover:to-brass-300",
         destructive:
           "bg-[var(--destructive)] text-white shadow-[0_8px_20px_-12px_rgba(176,67,56,0.8)] hover:brightness-[0.94]",
         outline:

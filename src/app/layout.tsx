@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Fraunces, Inter } from "next/font/google";
 
 import { RoleNavigation } from "@/components/role-navigation";
 import "./globals.css";
@@ -9,6 +9,15 @@ const inter = Inter({
   display: "swap",
   variable: "--font-inter",
   weight: ["400", "500", "600", "700"],
+});
+
+/* 衬线体只做点缀：编号、度数、英文引语。正文与标题仍是无衬线。 */
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-fraunces",
+  weight: ["400", "500"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -29,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={inter.variable}>
+    <html lang="zh-CN" className={`${inter.variable} ${fraunces.variable}`}>
       <body>
         {children}
         <RoleNavigation />

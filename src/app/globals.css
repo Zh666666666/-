@@ -119,6 +119,7 @@
     "Microsoft YaHei", "微软雅黑", sans-serif;
   --font-sans: var(--font-latin), var(--font-cjk);
   --font-display: var(--font-latin), var(--font-cjk);
+  --font-serif: var(--font-fraunces), "Georgia", "Songti SC", serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
 }
 
@@ -216,6 +217,7 @@
 
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
+  --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
 }
 
@@ -346,12 +348,12 @@
   font-optical-sizing: auto;
 }
 
-/* 大标题：紧字距 + 紧行高，是「高级感」最直接的来源 */
+/* 大标题：超大字号 + 中等字重 + 紧字距 —— 「大而轻」才显高级 */
 .display-xl {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.035em;
-  line-height: 1.02;
+  line-height: 1.04;
 }
 
 .display-lg {
@@ -372,9 +374,17 @@
 .eyebrow {
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   line-height: 1;
+}
+
+/* 衬线点缀：编号、度数、英文引语。绝不用于正文。 */
+.serif-accent {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0;
 }
 
 /* 数据读数：等宽数字，避免跳动 */
@@ -407,9 +417,11 @@
   isolation: isolate;
   /* 渐变之外再给一层实色兜底，避免渐变失效时露出画布色 */
   background-color: var(--ink-950);
+  /* 边缘 vignette 压暗 + 两组环境光 + 基底斜向渐变：层次决定质感 */
   background-image:
-    radial-gradient(120% 90% at 12% 0%, rgba(73, 122, 98, 0.35), transparent 60%),
-    radial-gradient(90% 70% at 100% 8%, rgba(195, 149, 76, 0.22), transparent 62%),
+    radial-gradient(140% 140% at 50% 38%, transparent 48%, rgba(4, 9, 7, 0.42) 100%),
+    radial-gradient(120% 90% at 12% 0%, rgba(73, 122, 98, 0.38), transparent 60%),
+    radial-gradient(90% 70% at 100% 8%, rgba(195, 149, 76, 0.26), transparent 62%),
     linear-gradient(168deg, var(--ink-800) 0%, var(--ink-950) 72%);
   color: #f4f1e8;
 }
@@ -596,13 +608,45 @@
   animation: drift 9s var(--ease-inout) infinite;
 }
 
-@keyframes sheen {
-  0% {
-    transform: translateX(-120%);
+/* 渐变按钮的实色兜底（twMerge 会吞掉 bg-*+gradient 组合，这里绕开它） */
+.btn-solid-ink {
+  background-color: var(--ink-900);
+}
+
+.btn-solid-brass {
+  background-color: var(--brass-400);
+}
+
+/* hover 扫光：只给主 CTA 用，多了就俗 */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.35) 50%, transparent 58%);
+  transform: translateX(-160%);
+  transition: transform 0.9s var(--ease-fluid);
+}
+
+.sheen:hover::after {
+  transform: translateX(160%);
+}
+
+/* 仪表外环慢速旋转：precision-instrument 氛围 */
+@keyframes spin-360 {
+  to {
+    transform: rotate(360deg);
   }
-  100% {
-    transform: translateX(220%);
-  }
+}
+
+.spin-slow {
+  transform-origin: var(--spin-origin, 50% 50%);
+  animation: spin-360 120s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

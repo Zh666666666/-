@@ -125,7 +125,7 @@ export function LoginForm() {
             Unified Portal
           </p>
           <h1
-            className="display-xl rise mt-3.5 text-[1.9rem] text-[#f7f3ea] sm:text-[2.4rem] lg:mt-6 lg:text-[3.6rem] xl:text-[4.15rem]"
+            className="display-xl rise mt-3.5 text-[1.9rem] text-[#f7f3ea] sm:text-[2.5rem] lg:mt-6 lg:text-[3.9rem] xl:text-[4.6rem]"
             style={{ ["--i" as string]: 1 }}
           >
             家属与护士，
@@ -133,7 +133,7 @@ export function LoginForm() {
             各自进入自己的工作台。
           </h1>
           <p
-            className="rise mt-4 max-w-lg text-[0.875rem] leading-6 text-white/55 lg:mt-7 lg:text-[1.0625rem] lg:leading-8"
+            className="rise mt-4 max-w-lg text-[0.875rem] leading-6 text-white/60 lg:mt-7 lg:text-[1.0625rem] lg:leading-8"
             style={{ ["--i" as string]: 2 }}
           >
             登录后按角色进入对应工作台。家属查看今日照护安排，护士处理预警、指导与护理记录。
@@ -146,17 +146,17 @@ export function LoginForm() {
         >
           {proofPoints.map(([index, title, description], position) => (
             <div key={index} className={cn("pr-6", position > 0 && "border-l border-white/10 pl-6")}>
-              <p className="eyebrow text-brass-400/80">{index}</p>
-              <p className="mt-2.5 text-[0.9375rem] font-medium text-[#f7f3ea]">{title}</p>
-              <p className="mt-1 text-[0.8125rem] leading-5 text-white/40">{description}</p>
+              <p className="serif-accent text-xl leading-none text-brass-400/90">{index}</p>
+              <p className="mt-3 text-[0.9375rem] font-medium text-[#f7f3ea]">{title}</p>
+              <p className="mt-1 text-[0.8125rem] leading-5 text-white/45">{description}</p>
             </div>
           ))}
         </div>
       </aside>
 
       {/* ---------- 登录面板 ---------- */}
-      <section className="ambient relative flex items-center justify-center px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
-        <div className="veil relative z-10 w-full max-w-[25.5rem]">
+      <section className="ambient relative flex items-center justify-center px-4 py-6 sm:px-6 lg:px-10 lg:py-12">
+        <div className="veil relative z-10 w-full max-w-[26.5rem] rounded-2xl border border-[var(--hairline)] bg-white/80 p-5 shadow-e4 backdrop-blur-md sm:p-8">
           <header>
             <p className="eyebrow text-brass-700">Secure Access</p>
             <h2 className="display-md mt-3 text-[1.625rem] lg:text-[1.875rem]">选择登录身份</h2>
@@ -180,7 +180,7 @@ export function LoginForm() {
                       "group relative overflow-hidden rounded-lg border p-3.5 text-left transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]",
                       selected
                         ? "border-ink-900 bg-white shadow-[0_0_0_1px_var(--ink-900),0_12px_28px_-18px_rgba(20,35,30,0.7)]"
-                        : "border-[var(--hairline-strong)] bg-white/55 hover:border-ink-700/30 hover:bg-white",
+                        : "border-[var(--hairline-strong)] bg-sand-50 hover:border-ink-700/30 hover:bg-white",
                     )}
                     onClick={() => {
                       setRole(option.role);

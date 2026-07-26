@@ -79,6 +79,7 @@ export function BrandLockup({
 const CX = 240;
 const CY = 240;
 const TICKS = Array.from({ length: 72 }, (_, index) => index * 5);
+const DEGREE_LABELS = [0, 45, 90, 135, 180, 225, 270, 315];
 
 export function RangeOfMotionDial({ className }: { className?: string }) {
   return (
@@ -104,7 +105,21 @@ export function RangeOfMotionDial({ className }: { className?: string }) {
       {/* 轨道 */}
       <circle cx={CX} cy={CY} r="92" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="2 7" />
       <circle cx={CX} cy={CY} r="146" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-      <circle cx={CX} cy={CY} r="200" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1" strokeDasharray="2 7" />
+      <g className="spin-slow" style={{ ["--spin-origin" as string]: `${CX}px ${CY}px` }}>
+        <circle cx={CX} cy={CY} r="200" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="2 7" />
+      </g>
+
+      {/* 度数标签：精密仪器的氛围来自这些小字 */}
+      <g fill="rgba(255,255,255,0.30)" fontSize="11" fontStyle="italic" fontFamily="var(--font-serif)" textAnchor="middle">
+        {DEGREE_LABELS.map((deg) => {
+          const pos = polar(CX, CY, 184, deg);
+          return (
+            <text key={deg} x={pos.x} y={pos.y + 3.5}>
+              {deg}°
+            </text>
+          );
+        })}
+      </g>
 
       {/* 刻度环 */}
       <g stroke="rgba(255,255,255,0.22)" strokeLinecap="round">

@@ -127,16 +127,17 @@ export function RegisterForm() {
         >
           {assurances.map(([title, description], index) => (
             <div key={title} className={index > 0 ? "border-l border-white/10 pl-6 pr-6" : "pr-6"}>
-              <p className="text-[0.9375rem] font-medium text-[#f7f3ea]">{title}</p>
-              <p className="mt-1.5 text-[0.8125rem] leading-5 text-white/40">{description}</p>
+              <p className="serif-accent text-xl leading-none text-brass-400/90">0{index + 1}</p>
+              <p className="mt-3 text-[0.9375rem] font-medium text-[#f7f3ea]">{title}</p>
+              <p className="mt-1.5 text-[0.8125rem] leading-5 text-white/45">{description}</p>
             </div>
           ))}
         </div>
       </aside>
 
       {/* ---------- 注册面板 ---------- */}
-      <section className="ambient relative flex items-center justify-center px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
-        <div className="veil relative z-10 w-full max-w-[25.5rem]">
+      <section className="ambient relative flex items-center justify-center px-4 py-4 sm:px-6 lg:px-10 lg:py-12">
+        <div className="veil relative z-10 w-full max-w-[26.5rem] rounded-2xl border border-[var(--hairline)] bg-white/80 p-5 shadow-e4 backdrop-blur-md sm:p-8">
           <header>
             <p className="eyebrow text-brass-700">Step 1 — 验证邮箱</p>
             <h2 className="display-md mt-3 text-[1.625rem] lg:text-[1.875rem]">邮箱验证码注册</h2>
