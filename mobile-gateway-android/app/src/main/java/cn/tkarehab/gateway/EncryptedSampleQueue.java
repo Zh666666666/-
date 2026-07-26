@@ -15,7 +15,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -76,10 +78,30 @@ final class EncryptedSampleQueue {
         }
     }
 
+    synchronized List<JSONObject> peekBatch(int limit) throws Exception {
+        File[] files = files();
+        int count = Math.min(Math.max(1, limit), files.length);
+        List<JSONObject> result = new ArrayList<>(count);
+        for (int index = 0; index < count; index += 1) {
+            result.add(read(files[index]));
+        }
+        return result;
+    }
+
     synchronized void acknowledgeOne() {
         File[] files = files();
         if (files.length > 0 && !files[0].delete()) {
             throw new IllegalStateException("Could not remove an uploaded encrypted sample.");
+        }
+    }
+
+    synchronized void acknowledge(int count) {
+        File[] files = files();
+        int removable = Math.min(Math.max(0, count), files.length);
+        for (int index = 0; index < removable; index += 1) {
+            if (!files[index].delete()) {
+                throw new IllegalStateException("Could not remove an uploaded encrypted sample.");
+            }
         }
     }
 
@@ -105,6 +127,18 @@ final class EncryptedSampleQueue {
                 masterKey,
                 EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
         ).build();
+    }
+
+    private JSONObject read(File file) throws Exception {
+        try (InputStream input = encrypted(file).openFileInput();
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+            return new JSONObject(output.toString(StandardCharsets.UTF_8.name()));
+        }
     }
 
     private File[] files() {

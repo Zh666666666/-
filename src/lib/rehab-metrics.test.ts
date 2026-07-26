@@ -160,7 +160,8 @@ test("requires a matching GOOD calibration and synchronized dual-device pairs", 
   });
   assert.equal(withoutCalibration.clinicalEligible, false);
   assert.equal(withoutCalibration.dataQuality.measurementStatus, "SETUP_REQUIRED");
-  assert.equal(withoutCalibration.rom.value, null);
+  assert.ok((withoutCalibration.rom.value ?? 0) > 60);
+  assert.equal(withoutCalibration.risk.score, null);
 
   const unsynchronized = pairedSamples(angles).map((item) => (
     item.placement === "SHANK"

@@ -116,7 +116,7 @@ final class LiveSensorPanel {
 
     void markConnected(String deviceName, String address) {
         if (!address.equals(connectedAddress)) {
-            receiving = false;
+            resetStream();
             connectedAddress = address;
             title.setText(placementLabel + " · 已连接");
             subtitle.setText(deviceName + " · " + address);
@@ -127,9 +127,14 @@ final class LiveSensorPanel {
         title.setText(placementLabel + " · 未连接");
         subtitle.setText("等待分配传感器");
         meta.setText("帧数：0");
-        sampleCount = 0;
-        receiving = false;
+        resetStream();
         connectedAddress = "";
+    }
+
+    private void resetStream() {
+        sampleCount = 0;
+        lastRenderAtMs = 0L;
+        receiving = false;
         acceleration.setValues(0, 0, 0);
         gyroscope.setValues(0, 0, 0);
         angle.setValues(0, 0, 0);

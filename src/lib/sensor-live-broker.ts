@@ -9,6 +9,8 @@ type Listener = (event: SensorLiveEvent) => void;
 
 const globalBroker = globalThis as unknown as {
   sensorLiveListeners?: Set<Listener>;
+  sensorLivePending?: Map<string, SensorLiveEvent>;
+  sensorLiveTimers?: Map<string, ReturnType<typeof setTimeout>>;
 };
 
 function listeners() {
@@ -17,7 +19,19 @@ function listeners() {
 }
 
 export function publishSensorLiveEvent(event: SensorLiveEvent) {
-  for (const listener of listeners()) listener(event);
+  globalBroker.sensorLivePending ??= new Map();
+  globalBroker.sensorLiveTimers ??= new Map();
+  globalBroker.sensorLivePending.set(event.patientId, event);
+  if (globalBroker.sensorLiveTimers.has(event.patientId)) return;
+  const timer = setTimeout(() => {
+    const latest = globalBroker.sensorLivePending?.get(event.patientId);
+    globalBroker.sensorLivePending?.delete(event.patientId);
+    globalBroker.sensorLiveTimers?.delete(event.patientId);
+    if (latest) {
+      for (const listener of listeners()) listener(latest);
+    }
+  }, 120);
+  globalBroker.sensorLiveTimers.set(event.patientId, timer);
 }
 
 export function subscribeSensorLiveEvents(listener: Listener) {
