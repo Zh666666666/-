@@ -93,7 +93,7 @@ function ProductionHardwareDiagnostic() {
   return (
     <main className="rehab-grid min-h-screen overflow-x-hidden px-4 py-4 text-[#12211c] md:px-8 md:py-6">
       <section className="mx-auto grid w-full min-w-0 max-w-5xl gap-4">
-        <header className="min-w-0 overflow-hidden rounded-lg border border-[#e5dbc9] bg-white p-5 shadow-sm md:p-7">
+        <header className="min-w-0 overflow-hidden rounded-lg border border-[var(--hairline)] bg-white p-5 shadow-e1 md:p-7">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="success" className="gap-2 px-3 py-1">
               <Bluetooth className="size-4" />
@@ -109,7 +109,7 @@ function ProductionHardwareDiagnostic() {
         </header>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="min-w-0 border-[#a8c6b4] bg-[#f0f6f2] shadow-sm">
+          <Card className="min-w-0 border-[#a8c6b4] bg-[#f0f6f2] shadow-e1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Activity className="size-5 text-emerald-700" />
@@ -129,7 +129,7 @@ function ProductionHardwareDiagnostic() {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <ShieldCheck className="size-5 text-emerald-700" />
@@ -252,7 +252,7 @@ function DemoHardwarePage() {
   return (
     <main className="rehab-grid min-h-screen overflow-x-hidden px-4 py-4 text-[#12211c] md:px-8 md:py-6">
       <section className="mx-auto grid w-full min-w-0 max-w-7xl gap-4">
-        <header className="min-w-0 overflow-hidden rounded-lg border border-[#e5dbc9] bg-white p-4 shadow-sm md:p-5">
+        <header className="min-w-0 overflow-hidden rounded-lg border border-[var(--hairline)] bg-white p-4 shadow-e1 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -294,11 +294,11 @@ function DemoHardwarePage() {
             </CardHeader>
             <CardContent>
               <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <div className="min-w-0 rounded-lg border border-[#e5dbc9] bg-[#fdfbf7] p-4">
-                  <div className="relative mx-auto flex aspect-square max-w-[21rem] items-center justify-center rounded-full border border-[#e5dbc9] bg-[#f0f6f2]">
-                    <div className="absolute h-[42%] w-5 origin-bottom rounded-full bg-[#497a62] shadow-lg" style={{ transform: `translateY(-36%) rotate(${latest.thighPitch - 8}deg)` }} />
-                    <div className="absolute h-[45%] w-5 origin-top rounded-full bg-[#a97c37] shadow-lg" style={{ transform: `translateY(36%) rotate(${latest.angle - 88}deg)` }} />
-                    <div className="absolute flex size-24 flex-col items-center justify-center rounded-full border border-[#e5dbc9] bg-white shadow-sm">
+                <div className="min-w-0 rounded-lg border border-[var(--hairline)] bg-[#fdfbf7] p-4">
+                  <div className="relative mx-auto flex aspect-square max-w-[21rem] items-center justify-center rounded-full border border-[var(--hairline)] bg-[#f0f6f2]">
+                    <div className="absolute h-[42%] w-5 origin-bottom rounded-full bg-[#497a62] shadow-e3" style={{ transform: `translateY(-36%) rotate(${latest.thighPitch - 8}deg)` }} />
+                    <div className="absolute h-[45%] w-5 origin-top rounded-full bg-[#a97c37] shadow-e3" style={{ transform: `translateY(36%) rotate(${latest.angle - 88}deg)` }} />
+                    <div className="absolute flex size-24 flex-col items-center justify-center rounded-full border border-[var(--hairline)] bg-white shadow-e2">
                       <span className="text-3xl font-semibold">{latest.angle.toFixed(0)}°</span>
                       <span className="text-xs font-medium text-[#576860]">屈曲角</span>
                     </div>
@@ -315,14 +315,14 @@ function DemoHardwarePage() {
                       ["可信度", `${(latest.confidence * 100).toFixed(0)}%`],
                       ["采样时间", latest.time],
                     ].map(([label, value]) => (
-                      <div key={label} className="rounded-md border border-[#e5dbc9] bg-white p-3">
+                      <div key={label} className="rounded-md border border-[var(--hairline)] bg-white p-3">
                         <p className="text-xs font-medium text-[#576860]">{label}</p>
                         <p className="mt-2 text-xl font-semibold">{value}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="rounded-lg border border-[#e5dbc9] bg-white p-4">
+                  <div className="rounded-lg border border-[var(--hairline)] bg-white p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="font-semibold">最近采集曲线</p>
                       <p className="text-xs font-medium text-[#576860]">范围 {minAngle.toFixed(0)}° - {maxAngle.toFixed(0)}°</p>
@@ -360,7 +360,7 @@ function DemoHardwarePage() {
           </Card>
 
           <div className="grid min-w-0 gap-4">
-            <Card className="min-w-0 overflow-hidden bg-[#12211c] text-white">
+            <Card className="panel-ink grain relative min-w-0 overflow-hidden border-white/8 text-white shadow-e3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Wifi className="size-5 text-[#ddb474]" />
@@ -404,7 +404,7 @@ function DemoHardwarePage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {uploads.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#e5dbc9] bg-white/75 px-3 py-2">
+                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--hairline)] bg-white/75 px-3 py-2">
                     <span className="min-w-0 truncate text-sm font-semibold">{item.label}</span>
                     <Badge variant={item.status === "alert" ? "warning" : "success"}>{sourceLabel(item.status)}</Badge>
                   </div>
@@ -442,14 +442,14 @@ function DemoHardwarePage() {
             <CardContent>
               <div className="grid gap-2 md:grid-cols-4">
                 {nurseSteps.map((step, stepIndex) => (
-                  <div key={step.label} className={`rounded-lg border p-3 ${step.done ? "border-emerald-200 bg-emerald-50" : "border-[#e5dbc9] bg-white/75"}`}>
+                  <div key={step.label} className={`rounded-lg border p-3 ${step.done ? "border-emerald-200 bg-emerald-50" : "border-[var(--hairline)] bg-white/75"}`}>
                     <p className="text-xs font-semibold text-[#576860]">0{stepIndex + 1}</p>
                     <p className="mt-2 font-semibold">{step.label}</p>
                     <p className="mt-1 text-xs font-semibold text-[#576860]">{step.done ? "已完成" : "等待护士确认"}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 rounded-lg border border-[#e5dbc9] bg-white/75 p-4">
+              <div className="mt-4 rounded-lg border border-[var(--hairline)] bg-white/75 p-4">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 size-5 text-[#3c6552]" />
                   <p className="text-sm leading-6 text-[#4d5c53]">

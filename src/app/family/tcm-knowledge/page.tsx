@@ -81,14 +81,14 @@ export default function TcmKnowledgePage() {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <header className="overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-amber-50 p-5 shadow-sm md:rounded-2xl md:p-8">
+        <header className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-gradient-to-br from-white via-sage-50 to-brass-100 p-5 shadow-e2 md:rounded-2xl md:p-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
                 <Flower2 className="size-4" />
                 中医康复知识专区
               </Badge>
-              <h1 className="mt-5 font-display text-3xl font-medium tracking-tight md:text-6xl">TKA 术后中医康复调护</h1>
+              <h1 className="display-md mt-5 text-2xl md:text-[2.25rem]">TKA 术后中医康复调护</h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 md:text-lg md:leading-9">内容用于康复宣教和日常调护参考，也提醒家属在照护身体的同时照护情绪。具体治疗方案需结合医嘱、切口恢复情况和个人体质。</p>
             </div>
             <Button asChild size="lg" variant="outline">
@@ -97,9 +97,9 @@ export default function TcmKnowledgePage() {
           </div>
         </header>
 
-        <Card className="overflow-hidden border-amber-100 bg-gradient-to-br from-amber-50 via-white to-emerald-50">
+        <Card className="overflow-hidden border-[var(--hairline)] bg-gradient-to-br from-brass-100 via-white to-sage-50">
           <CardContent className="grid gap-4 p-5 md:grid-cols-[auto_1fr_auto] md:items-center md:p-6">
-            <div className="flex size-14 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-700">
+            <div className="flex size-14 items-center justify-center rounded-xl bg-sage-100 text-sage-700">
               <HeartHandshake className="size-7" />
             </div>
             <div>
@@ -107,16 +107,16 @@ export default function TcmKnowledgePage() {
               <p className="mt-3 text-lg leading-8 text-slate-700">今天慢一点没有关系，恢复本来就是一段需要耐心的路。每一次主动屈膝、每一次坚持打卡，都是在帮家人更稳地走向康复。</p>
               <p className="mt-2 text-sm font-semibold text-emerald-800">虚拟护士 · 小暖</p>
             </div>
-            <div className="rounded-3xl bg-white/80 px-4 py-3 text-sm leading-7 text-slate-600 shadow-sm">
+            <div className="rounded-xl bg-white/80 px-4 py-3 text-sm leading-7 text-slate-600 shadow-e1">
               我们会陪您一起守护家人的每一次进步。
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-rose-100 bg-white/90">
+        <Card className="border-[var(--hairline)] bg-white/90">
           <CardContent className="grid gap-3 p-5 md:grid-cols-4 md:p-6">
             {tcmCareRituals.map((item) => (
-              <div key={item} className="rounded-3xl bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-950">
+              <div key={item} className="rounded-xl bg-brass-100 px-4 py-4 text-sm leading-6 text-brass-800">
                 <p className="font-semibold">{item.split("：")[0]}</p>
                 <p className="mt-1">{item.split("：")[1]}</p>
               </div>
@@ -124,7 +124,7 @@ export default function TcmKnowledgePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-100 bg-white/90">
+        <Card className="border-[var(--hairline)] bg-white/90">
           <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
             <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
               <Button size="sm" variant={filter === "ALL" ? "elder" : "outline"} onClick={() => setFilter("ALL")}>全部 {knowledgeItems.length}</Button>
@@ -144,7 +144,7 @@ export default function TcmKnowledgePage() {
             const done = learned.includes(item.title);
 
             return (
-              <Card key={item.title} className={cn("bg-white/90 transition-all", open ? "border-emerald-300 shadow-xl shadow-emerald-950/10" : "hover:border-emerald-200")}>
+              <Card key={item.title} className={cn("bg-white/90 transition-all", open ? "border-emerald-300 shadow-e3 shadow-emerald-950/10" : "hover:border-emerald-200")}>
                 <button className="w-full text-left" onClick={() => setOpenIndex(open ? -1 : index)}>
                   <CardHeader>
                     <div className="flex items-start justify-between gap-4">
@@ -163,8 +163,8 @@ export default function TcmKnowledgePage() {
                 </button>
                 {open ? (
                   <CardContent className="space-y-4">
-                    <p className="rounded-3xl bg-emerald-50 p-5 text-base leading-8 text-emerald-950">{item.content}</p>
-                    <p className="rounded-3xl bg-rose-50 p-5 text-base leading-8 text-rose-950">{item.careTip}</p>
+                    <p className="rounded-xl bg-emerald-50 p-5 text-base leading-8 text-emerald-950">{item.content}</p>
+                    <p className="rounded-xl bg-brass-100 p-5 text-base leading-7 text-brass-800">{item.careTip}</p>
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button variant={favored ? "secondary" : "outline"} onClick={() => toggle(favorites, setFavorites, item.title)}>
                         <Star className="size-4" />

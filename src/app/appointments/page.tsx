@@ -146,15 +146,15 @@ export default function AppointmentsPage() {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-6xl space-y-6">
-        <header className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white/90 p-5 shadow-sm md:rounded-2xl md:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex flex-col gap-4 rounded-2xl border border-[var(--hairline)] bg-white p-5 shadow-e2 md:rounded-2xl md:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <Badge variant={syncMode === "realtime" ? "success" : "warning"} className="gap-2 px-3 py-1 text-sm">
               <Radio className="size-4" />
               {syncMode === "realtime" ? "预约实时同步" : syncMode === "polling" ? "Demo 轮询同步" : "正在连接同步通道"}
             </Badge>
-            <h1 className="mt-4 font-display text-3xl font-medium tracking-tight md:text-5xl">预约上门护理</h1>
+            <h1 className="display-md mt-4 text-2xl md:text-[2rem]">预约上门护理</h1>
             <p className="mt-3 text-base leading-7 text-slate-600 md:text-lg md:leading-8">当家属拿不准疼痛、肿胀、训练动作或照护方式时，可以直接把担心写下来。预约不是打扰，而是让护士更早介入、更稳妥地陪家人恢复。</p>
-            <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-900">护士确认后会同步安排时间、上门重点和回复说明，让家属知道下一步该做什么、不该硬撑什么。</p>
+            <p className="mt-3 rounded-lg border border-[rgba(60,101,82,0.14)] bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">护士确认后会同步安排时间、上门重点和回复说明，让家属知道下一步该做什么、不该硬撑什么。</p>
           </div>
           <Button asChild size="lg" variant="outline">
             <Link href={role === "nurse" ? "/nurse" : "/family"}>返回工作台</Link>
@@ -164,9 +164,9 @@ export default function AppointmentsPage() {
         {notice ? <StatusNotice tone={notice.tone}>{notice.message}</StatusNotice> : null}
 
         {role === "family" ? (
-          <Card className="border-rose-100 bg-gradient-to-br from-rose-50 via-white to-emerald-50">
+          <Card className="border-[var(--hairline)] bg-gradient-to-br from-brass-100 via-white to-sage-50">
             <CardContent className="grid gap-4 p-5 md:grid-cols-[auto_1fr] md:p-6">
-              <div className="flex size-14 items-center justify-center rounded-3xl bg-rose-100 text-rose-700">
+              <div className="flex size-14 items-center justify-center rounded-xl bg-brass-200 text-brass-800">
                 <HeartHandshake className="size-7" />
               </div>
               <div>
@@ -174,7 +174,7 @@ export default function AppointmentsPage() {
                 <p className="mt-3 text-lg font-semibold text-slate-900">把“不放心”写清楚，本身就是重要的护理信息。</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {appointmentCareSteps.map((item) => (
-                    <p key={item} className="rounded-2xl bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm">{item}</p>
+                    <p key={item} className="rounded-2xl bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700 shadow-e1">{item}</p>
                   ))}
                 </div>
               </div>

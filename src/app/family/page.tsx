@@ -85,9 +85,9 @@ const careToolCards = [
   },
 ];
 
-const panelClass = "rounded-lg border border-[#e5dbc9] bg-white text-[#12211c] shadow-e2";
-const quietPanelClass = "rounded-md border border-[#f2ebdf] bg-[#fdfbf7]";
-const darkPanelClass = "rounded-lg bg-[#12211c] text-white shadow-sm";
+const panelClass = "rounded-xl border border-[var(--hairline)] bg-white text-[#12211c] shadow-e2";
+const quietPanelClass = "rounded-lg border border-[var(--hairline)] bg-[#fdfbf7]";
+const darkPanelClass = "panel-ink grain rounded-xl border border-white/8 text-white shadow-e3 [&>*]:relative [&>*]:z-10";
 
 export default function FamilyPage() {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
@@ -361,7 +361,7 @@ export default function FamilyPage() {
             <Card className={cn(panelClass, "overflow-hidden") }>
               <CardHeader className="pb-1 md:pb-2">
                 <p className="text-xs font-semibold text-[#8f6427]">今天先做这些</p>
-                <CardTitle className="mt-1 text-2xl font-semibold tracking-[-0.03em] md:mt-2 md:text-4xl">今日照护节奏</CardTitle>
+                <CardTitle className="display-md mt-1 text-xl md:mt-2 md:text-2xl">今日照护节奏</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 p-4 pt-1 md:space-y-5 md:p-6 md:pt-2">
                 <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
@@ -371,7 +371,7 @@ export default function FamilyPage() {
                       <Radio className="size-5 text-[#ddb474]" />
                     </div>
                     <div className="mt-5 flex items-center gap-3 md:mt-8 md:gap-4">
-                      <span className={`sync-dot size-5 rounded-full shadow-lg ${hardwareOnline ? "bg-emerald-300 shadow-emerald-300/50" : "bg-amber-300 shadow-amber-300/40"}`} />
+                      <span className={`sync-dot size-5 rounded-full shadow-e3 ${hardwareOnline ? "bg-emerald-300 shadow-emerald-300/50" : "bg-amber-300 shadow-amber-300/40"}`} />
                       <p className="text-2xl font-semibold tracking-tight md:text-3xl">{stateLabel}</p>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-[#b6c6bc] md:mt-4 md:text-base md:leading-7">{patient ? `${patient.name}，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
@@ -383,7 +383,7 @@ export default function FamilyPage() {
                         <span>今天最关键指标</span>
                         <Activity className="size-5 text-[#497a62]" />
                       </div>
-                      <p className="mt-3 text-5xl font-semibold text-[#3c6552] md:mt-5 md:text-7xl">{flexionDisplay}</p>
+                      <p className="tabular mt-3 text-5xl font-semibold tracking-[-0.03em] text-[#3c6552] md:mt-5 md:text-6xl">{flexionDisplay}</p>
                       <p className="mt-3 text-base leading-7 text-[#576860]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
@@ -395,7 +395,7 @@ export default function FamilyPage() {
                       <p className="text-xs font-semibold text-[#8f6427]">陪伴小提醒</p>
                       <p className="mt-3 max-w-2xl text-base leading-7 text-[#4d5c53]">{encouragement}</p>
                     </div>
-                    <Button size="lg" className="h-10 rounded-xl bg-[#12211c] text-sm text-white shadow-e3 hover:bg-[#1b3129] md:h-12 md:rounded-2xl md:text-base md:shadow-e3" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
+                    <Button size="lg" className="h-10 rounded-lg text-sm md:h-12 md:text-base" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
                       <CheckCircle2 className="size-5" />
                       {dailyCheckIn ? "今日已陪伴" : "完成陪伴"}
                     </Button>
@@ -408,7 +408,7 @@ export default function FamilyPage() {
                     ))}
                   </div>
                   {dailyCheckIn ? (
-                    <div className="mt-5 rounded-xl bg-[#12211c] px-4 py-4 text-white">
+                    <div className="panel-ink grain relative mt-5 overflow-hidden rounded-xl border border-white/8 px-4 py-4 text-white">
                       <div className="flex items-center gap-3">
                         <Sparkles className="size-6 animate-bounce text-[#ddb474]" />
                         <p className="font-medium">打卡完成，今天已经为康复迈出稳稳的一步。</p>
@@ -425,19 +425,19 @@ export default function FamilyPage() {
             <Card className={cn(panelClass, "bg-[#fcf4e4]") }>
               <CardHeader>
                 <p className="text-xs font-semibold text-[#8f6427]">家属行动提示</p>
-                <CardTitle className="mt-2 text-3xl font-semibold tracking-[-0.03em]">下一步提醒</CardTitle>
+                <CardTitle className="display-md mt-2 text-xl md:text-2xl">下一步提醒</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="rounded-lg bg-white/70 p-4 text-base font-semibold leading-7 text-[#12211c] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] md:rounded-xl md:p-5 md:text-xl md:leading-9">{nextCareStep}</p>
                 <div className="grid gap-3">
-                  <button type="button" onClick={() => setActiveWorkspace("nurse")} className="group flex items-center justify-between rounded-lg border border-[#e5dbc9] bg-white/70 p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:rounded-xl md:p-4">
+                  <button type="button" onClick={() => setActiveWorkspace("nurse")} className="group flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-white/70 p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:rounded-xl md:p-4">
                     <span>
                       <span className="block font-semibold text-[#12211c]">看护士建议</span>
                       <span className="mt-1 hidden text-sm leading-6 text-[#576860] sm:block">查看护士评估、预警提醒和护理记录。</span>
                     </span>
                     <ChevronRight className="size-5 text-[#497a62] transition group-hover:translate-x-1" />
                   </button>
-                  <button type="button" onClick={() => setActiveWorkspace("data")} className="group flex items-center justify-between rounded-lg border border-[#e5dbc9] bg-white/70 p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:rounded-xl md:p-4">
+                  <button type="button" onClick={() => setActiveWorkspace("data")} className="group flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-white/70 p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:rounded-xl md:p-4">
                     <span>
                       <span className="block font-semibold text-[#12211c]">看数据变化</span>
                       <span className="mt-1 hidden text-sm leading-6 text-[#576860] sm:block">查看护膝上传的角度、频次、时长和疼痛记录。</span>
@@ -445,7 +445,7 @@ export default function FamilyPage() {
                     <ChevronRight className="size-5 text-[#497a62] transition group-hover:translate-x-1" />
                   </button>
                 </div>
-                <Button asChild size="lg" variant="outline" className="w-full border-[#e5dbc9] bg-white/70 text-[#12211c] hover:bg-white">
+                <Button asChild size="lg" variant="outline" className="w-full border-[var(--hairline-strong)] bg-white/70 text-[#12211c] hover:bg-white">
                   <Link href="/appointments">拿不准时预约护士</Link>
                 </Button>
               </CardContent>
@@ -458,7 +458,7 @@ export default function FamilyPage() {
             <Card className={cn(panelClass, "overflow-hidden") }>
               <CardHeader className="pb-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8f6427]">Brace Data</p>
-                <CardTitle className="mt-2 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">数据趋势与设备同步</CardTitle>
+                <CardTitle className="display-md mt-2 text-xl md:text-2xl">数据趋势与设备同步</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 p-5 pt-2 md:p-6 md:pt-2">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -468,7 +468,7 @@ export default function FamilyPage() {
                       <Radio className="size-5 text-[#ddb474]" />
                     </div>
                     <div className="mt-5 flex items-center gap-3 md:mt-8 md:gap-4">
-                      <span className={`sync-dot size-5 rounded-full shadow-lg ${hardwareOnline ? "bg-emerald-300 shadow-emerald-300/50" : "bg-amber-300 shadow-amber-300/40"}`} />
+                      <span className={`sync-dot size-5 rounded-full shadow-e3 ${hardwareOnline ? "bg-emerald-300 shadow-emerald-300/50" : "bg-amber-300 shadow-amber-300/40"}`} />
                       <p className="text-2xl font-semibold tracking-tight md:text-3xl">{stateLabel}</p>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-[#b6c6bc] md:mt-4 md:text-base md:leading-7">{patient ? `${patient.name}，${patient.age} 岁，${patient.roomNumber ?? "居家康复"}` : "正在读取家人信息"}</p>
@@ -480,7 +480,7 @@ export default function FamilyPage() {
                         <span>{flexionLabel}</span>
                         <Activity className="size-5 text-[#497a62]" />
                       </div>
-                      <p className="mt-3 text-5xl font-semibold text-[#3c6552] md:mt-5 md:text-7xl">{flexionDisplay}</p>
+                      <p className="tabular mt-3 text-5xl font-semibold tracking-[-0.03em] text-[#3c6552] md:mt-5 md:text-6xl">{flexionDisplay}</p>
                       <p className="mt-3 text-base leading-7 text-[#576860]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
@@ -499,7 +499,7 @@ export default function FamilyPage() {
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold text-[#8f6427]">测量记录</p>
-                  <CardTitle className="mt-2 text-3xl font-semibold tracking-[-0.03em]">最近自动上传</CardTitle>
+                  <CardTitle className="display-md mt-2 text-xl md:text-2xl">最近自动上传</CardTitle>
                 </div>
                 {patient ? (
                   <Button asChild size="sm" variant="outline">
@@ -514,7 +514,7 @@ export default function FamilyPage() {
                   <p className="rounded-xl bg-white/70 p-5 text-[#576860]">等待第一条智能护膝数据。</p>
                 ) : (
                   recentRecords.map((record) => (
-                    <div key={record.id} className="rounded-xl border border-[#e5dbc9] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+                    <div key={record.id} className="rounded-xl border border-[var(--hairline)] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-lg font-semibold text-[#12211c]">{formatTime(record.recordedAt)}</p>
@@ -548,9 +548,9 @@ export default function FamilyPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {latestAnalysis ? (
-                  <div className="rounded-xl border border-[#e5dbc9] bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+                  <div className="rounded-xl border border-[var(--hairline)] bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge className="bg-[#12211c] text-white">系统初步分析 · 等待护士确认</Badge>
+                      <Badge>系统初步分析 · 等待护士确认</Badge>
                       <span className="text-sm text-[#576860]">{formatTime(latestAnalysis.createdAt)}</span>
                     </div>
                     <p className="mt-4 text-base leading-7 text-[#4d5c53]">{latestAnalysis.report}</p>
@@ -558,12 +558,12 @@ export default function FamilyPage() {
                     <p className="mt-3 rounded-xl bg-[#e2ede6] px-4 py-3 text-base font-semibold leading-7 text-[#3c6552]">{latestAnalysis.recommendation}</p>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-[#e5dbc9] bg-white/60 p-5 text-[#576860]">
+                  <div className="rounded-xl border border-dashed border-[var(--hairline-strong)] bg-white/60 p-5 text-[#576860]">
                     <p className="text-lg font-medium text-[#12211c]">等待护士评估</p>
                     <p className="mt-2 leading-7">护士评估后，家属可在这里查看康复建议、注意事项和下一步安排。</p>
                   </div>
                 )}
-                <Button asChild size="lg" variant="outline" className="w-full border-[#e5dbc9] bg-white/70 text-[#12211c] hover:bg-white">
+                <Button asChild size="lg" variant="outline" className="w-full border-[var(--hairline-strong)] bg-white/70 text-[#12211c] hover:bg-white">
                   <Link href="/family/guidance">查看全部指导建议</Link>
                 </Button>
               </CardContent>
@@ -595,7 +595,7 @@ export default function FamilyPage() {
                 ) : null}
 
                 {latestGuidance ? (
-                  <div className="rounded-xl border border-[#e5dbc9] bg-white/70 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+                  <div className="rounded-xl border border-[var(--hairline)] bg-white/70 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <Badge variant="success">护士已同步处理建议</Badge>
                       <span className="text-sm text-[#576860]">{formatTime(latestGuidance.createdAt)}</span>
@@ -606,13 +606,13 @@ export default function FamilyPage() {
                 ) : null}
 
                 {!latestAlert && !latestGuidance ? (
-                  <div className="rounded-xl border border-dashed border-[#e5dbc9] bg-white/60 p-5 text-[#576860]">
+                  <div className="rounded-xl border border-dashed border-[var(--hairline-strong)] bg-white/60 p-5 text-[#576860]">
                     <p className="text-lg font-medium text-[#12211c]">暂无新的护士处理动态</p>
                     <p className="mt-2 leading-7">暂时没有新的护士留言，这不代表身体一定没有问题。如有疼痛、肿胀或不放心，请暂停训练并预约护士一起看。</p>
                   </div>
                 ) : null}
 
-                <Button asChild size="lg" className="w-full bg-[#12211c] text-white shadow-e3 hover:bg-[#1b3129]">
+                <Button asChild size="lg" className="w-full">
                   <Link href="/appointments">预约护士一起判断</Link>
                 </Button>
               </CardContent>
@@ -629,14 +629,14 @@ export default function FamilyPage() {
                   <div className="mt-5 flex items-start gap-3">
                     <HeartHandshake className="mt-1 size-8 shrink-0 text-[#ddb474]" />
                     <div>
-                      <h2 className="font-display text-3xl font-medium leading-tight tracking-[-0.03em] md:text-4xl">训练有节奏，照护有回应。</h2>
+                      <h2 className="display-md text-2xl md:text-[1.75rem]">训练有节奏，照护有回应。</h2>
                       <p className="mt-4 text-sm leading-7 text-[#c9d6ce] md:text-base">疼痛、肿胀、睡眠和情绪变化都可以被记录、被看见，并及时交给护士判断。</p>
                     </div>
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   {carePromiseCards.map((item) => (
-                    <div key={item.title} className="rounded-xl border border-[#e5dbc9] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+                    <div key={item.title} className="rounded-xl border border-[var(--hairline)] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                       <p className="text-base font-semibold text-[#12211c]">{item.title}</p>
                       <p className="mt-2 text-sm leading-6 text-[#576860]">{item.description}</p>
                     </div>
@@ -680,8 +680,8 @@ export default function FamilyPage() {
                 const Icon = item.icon;
 
                 return (
-                  <Link key={item.href} href={item.href} className="group rounded-2xl border border-[#e5dbc9] bg-[#fdfbf7]/92 p-5 shadow-e3 transition-all hover:-translate-y-1 hover:border-[#d3c5ac] hover:bg-white">
-                    <span className="flex size-12 items-center justify-center rounded-2xl bg-[#12211c] text-[#ddb474] transition group-hover:scale-105">
+                  <Link key={item.href} href={item.href} className="group rounded-2xl border border-[var(--hairline)] bg-[#fdfbf7]/92 p-5 shadow-e3 transition-all hover:-translate-y-1 hover:border-[var(--hairline-strong)] hover:bg-white">
+                    <span className="flex size-12 items-center justify-center rounded-xl bg-ink-900 text-brass-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] transition group-hover:scale-105">
                       <Icon className="size-6" />
                     </span>
                     <p className="mt-4 text-lg font-semibold text-[#12211c]">{item.title}</p>
@@ -700,12 +700,12 @@ export default function FamilyPage() {
 function MetricCard({ icon: Icon, metric, label, value, tone }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; tone: string }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className="rounded-xl border border-[#e5dbc9] bg-white/70 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-e3">
+      <button className="rounded-xl border border-[var(--hairline)] bg-white/70 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-e3">
         <div className="flex items-center justify-between text-sm text-[#576860]">
           <span>{label}</span>
           <Icon className={`size-5 ${tone}`} />
         </div>
-        <p className={`mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl ${tone}`}>{value}</p>
+        <p className={`tabular mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl ${tone}`}>{value}</p>
         <p className="mt-2 text-xs font-semibold text-[#61716a]">点击查看指标说明</p>
       </button>
     </MetricEducationDialog>

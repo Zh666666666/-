@@ -10,10 +10,10 @@ export function StatusNotice({ tone = "info", children }: { tone?: StatusNoticeT
   return (
     <p
       className={cn(
-        "inline-flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold leading-6",
-        tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "",
-        tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "",
-        tone === "info" ? "border-sky-200 bg-sky-50 text-sky-800" : "",
+        "inline-flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-[0.8125rem] font-medium leading-5",
+        tone === "success" ? "border-[rgba(47,125,92,0.20)] bg-[var(--success-soft)] text-emerald-800" : "",
+        tone === "error" ? "border-[rgba(176,67,56,0.20)] bg-[var(--destructive-soft)] text-red-800" : "",
+        tone === "info" ? "border-[rgba(47,96,118,0.20)] bg-[var(--info-soft)] text-sky-800" : "",
       )}
     >
       <Icon className="mt-0.5 size-4 shrink-0" />

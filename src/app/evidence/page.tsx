@@ -190,7 +190,7 @@ export default function EvidencePage() {
         {error ? <StatusNotice tone="error">{error}</StatusNotice> : null}
 
         <section className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]" aria-label="导入证据包">
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Upload className="size-5 text-emerald-700" />
@@ -198,7 +198,7 @@ export default function EvidencePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center border-2 border-dashed border-[#d3c5ac] bg-[#fdfbf7] px-4 text-center transition-colors hover:border-emerald-600">
+              <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center border-2 border-dashed border-[var(--hairline-strong)] bg-[#fdfbf7] px-4 text-center transition-colors hover:border-emerald-600">
                 <Upload className="size-7 text-emerald-700" />
                 <span className="mt-3 font-medium text-[#12211c]">打开 JSON 证据包</span>
                 <span className="mt-1 text-xs text-slate-500">仅接受 tka-local-evidence/v1</span>
@@ -213,7 +213,7 @@ export default function EvidencePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="text-xl text-[#12211c]">粘贴 JSON</CardTitle>
             </CardHeader>
@@ -240,7 +240,7 @@ export default function EvidencePage() {
         </section>
 
         {!evidence || !summary ? (
-          <div className="flex min-h-64 flex-col items-center justify-center border border-[#e5dbc9] bg-white px-5 text-center shadow-sm">
+          <div className="flex min-h-64 flex-col items-center justify-center border border-[var(--hairline)] bg-white px-5 text-center shadow-e1">
             <FileCheck2 className="size-10 text-slate-300" />
             <h2 className="mt-4 text-xl font-medium text-[#12211c]">等待真实任务证据包</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">在 Android 连接 BT50，开始并结束本地任务，然后点击“导出最近证据包”。</p>
@@ -261,7 +261,7 @@ export default function EvidencePage() {
 
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
                 {metricCards.map((item) => (
-                  <Card key={item.label} className="border-[#e5dbc9] bg-white shadow-sm">
+                  <Card key={item.label} className="border-[var(--hairline)] bg-white shadow-e2">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-slate-500">{item.label}</p>
@@ -276,7 +276,7 @@ export default function EvidencePage() {
               </div>
             </section>
 
-            <Card className="border-[#e5dbc9] bg-white shadow-sm">
+            <Card className="border-[var(--hairline)] bg-white shadow-e2">
               <CardHeader>
                 <CardTitle className="text-xl text-[#12211c]">单传感器姿态回放</CardTitle>
               </CardHeader>
@@ -305,7 +305,7 @@ export default function EvidencePage() {
                 const review = reviews[event.id];
                 const status = review?.status ?? event.status;
                 return (
-                  <Card key={event.id} className="border-[#e5dbc9] bg-white shadow-sm">
+                  <Card key={event.id} className="border-[var(--hairline)] bg-white shadow-e2">
                     <CardContent className="grid gap-4 p-5 lg:grid-cols-[1fr_0.8fr]">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -339,7 +339,7 @@ export default function EvidencePage() {
               })}
             </section>
 
-            <section className={`border px-5 py-5 shadow-sm ${loopComplete ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <section className={`border px-5 py-5 shadow-e1 ${loopComplete ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex items-center gap-2">

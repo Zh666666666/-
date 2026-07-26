@@ -82,7 +82,7 @@ export function MetricEducationDialog({ metric, children }: { metric: MetricEduc
         </DialogHeader>
 
         <div className="grid gap-4">
-          <section className="rounded-3xl border border-sky-100 bg-sky-50 p-4">
+          <section className="rounded-xl border border-sky-100 bg-sky-50 p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-sky-800">
               <BadgeInfo className="size-5" />
               科普解释
@@ -90,7 +90,7 @@ export function MetricEducationDialog({ metric, children }: { metric: MetricEduc
             <p className="mt-3 text-base leading-8 text-slate-700">{item.explanation}</p>
           </section>
 
-          <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+          <section className="rounded-xl border border-[rgba(60,101,82,0.16)] bg-emerald-50 p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-emerald-800">
               <HandHeart className="size-5" />
               中医康复建议
@@ -104,7 +104,7 @@ export function MetricEducationDialog({ metric, children }: { metric: MetricEduc
 
           <section className="grid gap-3 md:grid-cols-2">
             {item.prompts.map((prompt, index) => (
-              <div key={prompt} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div key={prompt} className="rounded-xl border border-slate-200 bg-white p-4 shadow-e1">
                 <div className="flex size-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
                   {index === 0 ? <Dumbbell className="size-6" /> : <FlameKindling className="size-6" />}
                 </div>
@@ -113,7 +113,7 @@ export function MetricEducationDialog({ metric, children }: { metric: MetricEduc
             ))}
           </section>
 
-          <div className="rounded-3xl bg-slate-950 p-4 text-sm leading-7 text-slate-100">
+          <div className="rounded-xl bg-slate-950 p-4 text-sm leading-7 text-slate-100">
             <Activity className="mb-2 size-5 text-sky-300" />
             数据仅作康复监测和健康宣教参考，具体训练强度以医嘱、疼痛、肿胀和切口恢复情况为准。
           </div>
