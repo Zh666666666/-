@@ -91,10 +91,10 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-32 pt-5 text-slate-950 md:px-10 md:pb-10">
       <section className="mx-auto max-w-5xl space-y-5">
-        <header className="flex flex-col gap-4 border-b border-slate-200 bg-white/90 p-5 md:flex-row md:items-center md:justify-between">
+        <header className="flex flex-col gap-4 rounded-xl border border-[var(--hairline)] bg-white p-5 shadow-e2 md:flex-row md:items-center md:justify-between md:p-6">
           <div>
             <Badge variant="success" className="gap-2"><UserRound className="size-4" />{role === "family" ? "家属账号" : "护士账号"}</Badge>
-            <h1 className="mt-3 text-3xl font-semibold">{title}</h1>
+            <h1 className="display-md mt-3 text-2xl md:text-3xl">{title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {role === "family" ? "维护你的联系方式、与患者关系和通知偏好。" : "维护你的联系方式和工作信息；患者医疗资料在患者档案中管理。"}
             </p>
@@ -105,7 +105,7 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
           </div>
         </header>
 
-        {message ? <p className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><CheckCircle2 className="size-4" />{message}</p> : null}
+        {message ? <p className="flex items-center gap-2 rounded-lg border border-[rgba(47,125,92,0.20)] bg-[var(--success-soft)] px-3.5 py-2.5 text-[0.8125rem] font-medium leading-5 text-emerald-800"><CheckCircle2 className="size-4 shrink-0" />{message}</p> : null}
 
         <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <Card className="bg-white/95">

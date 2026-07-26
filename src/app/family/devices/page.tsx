@@ -278,7 +278,7 @@ export default function FamilyDevicesPage() {
         {message ? <StatusNotice tone="success">{message}</StatusNotice> : null}
 
         <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
-          <Card className="bg-white/90 shadow-sm">
+          <Card className="bg-white/90 shadow-e1">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-2xl">
                 <Smartphone className="size-7 text-emerald-700" />
@@ -286,7 +286,7 @@ export default function FamilyDevicesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-500">当前患者</p>
                 <p className="mt-1 text-2xl font-semibold">{patientName}</p>
                 <div className="mt-3 rounded-2xl border border-dashed border-emerald-300 bg-white p-3">
@@ -347,7 +347,7 @@ export default function FamilyDevicesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-emerald-100 bg-emerald-950 text-white shadow-xl shadow-emerald-950/15">
+          <Card className="border-white/10 bg-ink-900 text-white shadow-e3">
             <CardHeader>
               <CardTitle className="text-2xl">真实采集准备度</CardTitle>
             </CardHeader>
@@ -358,7 +358,7 @@ export default function FamilyDevicesPage() {
                   const device = binding?.device;
 
                   return (
-                    <div key={placement} className="rounded-3xl border border-white/10 bg-white/10 p-4">
+                    <div key={placement} className="rounded-xl border border-white/10 bg-white/10 p-4">
                       <p className="text-sm text-emerald-100">{placementLabels[placement]}</p>
                       <p className="mt-2 min-h-14 text-lg font-semibold leading-7">{device?.serialNo ?? "未绑定"}</p>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs text-emerald-50">
@@ -376,13 +376,13 @@ export default function FamilyDevicesPage() {
                 })}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
+              <div className="rounded-xl border border-white/10 bg-white/10 p-5">
                 <p className="text-sm text-emerald-100">最近基础校准</p>
                 <p className="mt-2 text-xl font-semibold">{latestCalibration?.quality === "GOOD" ? "已完成" : "未完成"}</p>
                 <p className="mt-1 text-sm text-emerald-50">{formatTime(latestCalibration?.createdAt)}</p>
               </div>
 
-              <div className="space-y-3 rounded-3xl border border-white/10 bg-white/10 p-5">
+              <div className="space-y-3 rounded-xl border border-white/10 bg-white/10 p-5">
                 <div>
                   <p className="font-medium">开始前依次确认</p>
                   <p className="mt-1 text-sm leading-6 text-emerald-100">重新佩戴、交换位置或明显移动绑带后，都需要重新确认。</p>

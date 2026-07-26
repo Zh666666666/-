@@ -203,7 +203,7 @@ function AxisGrid({
   unit: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#e5dbc9] bg-[#fdfbf7] p-3">
+    <div className="rounded-2xl border border-[var(--hairline)] bg-[#fdfbf7] p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-[#576860]">
         {title}
         <span className="ml-1 font-medium normal-case text-slate-400">({unit})</span>
@@ -214,7 +214,7 @@ function AxisGrid({
           ["Y", y],
           ["Z", z],
         ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-xl bg-white px-2 py-2 shadow-sm">
+          <div key={String(label)} className="rounded-xl bg-white px-2 py-2 shadow-e1">
             <p className="text-[11px] font-semibold text-slate-400">{label}</p>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-[#12211c]">
               {formatNumber(value as number | null)}
@@ -236,7 +236,7 @@ function SensorCard({
   const online = Boolean(sample);
 
   return (
-    <Card className="border-[#e5dbc9] bg-white shadow-sm">
+    <Card className="border-[var(--hairline)] bg-white shadow-e2">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
@@ -589,7 +589,7 @@ export default function SensorLivePage() {
         {message ? <StatusNotice tone="success">{message}</StatusNotice> : null}
 
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]" aria-label="家属易懂实时状态">
-          <Card className={`border-2 shadow-sm ${urgentWarning ? "border-red-200 bg-red-50" : clinicalReady ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+          <Card className={`border-2 shadow-e1 ${urgentWarning ? "border-red-200 bg-red-50" : clinicalReady ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <CardContent className="p-5 md:p-6">
               <div className="flex items-start gap-3">
                 {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : hasUsableReading ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
@@ -602,7 +602,7 @@ export default function SensorLivePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardContent className="p-5 md:p-6">
               <p className="text-sm font-medium text-slate-500">现在该怎么做</p>
               <p className="mt-2 text-lg font-semibold leading-8 text-[#12211c]">{nextAction}</p>
@@ -623,7 +623,7 @@ export default function SensorLivePage() {
             { label: showProfessional ? "完成完整屈伸" : "已完成动作", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后回到起始位置才计一次" },
             { label: showProfessional ? "实际训练时间" : "已经活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "静止和断开期间不会计入" },
           ].map((item) => (
-            <Card key={item.label} className="border-[#e5dbc9] bg-white shadow-sm">
+            <Card key={item.label} className="border-[var(--hairline)] bg-white shadow-e2">
               <CardContent className="p-5">
                 <p className="text-sm font-semibold text-slate-500">{item.label}</p>
                 <p className="mt-2 text-3xl font-semibold tabular-nums text-[#12211c]">
@@ -637,7 +637,7 @@ export default function SensorLivePage() {
         </section>
 
         {!showProfessional ? (
-          <button type="button" onClick={() => setShowProfessional(true)} className="flex w-full items-center justify-between rounded-lg border border-[#e5dbc9] bg-white px-5 py-4 text-left shadow-sm hover:bg-slate-50">
+          <button type="button" onClick={() => setShowProfessional(true)} className="flex w-full items-center justify-between rounded-lg border border-[var(--hairline)] bg-white px-5 py-4 text-left shadow-e1 hover:bg-slate-50">
             <span>
               <b className="block text-[#12211c]">查看专业详情</b>
               <span className="mt-1 block text-sm text-slate-500">包含数据一致性、3D 姿态、原始传感器数值、质量门和公式</span>
@@ -647,7 +647,7 @@ export default function SensorLivePage() {
         ) : null}
 
         {showProfessional ? <>
-        <section className="border border-[#e5dbc9] bg-white px-4 py-2 shadow-sm md:px-6" aria-labelledby="provenance-title">
+        <section className="border border-[var(--hairline)] bg-white px-4 py-2 shadow-e1 md:px-6" aria-labelledby="provenance-title">
           <div className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
@@ -670,14 +670,14 @@ export default function SensorLivePage() {
         <SensorAttitudeScene thigh={thighSample} shank={shankSample} />
 
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[var(--hairline)] bg-white shadow-e2">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">传感器模式</p>
               <p className="text-2xl font-semibold text-[#12211c]">{modeLabel(live?.mode, dualActive)}</p>
               <p className="text-xs text-slate-500">{dualActive ? "大腿+小腿均有帧" : "当前按单传感器处理"}</p>
             </CardContent>
           </Card>
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">最新膝角</p>
               <p className="text-2xl font-semibold text-[#12211c]">{formatNumber(latest?.flexionAngle)}°</p>
@@ -687,14 +687,14 @@ export default function SensorLivePage() {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">缓存样本</p>
               <p className="text-2xl font-semibold text-[#12211c]">{live?.sampleCount ?? 0}</p>
               <p className="text-xs text-slate-500">来源 {sourceLabels[latest?.source ?? ""] ?? "等待上传"}</p>
             </CardContent>
           </Card>
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">10 秒聚合点</p>
               <p className="text-2xl font-semibold text-[#12211c]">{live?.clinicalRecords.length ?? 0}</p>
@@ -737,7 +737,7 @@ export default function SensorLivePage() {
               { label: "有效活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "排除静止与长断帧", icon: Timer },
               { label: "数据质量", value: metrics?.dataQuality.score, suffix: " 分", note: `${metrics?.dataQuality.synchronizedPairs ?? 0} 对同步帧`, icon: ShieldCheck },
             ].map((item) => (
-              <Card key={item.label} className="border-[#e5dbc9] bg-white shadow-sm">
+              <Card key={item.label} className="border-[var(--hairline)] bg-white shadow-e2">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 text-slate-500">
                     <p className="text-sm font-semibold">{item.label}</p>
@@ -753,7 +753,7 @@ export default function SensorLivePage() {
             ))}
           </div>
 
-          <Card className="border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <ShieldCheck className="size-5 text-emerald-700" />
@@ -785,7 +785,7 @@ export default function SensorLivePage() {
           </Card>
 
           <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-            <Card className="border-[#e5dbc9] bg-white shadow-sm">
+            <Card className="border-[var(--hairline)] bg-white shadow-e2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                   <ShieldAlert className="size-5 text-amber-700" />
@@ -830,7 +830,7 @@ export default function SensorLivePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-[#e5dbc9] bg-white shadow-sm">
+            <Card className="border-[var(--hairline)] bg-white shadow-e2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                   <AlertTriangle className="size-5 text-red-600" />
@@ -865,7 +865,7 @@ export default function SensorLivePage() {
             </Card>
           </div>
 
-          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Calculator className="size-5 text-emerald-700" />
@@ -896,7 +896,7 @@ export default function SensorLivePage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Gauge className="size-5 text-emerald-700" />
@@ -925,7 +925,7 @@ export default function SensorLivePage() {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[var(--hairline)] bg-white shadow-e2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Activity className="size-5 text-emerald-700" />
@@ -953,7 +953,7 @@ export default function SensorLivePage() {
           </Card>
         </div>
 
-        <Card className="border-[#e5dbc9] bg-white shadow-sm">
+        <Card className="border-[var(--hairline)] bg-white shadow-e2">
           <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
@@ -973,9 +973,9 @@ export default function SensorLivePage() {
               ，优先使用 HARDWARE 临床记录；无密钥时回退本地规则。分析结果会标明数据来源与可信边界。
             </p>
             {analysis ? (
-              <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+              <div className="space-y-3 rounded-2xl border border-[rgba(60,101,82,0.16)] bg-emerald-50/60 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-[#12211c] text-white">{analysis.provider}</Badge>
+                  <Badge>{analysis.provider}</Badge>
                   <span className="text-sm text-slate-500">{formatClock(analysis.createdAt)}</span>
                   <span className="text-sm font-semibold text-slate-700">
                     屈曲 {analysis.flexionAngle.toFixed(0)}° · 疼痛 {analysis.painScore}/10
@@ -996,7 +996,7 @@ export default function SensorLivePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#e5dbc9] bg-white shadow-sm">
+        <Card className="border-[var(--hairline)] bg-white shadow-e2">
           <CardHeader>
             <CardTitle className="text-xl text-[#12211c]">最近原始帧</CardTitle>
           </CardHeader>

@@ -52,7 +52,7 @@ export function TrainingHistory({ role }: { role: "family" | "nurse" }) {
         <header className="flex flex-col gap-4 border-b border-slate-200 bg-white p-5 md:flex-row md:items-center md:justify-between">
           <div>
             <Button asChild variant="ghost" size="sm"><Link href={role === "family" ? "/family" : "/nurse"}><ArrowLeft className="size-4" />返回工作台</Link></Button>
-            <h1 className="mt-3 text-3xl font-semibold">近 15 天训练记录</h1>
+            <h1 className="display-md mt-3 text-2xl md:text-[1.75rem]">近 15 天训练记录</h1>
             <p className="mt-2 text-sm text-slate-600">摘要和异常证据保存 15 天；逐帧原始数据保存 72 小时后自动清理。</p>
           </div>
           <div className="inline-flex border border-slate-200 bg-white p-1">
@@ -72,7 +72,7 @@ export function TrainingHistory({ role }: { role: "family" | "nurse" }) {
             const metrics = session.summary?.metrics;
             const duration = session.endedAt ? Math.max(0, Math.round((new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()) / 1000)) : null;
             return (
-              <article key={session.id} className="border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={session.id} className="border border-slate-200 bg-white p-5 shadow-e1">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <div className={`inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold ${presentation.className}`}><Icon className="size-4" />{presentation.text}</div>
