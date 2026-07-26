@@ -3,34 +3,123 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ==========================================================================
+   TKA Care OS — 设计系统
+   墨绿(ink) · 米砂(sand) · 黄铜(brass) · 苔绿(sage)
+   ========================================================================== */
+
 :root {
-  --background: #f5f8fb;
-  --foreground: #142536;
-  --card: #ffffff;
-  --card-foreground: #142536;
-  --popover: #ffffff;
-  --popover-foreground: #142536;
-  --primary: #12304a;
+  /* ---- 品牌基色 ---------------------------------------------------- */
+  --ink-950: #0b1512;
+  --ink-900: #12211c;
+  --ink-800: #1b3129;
+  --ink-700: #264a3d;
+  --ink-600: #336354;
+
+  --sage-700: #3c6552;
+  --sage-600: #497a62;
+  --sage-500: #5b8b72;
+  --sage-400: #7ba892;
+  --sage-300: #a8c6b4;
+  --sage-100: #e2ede6;
+  --sage-50: #f0f6f2;
+
+  --brass-800: #6f4c1c;
+  --brass-700: #8f6427;
+  --brass-600: #a97c37;
+  --brass-500: #c3954c;
+  --brass-400: #ddb474;
+  --brass-300: #edd3a3;
+  --brass-200: #f7e8ca;
+  --brass-100: #fcf4e4;
+
+  --sand-50: #fdfbf7;
+  --sand-100: #f9f5ed;
+  --sand-200: #f2ebdf;
+  --sand-300: #e5dbc9;
+  --sand-400: #d3c5ac;
+  --sand-500: #b6a488;
+
+  /* ---- 语义色 ------------------------------------------------------ */
+  --canvas: #f7f4ec;
+  --surface: #ffffff;
+  --surface-2: #fdfbf7;
+  --surface-sunken: #f4f0e6;
+  --surface-inverse: var(--ink-900);
+
+  --background: var(--canvas);
+  --foreground: #14231e;
+  --card: var(--surface);
+  --card-foreground: #14231e;
+  --popover: var(--surface);
+  --popover-foreground: #14231e;
+
+  --primary: var(--ink-900);
   --primary-foreground: #ffffff;
-  --secondary: #e8f2f3;
-  --secondary-foreground: #0b5d6b;
-  --muted: #edf2f5;
-  --muted-foreground: #66798a;
-  --accent: #d8eff1;
-  --accent-foreground: #075b69;
-  --destructive: #dc2626;
+  --secondary: var(--sage-100);
+  --secondary-foreground: var(--sage-700);
+  --muted: var(--sand-100);
+  /* 次级/三级文字都压到 WCAG AA 以上：这套产品的使用者包含年长家属 */
+  --muted-foreground: #576860;
+  --subtle-foreground: #61716a;
+  --accent: var(--brass-200);
+  --accent-foreground: var(--brass-800);
+
+  --success: #2f7d5c;
+  --success-soft: #e6f2ea;
+  --warning: #a97c37;
+  --warning-soft: #fbf1dd;
+  --destructive: #b04338;
+  --destructive-soft: #fbeceb;
   --destructive-foreground: #ffffff;
-  --border: #d9e2e9;
-  --input: #c9d6e0;
-  --ring: #0b7f8f;
-  --chart-1: #087e8b;
-  --chart-2: #206b9c;
-  --chart-3: #d18b28;
-  --chart-4: #dc2626;
-  --chart-5: #5f6b7a;
-  --radius: 0.5rem;
-  --font-sans: "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  --font-display: "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --info: #2f6076;
+  --info-soft: #e6eff3;
+
+  /* 发丝级描边：比纯色边框更克制 */
+  --hairline: rgba(20, 35, 30, 0.09);
+  --hairline-strong: rgba(20, 35, 30, 0.16);
+  --hairline-inverse: rgba(255, 255, 255, 0.12);
+  --border: var(--sand-300);
+  --input: var(--sand-300);
+  --ring: var(--ink-700);
+
+  /* ---- 图表 -------------------------------------------------------- */
+  --chart-1: #34705c;
+  --chart-2: #a97c37;
+  --chart-3: #2f6076;
+  --chart-4: #b04338;
+  --chart-5: #7e8b83;
+
+  /* ---- 圆角 -------------------------------------------------------- */
+  --radius: 0.75rem;
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* ---- 阴影：多层薄阴影，而非单层大模糊 ---------------------------- */
+  --elev-1: 0 1px 2px rgba(20, 35, 30, 0.05), 0 1px 1px rgba(20, 35, 30, 0.03);
+  --elev-2: 0 1px 2px rgba(20, 35, 30, 0.05), 0 4px 10px -3px rgba(20, 35, 30, 0.07);
+  --elev-3: 0 2px 4px rgba(20, 35, 30, 0.04), 0 12px 24px -10px rgba(20, 35, 30, 0.14);
+  --elev-4: 0 4px 8px -2px rgba(20, 35, 30, 0.05), 0 24px 48px -18px rgba(20, 35, 30, 0.22);
+  --elev-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --elev-inverse: 0 24px 60px -22px rgba(11, 21, 18, 0.55);
+
+  /* ---- 动效 -------------------------------------------------------- */
+  --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-snap: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ---- 字体 -------------------------------------------------------- */
+  --font-latin: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-cjk: "PingFang SC", "HarmonyOS Sans SC", "Source Han Sans SC", "Noto Sans SC",
+    "Microsoft YaHei", "微软雅黑", sans-serif;
+  --font-sans: var(--font-latin), var(--font-cjk);
+  --font-display: var(--font-latin), var(--font-cjk);
+  --font-mono: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
 }
 
 @theme inline {
@@ -46,6 +135,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -53,61 +143,350 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-sunken: var(--surface-sunken);
+
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-ink-800: var(--ink-800);
+  --color-ink-700: var(--ink-700);
+  --color-ink-600: var(--ink-600);
+
+  --color-sage-700: var(--sage-700);
+  --color-sage-600: var(--sage-600);
+  --color-sage-500: var(--sage-500);
+  --color-sage-400: var(--sage-400);
+  --color-sage-300: var(--sage-300);
+  --color-sage-100: var(--sage-100);
+  --color-sage-50: var(--sage-50);
+
+  --color-brass-800: var(--brass-800);
+  --color-brass-700: var(--brass-700);
+  --color-brass-600: var(--brass-600);
+  --color-brass-500: var(--brass-500);
+  --color-brass-400: var(--brass-400);
+  --color-brass-300: var(--brass-300);
+  --color-brass-200: var(--brass-200);
+  --color-brass-100: var(--brass-100);
+
+  --color-sand-50: var(--sand-50);
+  --color-sand-100: var(--sand-100);
+  --color-sand-200: var(--sand-200);
+  --color-sand-300: var(--sand-300);
+  --color-sand-400: var(--sand-400);
+  --color-sand-500: var(--sand-500);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--destructive);
+  --color-danger-soft: var(--destructive-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+
+  --shadow-e1: var(--elev-1);
+  --shadow-e2: var(--elev-2);
+  --shadow-e3: var(--elev-3);
+  --shadow-e4: var(--elev-4);
+  --shadow-inverse: var(--elev-inverse);
+
+  --ease-fluid: var(--ease-fluid);
+  --ease-snap: var(--ease-snap);
+
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
-* {
-  border-color: var(--border);
+/* ==========================================================================
+   调色板重映射
+   页面中大量使用 Tailwind 默认色阶（slate/emerald/amber/red/sky）。
+   在这里把它们整体拉进品牌色系，语义不变、观感统一。
+   ========================================================================== */
+
+@theme {
+  /* 中性：冷灰 → 暖砂 */
+  --color-slate-50: #faf7f1;
+  --color-slate-100: #f2ebdf;
+  --color-slate-200: #e5dbc9;
+  --color-slate-300: #d3c5ac;
+  --color-slate-400: #6e7d75;
+  --color-slate-500: #576860;
+  --color-slate-600: #4b5951;
+  --color-slate-700: #4d5c53;
+  --color-slate-800: #33443b;
+  --color-slate-900: #1b3129;
+  --color-slate-950: #12211c;
+
+  /* 成功：翠绿 → 苔绿 */
+  --color-emerald-50: #f0f6f2;
+  --color-emerald-100: #e2ede6;
+  --color-emerald-200: #cfe0d6;
+  --color-emerald-300: #a8c6b4;
+  --color-emerald-400: #7ba892;
+  --color-emerald-500: #5b8b72;
+  --color-emerald-600: #497a62;
+  --color-emerald-700: #3c6552;
+  --color-emerald-800: #2f5241;
+  --color-emerald-900: #244034;
+  --color-emerald-950: #12211c;
+
+  /* 提示：明黄 → 黄铜 */
+  --color-amber-50: #fcf4e4;
+  --color-amber-100: #fbf1dd;
+  --color-amber-200: #f4e2bd;
+  --color-amber-300: #edd3a3;
+  --color-amber-400: #ddb474;
+  --color-amber-500: #c3954c;
+  --color-amber-600: #a97c37;
+  --color-amber-700: #8f6427;
+  --color-amber-800: #7d571f;
+  --color-amber-900: #6f4c1c;
+  --color-amber-950: #4a3213;
+
+  /* 危险：正红 → 陶土红 */
+  --color-red-50: #fbeceb;
+  --color-red-100: #f6dbd9;
+  --color-red-200: #f0cfcc;
+  --color-red-300: #e0aaa4;
+  --color-red-500: #b04338;
+  --color-red-600: #a33e34;
+  --color-red-700: #8f3830;
+  --color-red-800: #7c322b;
+  --color-red-900: #5c231e;
+  --color-red-950: #4a1d19;
+
+  --color-rose-50: #fbeceb;
+  --color-rose-100: #f4d9d6;
+  --color-rose-200: #f0cfcc;
+  --color-rose-700: #8f3830;
+  --color-rose-900: #5c231e;
+  --color-rose-950: #4a1d19;
+
+  /* 信息：亮蓝 → 灰蓝 */
+  --color-sky-50: #eef2f5;
+  --color-sky-100: #e0e9ee;
+  --color-sky-200: #c9d8e0;
+  --color-sky-300: #9fb8c6;
+  --color-sky-500: #467a94;
+  --color-sky-600: #3a6a82;
+  --color-sky-700: #2f6076;
+  --color-sky-800: #285064;
+  --color-sky-900: #21414f;
+  --color-sky-950: #162c36;
 }
 
-html {
-  scroll-behavior: smooth;
+/* ==========================================================================
+   基础层
+   ========================================================================== */
+
+/* 这些必须放进 base 层：未分层的规则会盖过 Tailwind 工具类，
+   否则 border-red-200 之类的语义描边永远显示不出来。 */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: var(--canvas);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--brass-300);
+    color: var(--ink-900);
+  }
+
+  /* 统一的键盘焦点表现 */
+  :focus-visible {
+    outline: 2px solid var(--ink-700);
+    outline-offset: 2px;
+  }
 }
 
-body {
-  min-height: 100vh;
-  overflow-x: hidden;
-  background: #f5f8fb;
-  color: var(--foreground);
-  font-family: var(--font-sans);
-}
+/* ==========================================================================
+   排版
+   ========================================================================== */
 
 .font-display {
   font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+/* 大标题：紧字距 + 紧行高，是「高级感」最直接的来源 */
+.display-xl {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.display-lg {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.display-md {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.18;
+}
+
+/* 小标签：拉开字距、全大写，用于 kicker */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* 数据读数：等宽数字，避免跳动 */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ==========================================================================
+   材质与容器
+   ========================================================================== */
+
+/* 发丝描边卡片 */
+.surface-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elev-2);
+}
+
+.surface-quiet {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+}
+
+/* 深色面板：品牌主视觉的材质 */
+.panel-ink {
+  position: relative;
+  isolation: isolate;
+  /* 渐变之外再给一层实色兜底，避免渐变失效时露出画布色 */
+  background-color: var(--ink-950);
+  background-image:
+    radial-gradient(120% 90% at 12% 0%, rgba(73, 122, 98, 0.35), transparent 60%),
+    radial-gradient(90% 70% at 100% 8%, rgba(195, 149, 76, 0.22), transparent 62%),
+    linear-gradient(168deg, var(--ink-800) 0%, var(--ink-950) 72%);
+  color: #f4f1e8;
+}
+
+/* 胶片颗粒：平涂深色面板最缺的就是这层微噪点 */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+/* 顶部高光：让深色面板有实体厚度 */
+.rim-light {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--elev-inverse);
+}
+
+.hairline-t {
+  border-top: 1px solid var(--hairline);
+}
+
+.hairline-b {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.hairline-inverse {
+  border-color: var(--hairline-inverse);
+}
+
+/* 环境光：页面级柔光背景 */
+.ambient {
+  position: relative;
+}
+
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46rem 30rem at 8% -6%, rgba(91, 139, 114, 0.16), transparent 70%),
+    radial-gradient(38rem 26rem at 96% 2%, rgba(221, 180, 116, 0.18), transparent 70%);
 }
 
 .rehab-grid {
-  background-color: #f5f8fb;
-  background-image: linear-gradient(rgba(20, 61, 88, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 61, 88, 0.035) 1px, transparent 1px);
-  background-size: 28px 28px;
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(rgba(20, 35, 30, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 35, 30, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
+/* ==========================================================================
+   动效
+   ========================================================================== */
+
 @keyframes pulse-sync {
-  0%, 100% {
-    opacity: 0.55;
+  0%,
+  100% {
+    opacity: 0.5;
     transform: scale(1);
   }
   50% {
     opacity: 1;
-    transform: scale(1.08);
+    transform: scale(1.1);
   }
 }
 
 .sync-dot {
-  animation: pulse-sync 1.8s ease-in-out infinite;
+  animation: pulse-sync 1.8s var(--ease-inout) infinite;
 }
 
-@keyframes family-view-enter {
+@keyframes rise-in {
   from {
     opacity: 0;
     transform: translateY(14px);
@@ -119,7 +498,29 @@ body {
 }
 
 .family-view-enter {
-  animation: family-view-enter 0.48s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: rise-in 0.5s var(--ease-fluid) both;
+}
+
+/* 逐项入场：给子元素设置 --i 即可 */
+.rise {
+  animation: rise-in 0.62s var(--ease-fluid) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes veil-up {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.veil {
+  animation: veil-up 0.75s var(--ease-fluid) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
 }
 
 @keyframes hello-reveal {
@@ -137,10 +538,80 @@ body {
 
 .hello-mark {
   display: inline-block;
-  color: #12304a;
-  font-family: var(--font-sans);
+  color: var(--ink-900);
+  font-family: var(--font-display);
   font-style: normal;
-  letter-spacing: 0;
+  letter-spacing: -0.05em;
   line-height: 1;
-  animation: hello-reveal 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: hello-reveal 1.15s var(--ease-fluid) both;
+}
+
+/* 关节活动度扫描线 */
+@keyframes arc-sweep {
+  0% {
+    transform: rotate(-4deg);
+    opacity: 0.35;
+  }
+  50% {
+    transform: rotate(128deg);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-4deg);
+    opacity: 0.35;
+  }
+}
+
+.arc-sweep {
+  transform-origin: var(--sweep-origin, 50% 50%);
+  animation: arc-sweep 7s var(--ease-inout) infinite;
+}
+
+@keyframes arc-trace {
+  from {
+    stroke-dashoffset: var(--trace-length, 600);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.arc-trace {
+  stroke-dasharray: var(--trace-length, 600);
+  animation: arc-trace 2.2s var(--ease-fluid) both;
+  animation-delay: 0.3s;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+
+.drift {
+  animation: drift 9s var(--ease-inout) infinite;
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

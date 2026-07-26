@@ -144,21 +144,21 @@ function ProvenanceRow({
       <div className="flex items-center gap-2">
         {trusted ? <CheckCircle2 className="size-5 text-emerald-700" /> : <AlertTriangle className="size-5 text-amber-700" />}
         <div>
-          <p className="font-bold text-[#12304a]">{placementLabels[placement]}</p>
+          <p className="font-medium text-[#12211c]">{placementLabels[placement]}</p>
           <p className="text-xs text-slate-500">样本 #{sample?.captureSequence ?? "--"}</p>
         </div>
       </div>
       <div>
         <p className="text-xs font-semibold text-slate-500">App / 网页共同样本 ID</p>
-        <p className="mt-1 font-mono text-sm font-bold text-slate-800">…{shortId}</p>
+        <p className="mt-1 font-mono text-sm font-medium text-slate-800">…{shortId}</p>
       </div>
       <div>
         <p className="text-xs font-semibold text-slate-500">手机采集 → 服务器</p>
-        <p className="mt-1 font-mono font-bold text-slate-800">{formatLatency(sample?.ingestLatencyMs)}</p>
+        <p className="mt-1 font-mono font-medium text-slate-800">{formatLatency(sample?.ingestLatencyMs)}</p>
       </div>
       <div>
         <p className="text-xs font-semibold text-slate-500">采集 → 当前网页</p>
-        <p className={`mt-1 font-mono font-bold ${trusted ? "text-emerald-700" : "text-amber-800"}`}>
+        <p className={`mt-1 font-mono font-medium ${trusted ? "text-emerald-700" : "text-amber-800"}`}>
           {formatLatency(endToEnd)}
         </p>
       </div>
@@ -203,8 +203,8 @@ function AxisGrid({
   unit: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#d9e2e9] bg-[#f7fafb] p-3">
-      <p className="text-xs font-bold uppercase tracking-wide text-[#647889]">
+    <div className="rounded-2xl border border-[#e5dbc9] bg-[#fdfbf7] p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-[#576860]">
         {title}
         <span className="ml-1 font-medium normal-case text-slate-400">({unit})</span>
       </p>
@@ -216,7 +216,7 @@ function AxisGrid({
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-xl bg-white px-2 py-2 shadow-sm">
             <p className="text-[11px] font-semibold text-slate-400">{label}</p>
-            <p className="mt-1 font-mono text-lg font-black tabular-nums text-[#12304a]">
+            <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-[#12211c]">
               {formatNumber(value as number | null)}
             </p>
           </div>
@@ -236,10 +236,10 @@ function SensorCard({
   const online = Boolean(sample);
 
   return (
-    <Card className="border-[#d9e2e9] bg-white shadow-sm">
+    <Card className="border-[#e5dbc9] bg-white shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+          <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
             <Radio className="size-5 text-emerald-700" />
             {placementLabels[placement]}传感器
           </CardTitle>
@@ -521,42 +521,40 @@ export default function SensorLivePage() {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-7xl space-y-5">
-        <header className="relative overflow-hidden rounded-2xl border border-[#244d68] bg-[#0d2a40] p-5 text-white shadow-[0_24px_70px_rgba(13,42,64,0.22)] md:p-7">
-          <div className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full bg-[#2a78d6]/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 size-72 rounded-full bg-[#1baf7a]/20 blur-3xl" />
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <header className="panel-ink grain rim-light relative overflow-hidden rounded-2xl border border-white/8 p-5 text-white md:p-7">
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <Badge className="gap-2 border border-white/15 bg-white/10 px-3 py-1 text-sm text-white">
                 <Activity className="size-4" />
                 家人康复 · 实时动作
               </Badge>
-              <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white md:text-5xl">
+              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
                 现在练得怎么样，一眼看明白。
               </h1>
-              <p className="mt-3 max-w-3xl text-base leading-7 text-[#cfe0e9]">
+              <p className="mt-3 max-w-3xl text-base leading-7 text-[#e5dbc9]">
                 这里先告诉您设备是否正常、动作完成情况和下一步怎么做。系统拿不准时会明确说“暂时无法判断”，不会把不完整数据当成结论。
               </p>
-              <p className="mt-3 text-sm text-[#9fc0d2]">
+              <p className="mt-3 text-sm text-[#a8c6b4]">
                 患者 {patientName}
                  · 最近更新 {formatClock(lastRefresh)}
               </p>
             </div>
             <div className="grid min-w-full gap-3 rounded-xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur lg:min-w-[360px]">
               {viewerRole === "nurse" ? (
-                <label className="grid gap-2 text-sm font-bold text-[#cfe0e9]">
+                <label className="grid gap-2 text-sm font-medium text-[#e5dbc9]">
                   <span className="flex items-center gap-2"><UsersRound className="size-4" />当前监测患者</span>
                   <select
                     value={patientId ?? ""}
                     onChange={(event) => selectPatient(event.target.value)}
-                    className="h-11 rounded-lg border border-white/15 bg-[#173b54] px-3 text-sm font-semibold text-white outline-none"
+                    className="h-11 rounded-lg border border-white/15 bg-[#1b3129] px-3 text-sm font-semibold text-white outline-none"
                   >
                     {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.id}</option>)}
                   </select>
                 </label>
               ) : (
                 <div className="rounded-lg border border-white/10 bg-white/10 px-3 py-3">
-                  <p className="text-xs text-[#9fc0d2]">当前家人</p>
-                  <p className="mt-1 font-bold text-white">{patientName}</p>
+                  <p className="text-xs text-[#a8c6b4]">当前家人</p>
+                  <p className="mt-1 font-medium text-white">{patientName}</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -578,7 +576,7 @@ export default function SensorLivePage() {
                   {showProfessional ? "返回易懂视图" : "专业详情"}
                 </Button>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-xs text-[#cfe0e9]">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs text-[#e5dbc9]">
                 <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{realtimeQualified ? "正常" : "检查中"}</b>数据上传</span>
                 <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{dualActive ? "2 只" : latest ? "1 只" : "0 只"}</b>设备数据</span>
                 <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{clinicalReady ? "可用" : "等待"}</b>训练评估</span>
@@ -596,18 +594,18 @@ export default function SensorLivePage() {
               <div className="flex items-start gap-3">
                 {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : hasUsableReading ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
                 <div>
-                  <p className="text-sm font-bold text-slate-500">现在是否需要注意</p>
-                  <h2 className="mt-1 text-2xl font-black text-[#12304a]">{familySafetyTitle}</h2>
+                  <p className="text-sm font-medium text-slate-500">现在是否需要注意</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-[#12211c]">{familySafetyTitle}</h2>
                   <p className="mt-3 text-sm leading-7 text-slate-700">{familySafetyDetail}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="border-[#e5dbc9] bg-white shadow-sm">
             <CardContent className="p-5 md:p-6">
-              <p className="text-sm font-bold text-slate-500">现在该怎么做</p>
-              <p className="mt-2 text-lg font-black leading-8 text-[#12304a]">{nextAction}</p>
+              <p className="text-sm font-medium text-slate-500">现在该怎么做</p>
+              <p className="mt-2 text-lg font-semibold leading-8 text-[#12211c]">{nextAction}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge variant={realtimeQualified ? "success" : "warning"}>{realtimeQualified ? "两只设备上传正常" : dualActive ? "两只设备有数据，正在追赶实时" : "等待两只设备实时数据"}</Badge>
                 <Badge variant={hasUsableReading ? "success" : "outline"}>{hasUsableReading ? clinicalReady ? "本次结果可信" : "已有结果，可信度较低" : "数据不足，暂不判断"}</Badge>
@@ -625,10 +623,10 @@ export default function SensorLivePage() {
             { label: showProfessional ? "完成完整屈伸" : "已完成动作", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后回到起始位置才计一次" },
             { label: showProfessional ? "实际训练时间" : "已经活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "静止和断开期间不会计入" },
           ].map((item) => (
-            <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
+            <Card key={item.label} className="border-[#e5dbc9] bg-white shadow-sm">
               <CardContent className="p-5">
                 <p className="text-sm font-semibold text-slate-500">{item.label}</p>
-                <p className="mt-2 text-3xl font-black tabular-nums text-[#12304a]">
+                <p className="mt-2 text-3xl font-semibold tabular-nums text-[#12211c]">
                   {typeof item.value === "number" ? formatNumber(item.value, Number.isInteger(item.value) ? 0 : 1) : "--"}
                   <span className="ml-1 text-sm text-slate-500">{item.suffix}</span>
                 </p>
@@ -639,9 +637,9 @@ export default function SensorLivePage() {
         </section>
 
         {!showProfessional ? (
-          <button type="button" onClick={() => setShowProfessional(true)} className="flex w-full items-center justify-between rounded-lg border border-[#d9e2e9] bg-white px-5 py-4 text-left shadow-sm hover:bg-slate-50">
+          <button type="button" onClick={() => setShowProfessional(true)} className="flex w-full items-center justify-between rounded-lg border border-[#e5dbc9] bg-white px-5 py-4 text-left shadow-sm hover:bg-slate-50">
             <span>
-              <b className="block text-[#12304a]">查看专业详情</b>
+              <b className="block text-[#12211c]">查看专业详情</b>
               <span className="mt-1 block text-sm text-slate-500">包含数据一致性、3D 姿态、原始传感器数值、质量门和公式</span>
             </span>
             <BrainCircuit className="size-5 text-emerald-700" />
@@ -649,14 +647,14 @@ export default function SensorLivePage() {
         ) : null}
 
         {showProfessional ? <>
-        <section className="border border-[#d9e2e9] bg-white px-4 py-2 shadow-sm md:px-6" aria-labelledby="provenance-title">
+        <section className="border border-[#e5dbc9] bg-white px-4 py-2 shadow-sm md:px-6" aria-labelledby="provenance-title">
           <div className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+              <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
                 <Fingerprint className="size-4" />
                 实时链路凭证
               </p>
-              <h2 id="provenance-title" className="mt-1 text-xl font-bold text-[#12304a]">App、服务器与网页是否为同一帧</h2>
+              <h2 id="provenance-title" className="mt-1 text-xl font-medium text-[#12211c]">App、服务器与网页是否为同一帧</h2>
             </div>
             <Badge variant={realtimeQualified ? "success" : "warning"} className="w-fit px-3 py-1 text-sm">
               {realtimeQualified ? "双传感器实时达标" : "等待双传感器 2 秒内回执"}
@@ -672,34 +670,34 @@ export default function SensorLivePage() {
         <SensorAttitudeScene thigh={thighSample} shank={shankSample} />
 
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">传感器模式</p>
-              <p className="text-2xl font-black text-[#12304a]">{modeLabel(live?.mode, dualActive)}</p>
+              <p className="text-2xl font-semibold text-[#12211c]">{modeLabel(live?.mode, dualActive)}</p>
               <p className="text-xs text-slate-500">{dualActive ? "大腿+小腿均有帧" : "当前按单传感器处理"}</p>
             </CardContent>
           </Card>
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="border-[#e5dbc9] bg-white shadow-sm">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">最新膝角</p>
-              <p className="text-2xl font-black text-[#12304a]">{formatNumber(latest?.flexionAngle)}°</p>
+              <p className="text-2xl font-semibold text-[#12211c]">{formatNumber(latest?.flexionAngle)}°</p>
               <p className="text-xs text-slate-500">
                 网关预览置信度 {formatNumber(typeof latest?.confidence === "number" ? latest.confidence * 100 : null, 0)}%
                 {latest?.clinicalEligible ? " · 双路预览" : " · 仅原始"}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="border-[#e5dbc9] bg-white shadow-sm">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">缓存样本</p>
-              <p className="text-2xl font-black text-[#12304a]">{live?.sampleCount ?? 0}</p>
+              <p className="text-2xl font-semibold text-[#12211c]">{live?.sampleCount ?? 0}</p>
               <p className="text-xs text-slate-500">来源 {sourceLabels[latest?.source ?? ""] ?? "等待上传"}</p>
             </CardContent>
           </Card>
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="border-[#e5dbc9] bg-white shadow-sm">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-semibold text-slate-500">10 秒聚合点</p>
-              <p className="text-2xl font-black text-[#12304a]">{live?.clinicalRecords.length ?? 0}</p>
+              <p className="text-2xl font-semibold text-[#12211c]">{live?.clinicalRecords.length ?? 0}</p>
               <p className="text-xs text-slate-500">{clinicalReady ? "当前质量门已通过" : "当前质量门未通过"}</p>
             </CardContent>
           </Card>
@@ -717,8 +715,8 @@ export default function SensorLivePage() {
         <section className="space-y-4" aria-labelledby="rehab-metrics-title">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-sm font-bold text-emerald-700">实时评估引擎</p>
-              <h2 id="rehab-metrics-title" className="mt-1 text-2xl font-bold text-[#12304a]">训练测量、质量门与复核提示</h2>
+              <p className="text-sm font-medium text-emerald-700">实时评估引擎</p>
+              <h2 id="rehab-metrics-title" className="mt-1 text-2xl font-medium text-[#12211c]">训练测量、质量门与复核提示</h2>
             </div>
             {metrics ? (
               <div className="flex items-center gap-2">
@@ -739,15 +737,15 @@ export default function SensorLivePage() {
               { label: "有效活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "排除静止与长断帧", icon: Timer },
               { label: "数据质量", value: metrics?.dataQuality.score, suffix: " 分", note: `${metrics?.dataQuality.synchronizedPairs ?? 0} 对同步帧`, icon: ShieldCheck },
             ].map((item) => (
-              <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
+              <Card key={item.label} className="border-[#e5dbc9] bg-white shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 text-slate-500">
                     <p className="text-sm font-semibold">{item.label}</p>
                     <item.icon className="size-4 text-emerald-700" />
                   </div>
-                  <p className="mt-3 text-2xl font-black tabular-nums text-[#12304a]">
+                  <p className="mt-3 text-2xl font-semibold tabular-nums text-[#12211c]">
                     {typeof item.value === "number" ? formatNumber(item.value, Number.isInteger(item.value) ? 0 : 1) : "--"}
-                    <span className="ml-1 text-sm font-bold text-slate-500">{item.suffix}</span>
+                    <span className="ml-1 text-sm font-medium text-slate-500">{item.suffix}</span>
                   </p>
                   <p className="mt-2 text-xs text-slate-500">{item.note}</p>
                 </CardContent>
@@ -755,9 +753,9 @@ export default function SensorLivePage() {
             ))}
           </div>
 
-          <Card className="border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="border-[#e5dbc9] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <ShieldCheck className="size-5 text-emerald-700" />
                 测量质量诊断
               </CardTitle>
@@ -774,7 +772,7 @@ export default function SensorLivePage() {
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-lg bg-slate-50 px-3 py-3">
                     <p className="text-xs font-semibold text-slate-500">{label}</p>
-                    <p className="mt-1 font-mono text-sm font-black text-[#12304a]">{value}</p>
+                    <p className="mt-1 font-mono text-sm font-semibold text-[#12211c]">{value}</p>
                   </div>
                 ))}
               </div>
@@ -787,39 +785,39 @@ export default function SensorLivePage() {
           </Card>
 
           <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-            <Card className="border-[#d9e2e9] bg-white shadow-sm">
+            <Card className="border-[#e5dbc9] bg-white shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                   <ShieldAlert className="size-5 text-amber-700" />
                   关注优先级计算链路
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="border-l-4 border-[#2b6f88] bg-[#f3f8fa] px-4 py-3">
-                  <p className="text-xs font-bold text-[#2b6f88]">1 · 基础输入</p>
+                <div className="border-l-4 border-[#2f6076] bg-[#fdfbf7] px-4 py-3">
+                  <p className="text-xs font-medium text-[#2f6076]">1 · 基础输入</p>
                   <p className="mt-1 text-sm leading-6 text-slate-700">
                     同步帧 {metrics?.dataQuality.synchronizedPairs ?? 0} 对；P95 屈曲 {formatNumber(metrics?.rom.peakFlexion)}°；P05 {formatNumber(metrics?.rom.minimumFlexion)}°；近期趋势 {formatNumber(metrics?.trend.changeDegrees)}°；疼痛只读取最近一次人工填写记录。
                   </p>
                 </div>
                 <div className={`border-l-4 px-4 py-3 ${metrics?.clinicalEligible ? "border-emerald-600 bg-emerald-50" : "border-amber-500 bg-amber-50"}`}>
-                  <p className="text-xs font-bold text-slate-700">2 · 质量门</p>
+                  <p className="text-xs font-medium text-slate-700">2 · 质量门</p>
                   <p className="mt-1 text-sm leading-6 text-slate-700">
                     Q={metrics?.dataQuality.score ?? 0}；同时检查真实来源、校准设备、200ms 配对、观察时长、连续性、动作合理性和完整周期。{metrics?.clinicalEligible ? "已通过，可以继续计算。" : "任一条件未通过，关注优先级保持为空。"}
                   </p>
                 </div>
                 <div className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
-                  <p className="text-xs font-bold text-amber-900">3 · 风险加分</p>
+                  <p className="text-xs font-medium text-amber-900">3 · 风险加分</p>
                   {(metrics?.risk.factors.length ?? 0) > 0 ? metrics?.risk.factors.map((factor) => (
                     <div key={factor.name} className="mt-2 flex items-center justify-between gap-3 text-sm">
                       <span className="text-slate-700">{factor.name}：{factor.evidence}</span>
-                      <span className="shrink-0 font-mono font-bold text-amber-800">+{factor.points}</span>
+                      <span className="shrink-0 font-mono font-medium text-amber-800">+{factor.points}</span>
                     </div>
                   )) : <p className="mt-1 text-sm text-slate-600">{metrics?.clinicalEligible ? "没有加分项。" : "等待质量门通过。"}</p>}
                 </div>
-                <div className="flex items-end justify-between gap-4 border-l-4 border-[#12304a] bg-slate-50 px-4 py-3">
+                <div className="flex items-end justify-between gap-4 border-l-4 border-[#12211c] bg-slate-50 px-4 py-3">
                   <div>
-                    <p className="text-xs font-bold text-[#12304a]">4 · 复核优先级与动作</p>
-                    <p className="mt-1 text-4xl font-black tabular-nums text-[#12304a]">
+                    <p className="text-xs font-medium text-[#12211c]">4 · 复核优先级与动作</p>
+                    <p className="mt-1 text-4xl font-semibold tabular-nums text-[#12211c]">
                       {typeof metrics?.risk.score === "number" ? metrics.risk.score : "--"}
                       <span className="ml-1 text-base text-slate-400">/100</span>
                     </p>
@@ -832,9 +830,9 @@ export default function SensorLivePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-[#d9e2e9] bg-white shadow-sm">
+            <Card className="border-[#e5dbc9] bg-white shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+                <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                   <AlertTriangle className="size-5 text-red-600" />
                   当前预警
                 </CardTitle>
@@ -843,7 +841,7 @@ export default function SensorLivePage() {
                 {(metrics?.warnings.length ?? 0) > 0 ? metrics?.warnings.map((warning) => (
                   <div key={warning.code} className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-bold text-amber-950">{warning.title}</p>
+                      <p className="font-medium text-amber-950">{warning.title}</p>
                       <Badge variant={warning.severity === "HIGH" ? "destructive" : "warning"}>{warning.severity}</Badge>
                       {warning.requiresHumanConfirmation ? <Badge variant="outline">需人工确认</Badge> : null}
                     </div>
@@ -853,13 +851,13 @@ export default function SensorLivePage() {
                 )) : !metrics?.clinicalEligible ? (
                   <div className="flex min-h-36 flex-col items-center justify-center text-center">
                     <ShieldAlert className="size-8 text-amber-700" />
-                    <p className="mt-3 font-bold text-[#12304a]">暂时无法判断</p>
+                    <p className="mt-3 font-medium text-[#12211c]">暂时无法判断</p>
                     <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">当前测量质量不足，因此系统不会显示“无异常”。请先完成设备连接、校准和一次完整屈伸。</p>
                   </div>
                 ) : (
                   <div className="flex min-h-36 flex-col items-center justify-center text-center">
                     <ShieldCheck className="size-8 text-emerald-700" />
-                    <p className="mt-3 font-bold text-[#12304a]">本次监测未发现明显异常</p>
+                    <p className="mt-3 font-medium text-[#12211c]">本次监测未发现明显异常</p>
                     <p className="mt-1 text-sm text-slate-500">仍需结合家人感受和护士评估；明显疼痛或肿胀时请暂停。</p>
                   </div>
                 )}
@@ -867,9 +865,9 @@ export default function SensorLivePage() {
             </Card>
           </div>
 
-          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Calculator className="size-5 text-emerald-700" />
                 公式与安全边界
               </CardTitle>
@@ -883,7 +881,7 @@ export default function SensorLivePage() {
               <div className="space-y-2 bg-slate-50 p-4">
                 {(metrics?.safetyBoundary ?? ["等待评估引擎返回数据边界。"]).map((boundary) => (
                   <p key={boundary} className="flex gap-2 text-slate-600">
-                    <span className="font-bold text-amber-700">•</span>
+                    <span className="font-medium text-amber-700">•</span>
                     <span>{boundary}</span>
                   </p>
                 ))}
@@ -898,9 +896,9 @@ export default function SensorLivePage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Gauge className="size-5 text-emerald-700" />
                 原始样本波形（近 30 帧）
               </CardTitle>
@@ -913,13 +911,13 @@ export default function SensorLivePage() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                   <LineChart data={waveform}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f2ebdf" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="flexion" name="膝角°" stroke="#2A78D6" strokeWidth={2.5} dot={false} />
-                    <Line type="monotone" dataKey="pitch" name="Pitch°" stroke="#008300" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="flexion" name="膝角°" stroke="#2f6076" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="pitch" name="Pitch°" stroke="#2f7d5c" strokeWidth={2.5} dot={false} />
                     <Line type="monotone" dataKey="roll" name="Roll°" stroke="#E87BA4" strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -927,9 +925,9 @@ export default function SensorLivePage() {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 border-[#d9e2e9] bg-white shadow-sm">
+          <Card className="min-w-0 border-[#e5dbc9] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <Activity className="size-5 text-emerald-700" />
                 临床趋势（10 秒聚合）
               </CardTitle>
@@ -943,11 +941,11 @@ export default function SensorLivePage() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                   <LineChart data={clinicalSeries}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f2ebdf" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={20} />
                     <YAxis tick={{ fontSize: 11 }} domain={[0, 150]} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="flexion" name="临床屈曲°" stroke="#12304a" strokeWidth={2.5} dot />
+                    <Line type="monotone" dataKey="flexion" name="临床屈曲°" stroke="#12211c" strokeWidth={2.5} dot />
                   </LineChart>
                 </ResponsiveContainer>
               )}
@@ -955,10 +953,10 @@ export default function SensorLivePage() {
           </Card>
         </div>
 
-        <Card className="border-[#d9e2e9] bg-white shadow-sm">
+        <Card className="border-[#e5dbc9] bg-white shadow-sm">
           <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-xl text-[#12304a]">
+              <CardTitle className="flex items-center gap-2 text-xl text-[#12211c]">
                 <BrainCircuit className="size-5 text-emerald-700" />
                 内置分析 API
               </CardTitle>
@@ -977,18 +975,18 @@ export default function SensorLivePage() {
             {analysis ? (
               <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-[#12304a] text-white">{analysis.provider}</Badge>
+                  <Badge className="bg-[#12211c] text-white">{analysis.provider}</Badge>
                   <span className="text-sm text-slate-500">{formatClock(analysis.createdAt)}</span>
                   <span className="text-sm font-semibold text-slate-700">
                     屈曲 {analysis.flexionAngle.toFixed(0)}° · 疼痛 {analysis.painScore}/10
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-[#12304a]">评估</p>
+                  <p className="text-sm font-medium text-[#12211c]">评估</p>
                   <p className="mt-1 text-sm leading-7 text-slate-700">{analysis.report}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-[#12304a]">建议</p>
+                  <p className="text-sm font-medium text-[#12211c]">建议</p>
                   <p className="mt-1 text-sm leading-7 text-slate-700">{analysis.recommendation}</p>
                 </div>
               </div>
@@ -998,9 +996,9 @@ export default function SensorLivePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#d9e2e9] bg-white shadow-sm">
+        <Card className="border-[#e5dbc9] bg-white shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl text-[#12304a]">最近原始帧</CardTitle>
+            <CardTitle className="text-xl text-[#12211c]">最近原始帧</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">

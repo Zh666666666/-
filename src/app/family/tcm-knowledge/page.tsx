@@ -81,14 +81,14 @@ export default function TcmKnowledgePage() {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <header className="overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-amber-50 p-5 shadow-sm md:rounded-[2rem] md:p-8">
+        <header className="overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-amber-50 p-5 shadow-sm md:rounded-2xl md:p-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <Badge variant="success" className="gap-2 px-3 py-1 text-sm">
                 <Flower2 className="size-4" />
                 中医康复知识专区
               </Badge>
-              <h1 className="mt-5 font-display text-3xl font-bold tracking-tight md:text-6xl">TKA 术后中医康复调护</h1>
+              <h1 className="mt-5 font-display text-3xl font-medium tracking-tight md:text-6xl">TKA 术后中医康复调护</h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 md:text-lg md:leading-9">内容用于康复宣教和日常调护参考，也提醒家属在照护身体的同时照护情绪。具体治疗方案需结合医嘱、切口恢复情况和个人体质。</p>
             </div>
             <Button asChild size="lg" variant="outline">
@@ -117,7 +117,7 @@ export default function TcmKnowledgePage() {
           <CardContent className="grid gap-3 p-5 md:grid-cols-4 md:p-6">
             {tcmCareRituals.map((item) => (
               <div key={item} className="rounded-3xl bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-950">
-                <p className="font-black">{item.split("：")[0]}</p>
+                <p className="font-semibold">{item.split("：")[0]}</p>
                 <p className="mt-1">{item.split("：")[1]}</p>
               </div>
             ))}

@@ -1,79 +1,198 @@
 import Link from "next/link";
 import { Activity, ArrowRight, HeartPulse, ShieldCheck } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { BrandLockup, RangeOfMotionDial, TrendRidge } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 
-const productHighlights = [
-  [Activity, "零操作采集", "智能护膝自动上传屈曲角度、活动频次、训练时长和疼痛评分。"],
-  [HeartPulse, "家属今日照护", "家属先看到今天该做什么，再查看数据、建议和预约。"],
-  [ShieldCheck, "护士随访记录", "预警处理、远程指导、SOAP 记录和上门护理连续留痕。"],
+const capabilities = [
+  {
+    icon: Activity,
+    title: "零操作采集",
+    description: "智能护膝自动上传屈曲角度、活动频次、训练时长与疼痛评分，家属无需手动记录。",
+    meta: "Sensor",
+  },
+  {
+    icon: HeartPulse,
+    title: "家属今日照护",
+    description: "家属打开先看到今天该做什么，再查看数据、护士建议与上门预约。",
+    meta: "Family",
+  },
+  {
+    icon: ShieldCheck,
+    title: "护士随访记录",
+    description: "预警处理、远程指导、SOAP 记录与上门护理连续留痕，随访有据可循。",
+    meta: "Nurse",
+  },
+] as const;
+
+const flow = [
+  ["01", "家属看到今日照护", "打开即知下一步，不必翻找。"],
+  ["02", "护膝自动同步数据", "训练结束即入库，无需人工录入。"],
+  ["03", "护士处理异常预警", "异常集中呈现，先处理最紧急的。"],
+  ["04", "护理记录形成闭环", "指导与记录归档，复盘有完整链路。"],
 ] as const;
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f4efe5] px-3 py-3 text-[#17251f] md:px-10 md:py-10">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_16%_10%,rgba(91,135,111,0.30),transparent_30rem),radial-gradient(circle_at_82%_5%,rgba(242,195,107,0.25),transparent_27rem)]" />
-      <div className="pointer-events-none absolute -left-24 top-72 h-72 w-72 rounded-full bg-[#dfcaa8]/35 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-[#9fc4b1]/25 blur-3xl" />
-
-      <section className="family-view-enter relative mx-auto flex max-w-6xl flex-col justify-center gap-4 md:min-h-[calc(100vh-5rem)] md:gap-6">
-        <div className="grid gap-6 lg:grid-cols-[1fr_24rem] lg:items-stretch">
-          <div className="relative overflow-hidden rounded-[1.9rem] bg-[#17251f] p-5 text-white shadow-[0_24px_70px_rgba(23,37,31,0.22)] md:rounded-[2.75rem] md:p-10 md:shadow-[0_34px_95px_rgba(23,37,31,0.28)]">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#f2c36b]/24 blur-3xl" />
-            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-[#f2c36b]/60 to-transparent" />
-            <div className="relative max-w-4xl">
-              <div className="mb-5 md:mb-8">
-                <p className="hello-mark text-[clamp(3.4rem,18vw,7rem)] md:text-[clamp(4.5rem,14vw,10rem)]">hello</p>
-                <p className="mt-3 text-sm font-black uppercase tracking-[0.28em] text-[#f2c36b]">Welcome to TKA Care OS</p>
-              </div>
-              <Badge className="border border-white/15 bg-white/10 px-3 py-1 text-[#f8deb0] shadow-none">家庭到病区的护理协同</Badge>
-              <h1 className="mt-5 font-display text-4xl font-bold leading-[1.03] tracking-[-0.055em] text-[#fff7e8] md:mt-8 md:text-7xl lg:text-8xl">
-                术后康复，从病区延伸到家。
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#d6e4da] md:mt-6 md:text-xl md:leading-9">
-                智能护膝自动记录训练数据，家属按今日任务陪伴康复，护士及时查看预警、给出指导并留下护理记录。
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-row md:mt-9 md:gap-3">
-                <Button asChild size="lg" className="h-11 rounded-xl bg-[#f2c36b] text-sm text-[#17251f] shadow-[0_14px_32px_rgba(242,195,107,0.20)] hover:bg-[#ffd27d] md:h-12 md:rounded-2xl md:text-base md:shadow-[0_18px_42px_rgba(242,195,107,0.24)]">
-                  <Link href="/login">
-                    登录进入系统
-                    <ArrowRight className="size-5" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="h-11 rounded-xl border-white/15 bg-white/10 text-sm text-white hover:bg-white/15 hover:text-white md:h-12 md:rounded-2xl md:text-base">
-                  <Link href="/login">护士端入口</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <aside className="hidden rounded-[2.5rem] border border-[#e1d3bd] bg-[#fffaf2]/88 p-5 shadow-[0_28px_80px_rgba(46,61,50,0.12)] backdrop-blur md:p-6 lg:block">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b0823d]">Platform Flow</p>
-            <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">打开后就知道下一步。</h2>
-            <div className="mt-7 space-y-3">
-              {["家属看到今日照护", "护膝自动同步数据", "护士处理异常预警", "护理记录形成闭环"].map((item, index) => (
-                <div key={item} className="flex items-center gap-3 rounded-[1.45rem] border border-[#eadfce] bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                  <span className="flex size-10 items-center justify-center rounded-2xl bg-[#17251f] text-sm font-black text-[#f2c36b]">0{index + 1}</span>
-                  <span className="text-sm font-black text-[#17251f]">{item}</span>
-                </div>
-              ))}
-            </div>
-          </aside>
+    <main className="bg-canvas text-ink-900">
+      {/* ---------------- 首屏 ---------------- */}
+      <section className="panel-ink grain rim-light relative flex min-h-[100dvh] flex-col overflow-hidden px-5 pb-8 pt-5 sm:px-8 lg:px-14 lg:pb-12 lg:pt-8 xl:px-20">
+        <div
+          className="pointer-events-none absolute -right-40 top-1/2 aspect-square w-[34rem] -translate-y-1/2 opacity-45 sm:w-[42rem] lg:-right-28 lg:opacity-60 xl:w-[52rem]"
+          aria-hidden="true"
+        >
+          <RangeOfMotionDial />
         </div>
 
-        <div className="hidden gap-4 md:grid md:grid-cols-3">
-          {productHighlights.map(([Icon, title, description]) => (
-            <div key={title} className="rounded-[2rem] border border-[#e1d3bd] bg-[#fffaf2]/88 p-5 shadow-[0_18px_60px_rgba(46,61,50,0.08)] backdrop-blur transition-all hover:-translate-y-1 hover:bg-white">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-[#17251f] text-[#f2c36b]">
-                <Icon className="size-6" />
-              </span>
-              <h2 className="mt-5 text-xl font-black tracking-[-0.02em] text-[#17251f]">{title}</h2>
-              <p className="mt-3 leading-7 text-[#5d6c61]">{description}</p>
+        <header className="relative z-10 flex items-center justify-between gap-4">
+          <BrandLockup tone="light" subtitle="术后康复监测平台" />
+          <div className="flex items-center gap-2">
+            <Link
+              href="#capabilities"
+              className="hidden rounded-full px-3.5 py-2 text-[0.8125rem] font-medium text-white/60 transition-colors hover:text-white sm:inline-flex"
+            >
+              平台能力
+            </Link>
+            <Button
+              asChild
+              size="sm"
+              className="h-9 rounded-full border border-white/15 bg-white/[0.08] text-white shadow-none backdrop-blur hover:bg-white/[0.16]"
+            >
+              <Link href="/login">
+                登录
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </header>
+
+        <div className="relative z-10 flex flex-1 flex-col justify-center py-10 lg:py-16">
+          <div className="max-w-3xl">
+            <p className="eyebrow rise text-brass-300" style={{ ["--i" as string]: 0 }}>
+              家庭到病区的护理协同
+            </p>
+            <h1
+              className="display-xl rise mt-5 text-[2.5rem] text-[#f7f3ea] sm:text-[3.4rem] lg:mt-7 lg:text-[4.6rem] xl:text-[5.6rem]"
+              style={{ ["--i" as string]: 1 }}
+            >
+              术后康复，
+              <br />
+              从病区延伸到家。
+            </h1>
+            <p
+              className="rise mt-5 max-w-xl text-[0.9375rem] leading-7 text-white/55 lg:mt-8 lg:text-lg lg:leading-8"
+              style={{ ["--i" as string]: 2 }}
+            >
+              智能护膝自动记录训练数据，家属按今日任务陪伴康复，护士及时查看预警、给出指导并留下护理记录。
+            </p>
+
+            <div className="rise mt-8 flex flex-col gap-2.5 sm:flex-row lg:mt-11" style={{ ["--i" as string]: 3 }}>
+              <Button asChild size="lg" variant="brass" className="group h-12 rounded-lg px-6">
+                <Link href="/login">
+                  登录进入系统
+                  <ArrowRight className="size-4 transition-transform duration-250 group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-12 rounded-lg border-white/18 bg-white/[0.06] px-6 text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12]"
+              >
+                <Link href="/login">护士端入口</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="rise relative z-10 grid gap-y-6 border-t border-white/10 pt-7 sm:grid-cols-3"
+          style={{ ["--i" as string]: 4 }}
+        >
+          {capabilities.map(({ title, meta }, index) => (
+            <div key={title} className={index > 0 ? "sm:border-l sm:border-white/10 sm:pl-7" : ""}>
+              <p className="eyebrow text-brass-400/75">{meta}</p>
+              <p className="mt-2.5 text-[0.9375rem] font-medium text-[#f7f3ea]">{title}</p>
             </div>
           ))}
         </div>
       </section>
+
+      {/* ---------------- 平台能力 ---------------- */}
+      <section id="capabilities" className="ambient relative scroll-mt-8 px-5 py-16 sm:px-8 lg:px-14 lg:py-24 xl:px-20">
+        <div className="relative z-10 mx-auto max-w-6xl">
+          <div className="max-w-2xl">
+            <p className="eyebrow text-brass-700">Capabilities</p>
+            <h2 className="display-lg mt-3.5 text-[1.875rem] lg:text-[2.75rem]">
+              数据、照护与随访，收在同一条链路里。
+            </h2>
+          </div>
+
+          <div className="mt-10 grid gap-4 lg:mt-14 lg:grid-cols-3">
+            {capabilities.map(({ icon: Icon, title, description, meta }) => (
+              <article
+                key={title}
+                className="group relative overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--surface)] p-6 shadow-e2 transition-[transform,box-shadow,border-color] duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-ink-700/20 hover:shadow-e3 lg:p-7"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex size-11 items-center justify-center rounded-lg bg-ink-900 text-brass-300">
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="eyebrow text-[var(--subtle-foreground)]">{meta}</span>
+                </div>
+                <h3 className="mt-6 text-lg font-semibold tracking-[-0.015em]">{title}</h3>
+                <p className="mt-2.5 text-[0.9375rem] leading-7 text-[var(--muted-foreground)]">{description}</p>
+                <div className="mt-7 opacity-70 transition-opacity duration-350 group-hover:opacity-100">
+                  <TrendRidge className="h-10" />
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------- 平台流程 ---------------- */}
+      <section className="border-t border-[var(--hairline)] bg-[var(--surface-2)] px-5 py-16 sm:px-8 lg:px-14 lg:py-24 xl:px-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-xl">
+              <p className="eyebrow text-brass-700">Platform Flow</p>
+              <h2 className="display-lg mt-3.5 text-[1.875rem] lg:text-[2.5rem]">打开后就知道下一步。</h2>
+            </div>
+            <Button asChild variant="outline" size="lg" className="group h-11 w-fit rounded-lg">
+              <Link href="/login">
+                进入工作台
+                <ArrowRight className="size-4 transition-transform duration-250 group-hover:translate-x-0.5" />
+              </Link>
+            </Button>
+          </div>
+
+          <ol className="mt-10 grid border-t border-[var(--hairline)] lg:mt-14 lg:grid-cols-4">
+            {flow.map(([index, title, description], position) => (
+              <li
+                key={index}
+                className={`border-b border-[var(--hairline)] py-6 lg:border-b-0 lg:py-8 lg:pr-7 ${
+                  position > 0 ? "lg:border-l lg:border-[var(--hairline)] lg:pl-7" : ""
+                }`}
+              >
+                <p className="eyebrow tabular text-brass-700">{index}</p>
+                <p className="mt-3 text-[1.0625rem] font-semibold tracking-[-0.015em]">{title}</p>
+                <p className="mt-2 text-[0.875rem] leading-6 text-[var(--muted-foreground)]">{description}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ---------------- 页脚 ---------------- */}
+      <footer className="border-t border-[var(--hairline)] px-5 py-8 sm:px-8 lg:px-14 xl:px-20">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
+          <BrandLockup subtitle="TKA 术后膝关节康复监测管理平台" />
+          <p className="text-[0.75rem] leading-5 text-[var(--subtle-foreground)]">
+            训练与护理数据仅对授权角色可见
+          </p>
+        </div>
+      </footer>
     </main>
   );
 }

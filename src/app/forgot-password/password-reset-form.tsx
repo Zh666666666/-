@@ -46,23 +46,83 @@ export function PasswordResetForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f4efe5] p-4 text-[#17251f]">
-      <section className="w-full max-w-md rounded-lg border border-[#d8c8ad] bg-white p-6 shadow-xl">
-        <Button asChild variant="ghost" size="sm"><Link href="/login"><ArrowLeft className="size-4" />返回登录</Link></Button>
-        <ShieldCheck className="mt-6 size-9 text-[#5b876f]" />
-        <h1 className="mt-3 text-3xl font-black">重置密码</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">家属和护士账号均可通过已绑定邮箱重置。</p>
-        <form className="mt-6 space-y-4" onSubmit={reset}>
-          <label className="block text-sm font-bold">邮箱<Input className="mt-2" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
-          <Button type="button" variant="outline" className="w-full" onClick={send} disabled={busy || !email}><Mail className="size-4" />发送验证码</Button>
-          {sent ? <>
-            <label className="block text-sm font-bold">验证码<Input className="mt-2" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} required /></label>
-            <label className="block text-sm font-bold">新密码<Input className="mt-2" type="password" minLength={12} value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
-            <p className="text-xs text-slate-500">至少 12 位，包含字母和数字。</p>
-            <Button className="w-full bg-[#17362d] text-white" type="submit" disabled={busy}>确认重置</Button>
-          </> : null}
-          {message ? <p className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p> : null}
-          {error ? <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+    <main className="ambient relative flex min-h-[100dvh] items-center justify-center bg-canvas p-4 text-ink-900">
+      <section className="veil relative z-10 w-full max-w-[26rem] rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-6 shadow-e3 sm:p-8">
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link href="/login">
+            <ArrowLeft className="size-4" />
+            返回登录
+          </Link>
+        </Button>
+
+        <span className="mt-6 flex size-11 items-center justify-center rounded-lg bg-ink-900 text-brass-300">
+          <ShieldCheck className="size-5" />
+        </span>
+        <h1 className="display-md mt-5 text-[1.625rem]">重置密码</h1>
+        <p className="mt-2.5 text-[0.875rem] leading-6 text-[var(--muted-foreground)]">
+          家属和护士账号均可通过已绑定邮箱重置。
+        </p>
+
+        <form className="mt-7 space-y-4" onSubmit={reset}>
+          <label className="block">
+            <span className="mb-1.5 block text-[0.8125rem] font-medium text-[#4d5c53]">邮箱</span>
+            <Input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </label>
+          <Button type="button" variant="outline" className="h-11 w-full" onClick={send} disabled={busy || !email}>
+            {busy && !sent ? (
+              <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-ink-900/20 border-t-ink-900" />
+            ) : (
+              <Mail className="size-4" />
+            )}
+            发送验证码
+          </Button>
+          {sent ? (
+            <div className="veil space-y-4 border-t border-[var(--hairline)] pt-5">
+              <label className="block">
+                <span className="mb-1.5 block text-[0.8125rem] font-medium text-[#4d5c53]">验证码</span>
+                <Input
+                  className="tabular tracking-[0.4em]"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={code}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-[0.8125rem] font-medium text-[#4d5c53]">新密码</span>
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={12}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+                <span className="mt-1.5 block text-[0.75rem] text-[var(--subtle-foreground)]">至少 12 位，包含字母和数字。</span>
+              </label>
+              <Button className="h-12 w-full" size="lg" type="submit" disabled={busy}>
+                {busy ? (
+                  <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+                ) : null}
+                确认重置
+              </Button>
+            </div>
+          ) : null}
+          {message ? (
+            <p className="rounded-lg border border-[rgba(47,125,92,0.18)] bg-[var(--success-soft)] px-3.5 py-2.5 text-[0.8125rem] font-medium leading-5 text-[var(--success)]">
+              {message}
+            </p>
+          ) : null}
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-[rgba(176,67,56,0.20)] bg-[var(--destructive-soft)] px-3.5 py-2.5 text-[0.8125rem] font-medium leading-5 text-[var(--destructive)]"
+            >
+              {error}
+            </p>
+          ) : null}
         </form>
       </section>
     </main>

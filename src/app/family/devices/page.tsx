@@ -245,16 +245,15 @@ export default function FamilyDevicesPage() {
   return (
     <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
       <section className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <header className="relative overflow-hidden rounded-2xl border border-[#244d68] bg-[#0d2a40] p-5 text-white shadow-[0_24px_70px_rgba(13,42,64,0.2)] md:p-7">
-          <div className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full bg-[#2a78d6]/25 blur-3xl" />
-          <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <header className="panel-ink grain rim-light relative overflow-hidden rounded-2xl border border-white/8 p-5 text-white md:p-7">
+          <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <Badge className="gap-2 border border-white/15 bg-white/10 px-3 py-1 text-sm text-white">
                 <Radio className="size-4" />
                 双 WT9011DCL-BT50 已进入实物接入阶段
               </Badge>
-              <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white md:text-5xl">设备身份、患者与实时链路</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-[#cfe0e9] md:text-lg md:leading-8">
+              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-white md:text-5xl">设备身份、患者与实时链路</h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-[#e5dbc9] md:text-lg md:leading-8">
                 两只传感器已经到位。这里用于确认大腿/小腿设备档案和患者 ID；Android 网关使用同一患者 ID 后，双路连接成功即自动记录并上传。
               </p>
             </div>
@@ -289,10 +288,10 @@ export default function FamilyDevicesPage() {
             <CardContent className="space-y-5">
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-500">当前患者</p>
-                <p className="mt-1 text-2xl font-black">{patientName}</p>
+                <p className="mt-1 text-2xl font-semibold">{patientName}</p>
                 <div className="mt-3 rounded-2xl border border-dashed border-emerald-300 bg-white p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Android 网关患者 ID</p>
-                  <p className="mt-1 break-all font-mono text-sm font-bold text-slate-900">{patientId ?? "读取中..."}</p>
+                  <p className="mt-1 break-all font-mono text-sm font-medium text-slate-900">{patientId ?? "读取中..."}</p>
                   <p className="mt-2 text-xs leading-5 text-slate-500">
                     Android 网关平台地址填写 `https://www.dorianaistudio.cloud`，患者 ID 必须与下面这一串完全一致。完成一次 Token 验证后，两只传感器连接成功会自动开始实时上传。
                   </p>
@@ -361,7 +360,7 @@ export default function FamilyDevicesPage() {
                   return (
                     <div key={placement} className="rounded-3xl border border-white/10 bg-white/10 p-4">
                       <p className="text-sm text-emerald-100">{placementLabels[placement]}</p>
-                      <p className="mt-2 min-h-14 text-lg font-black leading-7">{device?.serialNo ?? "未绑定"}</p>
+                      <p className="mt-2 min-h-14 text-lg font-semibold leading-7">{device?.serialNo ?? "未绑定"}</p>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs text-emerald-50">
                         <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
                           <Wifi className="size-3" />
@@ -379,13 +378,13 @@ export default function FamilyDevicesPage() {
 
               <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
                 <p className="text-sm text-emerald-100">最近基础校准</p>
-                <p className="mt-2 text-xl font-black">{latestCalibration?.quality === "GOOD" ? "已完成" : "未完成"}</p>
+                <p className="mt-2 text-xl font-semibold">{latestCalibration?.quality === "GOOD" ? "已完成" : "未完成"}</p>
                 <p className="mt-1 text-sm text-emerald-50">{formatTime(latestCalibration?.createdAt)}</p>
               </div>
 
               <div className="space-y-3 rounded-3xl border border-white/10 bg-white/10 p-5">
                 <div>
-                  <p className="font-bold">开始前依次确认</p>
+                  <p className="font-medium">开始前依次确认</p>
                   <p className="mt-1 text-sm leading-6 text-emerald-100">重新佩戴、交换位置或明显移动绑带后，都需要重新确认。</p>
                 </div>
                 {([
