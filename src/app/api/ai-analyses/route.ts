@@ -11,6 +11,7 @@ import { readSampleProvenance } from "@/lib/sensor-receipt";
 
 const analysisRequestSchema = z.object({
   patientId: z.string().min(1),
+  sessionId: z.string().min(1).optional(),
 });
 
 type AnalysisDraft = Pick<AiAnalysisItem, "provider" | "report" | "recommendation">;
@@ -21,6 +22,13 @@ type ResponsesPayload = {
     content?: Array<{ type?: string; text?: string }>;
   }>;
 };
+
+function analysisStatus(score: number, hasSamples: boolean) {
+  if (!hasSamples) return "INSUFFICIENT_DATA";
+  if (score >= 80) return "HIGH_CONFIDENCE";
+  if (score >= 55) return "MEDIUM_CONFIDENCE";
+  return "LOW_CONFIDENCE";
+}
 
 function responseEndpoint(baseUrl: string) {
   const base = baseUrl.replace(/\/+$/, "");
@@ -202,7 +210,7 @@ export async function POST(request: Request) {
   const [patient, session] = await Promise.all([
     prisma.patient.findUnique({ where: { id: patientId } }),
     prisma.sensorSession.findFirst({
-      where: { patientId, source: "HARDWARE" },
+      where: { patientId, source: "HARDWARE", ...(parsed.data.sessionId ? { id: parsed.data.sessionId } : {}) },
       orderBy: { startedAt: "desc" },
     }),
   ]);
@@ -222,7 +230,6 @@ export async function POST(request: Request) {
         source: "HARDWARE",
       },
       orderBy: { recordedAt: "asc" },
-      take: 2_000,
     }),
     prisma.calibrationRecord.findFirst({
       where: {
@@ -253,16 +260,6 @@ export async function POST(request: Request) {
     now: lastRecordedAt,
   });
 
-  if (!metrics.clinicalEligible) {
-    return NextResponse.json({
-      error: "本次训练数据未通过质量门，已阻止 AI 生成结论。",
-      code: "QUALITY_GATE_FAILED",
-      sessionId: session.id,
-      placementRevision: session.placementRevision,
-      quality: metrics.dataQuality,
-    }, { status: 422 });
-  }
-
   const evidenceSamples = serializedSamples
     .filter((_, index) => index % Math.max(1, Math.floor(serializedSamples.length / 80)) === 0)
     .slice(0, 80);
@@ -277,20 +274,36 @@ export async function POST(request: Request) {
   });
 
   let draft: AnalysisDraft;
-  try {
-    draft = await callResponsesApi(evidence);
-  } catch (error) {
-    console.error("AI analysis failed", error);
-    return NextResponse.json(
-      { error: "AI 服务调用失败，质量指标已保留，请稍后重试。", code: "AI_PROVIDER_FAILED" },
-      { status: 502 },
-    );
+  if (serializedSamples.length === 0) {
+    draft = {
+      provider: "local:insufficient-data",
+      report: "本次训练没有收到可用的双传感器数据，暂时无法判断训练表现。",
+      recommendation: "请检查两只传感器连接与佩戴位置后重新训练。该提示属于数据问题，不代表身体异常。",
+    };
+  } else {
+    try {
+      draft = await callResponsesApi(evidence);
+    } catch (error) {
+      console.error("AI analysis failed", error);
+      draft = {
+        provider: "local:fallback",
+        report: metrics.clinicalEligible
+          ? "本次训练数据已完成计算，但智能解读服务暂时不可用。"
+          : "本次数据完整度较低，当前结果仅作低置信度观察，不作为医学结论。",
+        recommendation: metrics.clinicalEligible
+          ? "可查看活动范围、训练次数和异常提示；稍后系统会再次生成通俗解读。"
+          : "检查双传感器连接与佩戴位置。若本人无不适，可重新完成一次自然屈伸训练。",
+      };
+    }
   }
 
   const analysis = await prisma.aiAnalysis.create({
     data: {
       patientId: patient.id,
       patientName: patient.name,
+      sessionId: session.id,
+      confidence: Math.max(0, Math.min(1, metrics.dataQuality.score / 100)),
+      status: analysisStatus(metrics.dataQuality.score, serializedSamples.length > 0),
       flexionAngle: metrics.rom.peakFlexion ?? 0,
       activityFrequency: metrics.training.repetitions ?? 0,
       activityDuration: Math.round((metrics.training.activeDurationSeconds ?? 0) / 60),
@@ -303,5 +316,7 @@ export async function POST(request: Request) {
     sessionId: session.id,
     placementRevision: session.placementRevision,
     quality: metrics.dataQuality,
+    confidence: Math.max(0, Math.min(1, metrics.dataQuality.score / 100)),
+    status: analysisStatus(metrics.dataQuality.score, serializedSamples.length > 0),
   });
 }

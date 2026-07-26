@@ -269,20 +269,27 @@ function detectPossibleFallImpact(samples: SensorSampleItem[]) {
       && sample.at - hardware[start].at <= 1_200
     ));
     if (window.length < 3) continue;
-    const accelerations = window.map((sample) => sample.acceleration as number);
-    const angularVelocities = window.map((sample) => sample.angularVelocity as number);
-    if (
-      Math.min(...accelerations) < 0.8
-      && Math.max(...accelerations) > 2.5
-      && Math.max(...angularVelocities) > 80
-    ) {
-      return {
-        placement: hardware[start].placement,
-        minimumAcceleration: Math.min(...accelerations),
-        peakAcceleration: Math.max(...accelerations),
-        peakAngularVelocity: Math.max(...angularVelocities),
-      };
-    }
+    const lowIndex = window.findIndex((sample) => (sample.acceleration as number) < 0.8);
+    if (lowIndex < 0) continue;
+    const impactIndex = window.findIndex((sample, index) => (
+      index > lowIndex && (sample.acceleration as number) >= 3
+    ));
+    if (impactIndex < 0) continue;
+    const rotationIndex = window.findIndex((sample, index) => (
+      index >= impactIndex && (sample.angularVelocity as number) >= 500
+    ));
+    if (rotationIndex < 0) continue;
+
+    return {
+      placement: hardware[start].placement,
+      minimumAcceleration: window[lowIndex].acceleration as number,
+      peakAcceleration: Math.max(
+        ...window.slice(impactIndex, rotationIndex + 1).map((sample) => sample.acceleration as number),
+      ),
+      peakAngularVelocity: Math.max(
+        ...window.slice(impactIndex, rotationIndex + 1).map((sample) => sample.angularVelocity as number),
+      ),
+    };
   }
 
   return null;
@@ -332,7 +339,6 @@ export function calculateRehabMetrics({
   const repetitionsBeforeGate = countRepetitions(synchronizedPairs.map((pair) => pair.flexionAngle));
   const reasonCodes: string[] = [];
   if (resolveProvenance(ordered) !== "HARDWARE") reasonCodes.push("NOT_HARDWARE");
-  if (calibrationStatus !== "GOOD") reasonCodes.push(`CALIBRATION_${calibrationStatus}`);
   if (synchronizedPairs.length < 6) reasonCodes.push("TOO_FEW_SYNCHRONIZED_PAIRS");
   if (observationSeconds < 3) reasonCodes.push("OBSERVATION_TOO_SHORT");
   if (pairGapP95Ms === null || pairGapP95Ms > 200) reasonCodes.push("PAIR_SYNC_FAILED");
@@ -352,9 +358,7 @@ export function calculateRehabMetrics({
   const clinicalEligible = reasonCodes.length === 0;
   const measurementStatus: MeasurementStatus = clinicalEligible
     ? "READY"
-    : calibrationStatus !== "GOOD"
-      ? "SETUP_REQUIRED"
-      : synchronizedPairs.length < 6 || observationSeconds < 3 || repetitionsBeforeGate < 1
+    : synchronizedPairs.length < 6 || observationSeconds < 3 || repetitionsBeforeGate < 1
         ? "COLLECTING"
         : "TECHNICAL_ISSUE";
   const angles = synchronizedPairs.map((pair) => pair.flexionAngle);
@@ -368,11 +372,16 @@ export function calculateRehabMetrics({
     ? repetitions / (activeDurationSeconds / 60)
     : null;
 
-  const recordAngles = [...clinicalRecords]
+  const orderedRecords = [...clinicalRecords]
     .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
-    .map((record) => record.flexionAngle);
+  const recordSpanMs = orderedRecords.length >= 2
+    ? new Date(orderedRecords.at(-1)!.recordedAt).getTime() - new Date(orderedRecords[0].recordedAt).getTime()
+    : 0;
+  const recordAngles = orderedRecords.map((record) => record.flexionAngle);
   const recentFlexion = mean(recordAngles.slice(-3));
-  const previousFlexion = recordAngles.length >= 6 ? mean(recordAngles.slice(-6, -3)) : null;
+  const previousFlexion = recordAngles.length >= 6 && recordSpanMs >= 12 * 60 * 60 * 1_000
+    ? mean(recordAngles.slice(-6, -3))
+    : null;
   const trendChange = recentFlexion !== null && previousFlexion !== null ? recentFlexion - previousFlexion : null;
   const latestPain = [...clinicalRecords]
     .filter((record) => record.source === "MANUAL")
@@ -478,7 +487,7 @@ export function calculateRehabMetrics({
       calibrationStatus,
       measurementStatus,
       reasonCodes,
-      formula: "Q=25×成对置信度+20×双路配对覆盖+15×新鲜度+10×成对样本量+10×观察时长+10×采样连续性+10×动作合理性；同时要求真实硬件、GOOD 校准、配对误差≤200ms、至少6对/3秒且出现完整屈伸周期，任一失败均不输出训练结论。",
+      formula: "Q=25×成对置信度+20×双路配对覆盖+15×新鲜度+10×成对样本量+10×观察时长+10×采样连续性+10×动作合理性；真实硬件、配对误差≤200ms、至少6对/3秒且出现完整屈伸周期用于决定置信度。软件零点校准会提高可比性，但不作为是否生成结果的硬门槛。",
     },
     rom: {
       value: rom === null ? null : round(rom),
@@ -510,7 +519,7 @@ export function calculateRehabMetrics({
     warnings,
     safetyBoundary: [
       "本结果用于康复监测与分诊提示，不构成诊断或自动处方。",
-      "单传感器、未完成有效校准、配对不同步、没有完整动作周期或质量门未通过时，不输出活动范围与关注优先级。",
+      "单传感器、配对不同步或没有完整动作周期时，系统仍保存训练记录，但结果会明确标记为低置信度或数据不足，不把技术问题算作患者风险。",
       "膝部 IMU 无法识别发热、切口渗液、单侧小腿肿痛、胸痛或呼吸困难；这些症状必须由患者主动报告并人工处置。",
       "较强晃动规则仅是同一设备内的实验性冲击筛查；设备安装位置和动作场景不同，必须经过真实人群验证后才能升级为正式告警。",
       "当前网关角度仍是双传感器 Pitch 差值预览；在四元数相对姿态和功能轴校准落地前，本结果只用于训练监测，不作为临床量角器替代。",

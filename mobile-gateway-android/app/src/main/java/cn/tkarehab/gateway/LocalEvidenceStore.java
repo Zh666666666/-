@@ -100,7 +100,7 @@ final class LocalEvidenceStore {
     synchronized Summary accept(SensorSample sample) throws Exception {
         if (active == null) return latestSummary();
         if (active.sampleCount >= MAX_SAMPLES_PER_SESSION) {
-            appendEvent("STORAGE_LIMIT", "HIGH", "本地任务已达到样本上限", "单任务最多保存 20000 个样本，系统已停止继续写入。", true, sample.recordedAtMs);
+            appendEvent("STORAGE_LIMIT", "HIGH", "本地任务已达到样本上限", "单任务最多保存 20000 个样本，系统已停止继续写入。", false, sample.recordedAtMs);
             return finish("STORAGE_LIMIT");
         }
         if (sample.recordedAtMs - active.lastSavedAtMs < MIN_SAMPLE_INTERVAL_MS) {
@@ -110,7 +110,7 @@ final class LocalEvidenceStore {
         writeRecord(new File(active.directory, "samples"), sample.recordedAtMs, "sample", sample.toEvidenceJson());
         active.sampleCount += 1;
         for (EvidenceEventDetector.Signal signal : detector.inspect(sample)) {
-            appendEvent(signal.type, signal.severity, signal.title, signal.evidence, true, sample.recordedAtMs);
+            appendEvent(signal.type, signal.severity, signal.title, signal.evidence, signal.requiresAction, sample.recordedAtMs);
         }
         if (active.sampleCount % 20 == 0) {
             writeManifest(active, "ACTIVE", 0L, "CHECKPOINT");
@@ -125,7 +125,7 @@ final class LocalEvidenceStore {
                 connected ? "INFO" : "HIGH",
                 connected ? "传感器已重新连接" : "采集中传感器断开",
                 address + (connected ? " 已恢复 BLE 连接。" : " 已断开 BLE 连接，需要确认设备电量、距离或任务状态。"),
-                !connected,
+                false,
                 System.currentTimeMillis()
         );
         return summary(active, "ACTIVE", 0L);
@@ -202,7 +202,7 @@ final class LocalEvidenceStore {
         );
         active.sampleCount = countRecords(new File(directory, "samples"));
         active.eventCount = countRecords(new File(directory, "events"));
-        appendEvent("SESSION_INTERRUPTED", "HIGH", "上次采集未正常结束", "应用退出或系统终止了采集任务，已自动封存现有数据。", true, System.currentTimeMillis());
+        appendEvent("SESSION_INTERRUPTED", "HIGH", "上次采集未正常结束", "应用退出或系统终止了采集任务，已自动封存现有数据。", false, System.currentTimeMillis());
         finish("APP_INTERRUPTED");
     }
 

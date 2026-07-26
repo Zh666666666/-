@@ -1,6 +1,7 @@
 package cn.tkarehab.gateway;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.json.JSONObject;
@@ -85,6 +86,18 @@ public final class PlatformGatewayTest {
                         .getJSONObject("offset")
                         .getDouble("pitch"),
                 0.0001
+        );
+    }
+
+    @Test
+    public void balancesNewestLiveFramesWithOldestBackfill() {
+        assertArrayEquals(
+                new int[] { 9, 8, 7, 6, 5, 0 },
+                EncryptedSampleQueue.balancedIndexes(10, 6)
+        );
+        assertArrayEquals(
+                new int[] { 0, 1, 2 },
+                EncryptedSampleQueue.balancedIndexes(3, 10)
         );
     }
 }

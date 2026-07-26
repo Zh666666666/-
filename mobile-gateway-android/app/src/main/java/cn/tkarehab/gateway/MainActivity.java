@@ -937,10 +937,10 @@ public final class MainActivity extends AppCompatActivity {
         liveSampleCount += 1;
         long now = System.currentTimeMillis();
         if (sample.placement == SensorPlacement.THIGH) {
-            if (now - lastThighUiAtMs < 50L) return;
+            if (now - lastThighUiAtMs < 100L) return;
             lastThighUiAtMs = now;
         } else {
-            if (now - lastShankUiAtMs < 50L) return;
+            if (now - lastShankUiAtMs < 100L) return;
             lastShankUiAtMs = now;
         }
         runOnUiThread(() -> {
@@ -977,6 +977,7 @@ public final class MainActivity extends AppCompatActivity {
                             + "\n角度(°)：X " + format(sample.roll)
                             + "  Y " + format(sample.pitch)
                             + "  Z " + format(sample.yaw)
+                            + "\n传感器电量：" + (sample.batteryLevel == null ? "设备暂未返回" : sample.batteryLevel + "%")
                             + "\n3D 姿态与波形应随转动变化"
             );
             if (stop.isEnabled()) {

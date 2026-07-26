@@ -112,8 +112,8 @@ test("keeps an experimental impact warning separate from a single-sensor clinica
     clinicalEligible: false,
   }));
   const impactBase = Date.UTC(2026, 6, 14, 10, 0, 2);
-  samples[2] = { ...samples[2], recordedAt: new Date(impactBase).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 100 };
-  samples[3] = { ...samples[3], recordedAt: new Date(impactBase + 400).toISOString(), ax: 3, ay: 0, az: 0, gy: 120 };
+  samples[2] = { ...samples[2], recordedAt: new Date(impactBase).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 520 };
+  samples[3] = { ...samples[3], recordedAt: new Date(impactBase + 400).toISOString(), ax: 3.2, ay: 0, az: 0, gy: 600 };
   samples[4] = { ...samples[4], recordedAt: new Date(impactBase + 800).toISOString(), ax: 1, ay: 0, az: 0, gy: 20 };
 
   const metrics = calculateRehabMetrics({
@@ -128,15 +128,38 @@ test("keeps an experimental impact warning separate from a single-sensor clinica
   assert.ok(metrics.warnings.some((warning) => warning.code === "POSSIBLE_FALL_IMPACT"));
 });
 
+test("does not report an impact when the high acceleration precedes the low-gravity sample", () => {
+  const samples = Array.from({ length: 8 }, (_, index) => sample(index, 40 + index, {
+    confidence: 0.35,
+    kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL",
+    clinicalEligible: false,
+  }));
+  const impactBase = Date.UTC(2026, 6, 14, 10, 0, 2);
+  samples[2] = { ...samples[2], recordedAt: new Date(impactBase).toISOString(), ax: 3.2, ay: 0, az: 0, gy: 600 };
+  samples[3] = { ...samples[3], recordedAt: new Date(impactBase + 400).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 40 };
+  samples[4] = { ...samples[4], recordedAt: new Date(impactBase + 800).toISOString(), ax: 1, ay: 0, az: 0, gy: 20 };
+
+  const metrics = calculateRehabMetrics({
+    samples,
+    clinicalRecords: [],
+    now: new Date(Date.UTC(2026, 6, 14, 10, 0, 8)),
+  });
+
+  assert.ok(!metrics.warnings.some((warning) => warning.code === "POSSIBLE_FALL_IMPACT"));
+});
+
 test("detects regression, high pain and experimental fall-impact pattern", () => {
   const samples = pairedSamples([5, 20, 55, 90, 60, 20, 5, 25, 65, 95, 55, 15, 5]);
   const impactBase = Date.UTC(2026, 6, 14, 10, 0, 13);
   samples.push(
-    sample(100, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 100, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
-    sample(101, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase + 400).toISOString(), ax: 3, ay: 0, az: 0, gy: 120, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
+    sample(100, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase).toISOString(), ax: 0.2, ay: 0.1, az: 0.2, gy: 520, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
+    sample(101, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase + 400).toISOString(), ax: 3.2, ay: 0, az: 0, gy: 600, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
     sample(102, 0, { placement: "THIGH", deviceId: "device-thigh", recordedAt: new Date(impactBase + 800).toISOString(), ax: 1, ay: 0, az: 0, gy: 20, kneeAngleMode: "SINGLE_SENSOR_PROVISIONAL", clinicalEligible: false }),
   );
-  const records = [100, 102, 101, 80, 82, 81].map((angle, index) => record(index, angle, index === 5 ? 8 : 2));
+  const records = [100, 102, 101, 80, 82, 81].map((angle, index) => ({
+    ...record(index, angle, index === 5 ? 8 : 2),
+    recordedAt: new Date(Date.UTC(2026, 6, 8 + index, 10, 0, 0)).toISOString(),
+  }));
   const metrics = calculateRehabMetrics({
     samples,
     clinicalRecords: records,
@@ -151,17 +174,17 @@ test("detects regression, high pain and experimental fall-impact pattern", () =>
   assert.ok((metrics.risk.score ?? 0) >= 75);
 });
 
-test("requires a matching GOOD calibration and synchronized dual-device pairs", () => {
+test("accepts synchronized mapped devices without forcing software zero calibration", () => {
   const angles = [5, 20, 60, 90, 60, 20, 5, 25, 70, 95, 55, 15, 5];
   const withoutCalibration = calculateRehabMetrics({
     samples: pairedSamples(angles),
     clinicalRecords: [],
     now: new Date(Date.UTC(2026, 6, 14, 10, 0, 14)),
   });
-  assert.equal(withoutCalibration.clinicalEligible, false);
-  assert.equal(withoutCalibration.dataQuality.measurementStatus, "SETUP_REQUIRED");
+  assert.equal(withoutCalibration.clinicalEligible, true);
+  assert.equal(withoutCalibration.dataQuality.measurementStatus, "READY");
   assert.ok((withoutCalibration.rom.value ?? 0) > 60);
-  assert.equal(withoutCalibration.risk.score, null);
+  assert.notEqual(withoutCalibration.risk.score, null);
 
   const unsynchronized = pairedSamples(angles).map((item) => (
     item.placement === "SHANK"

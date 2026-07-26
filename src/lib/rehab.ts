@@ -5,6 +5,9 @@ export type AiAnalysisItem = {
   id: string;
   patientId: string;
   patientName: string;
+  sessionId?: string | null;
+  confidence?: number | null;
+  status?: string | null;
   flexionAngle: number;
   activityFrequency: number;
   activityDuration: number;
@@ -42,6 +45,8 @@ export type ProfileItem = {
   affectedKnee: "LEFT" | "RIGHT" | "BILATERAL" | null;
   phone: string | null;
   emergencyContact: string | null;
+  relationToPatient?: string | null;
+  notificationPreference?: string | null;
   sensorDeviceId: string | null;
   department: string | null;
   title: string | null;
@@ -70,7 +75,7 @@ export type KneeDataPoint = {
   activityFrequency: number;
   activityDuration: number;
   painScore: number;
-  batteryLevel: number;
+  batteryLevel: number | null;
   signalStrength: number;
   source: "SMART_BRACE" | "HARDWARE" | "MANUAL" | "DEMO";
   recordedAt: string;

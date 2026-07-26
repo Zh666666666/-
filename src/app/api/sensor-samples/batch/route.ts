@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   const authorization = request.headers.get("authorization");
   const results: Array<{ status: number; body: unknown }> = [];
-  const concurrency = 6;
+  const concurrency = 20;
 
   for (let start = 0; start < parsed.data.samples.length; start += concurrency) {
     const chunk = parsed.data.samples.slice(start, start + concurrency);

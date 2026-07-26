@@ -14,14 +14,37 @@ public final class EvidenceEventDetectorTest {
     }
 
     @Test
-    public void detectsStrongMotionAndAppliesCooldown() {
+    public void detectsImpactSequenceAndAppliesCooldown() {
         EvidenceEventDetector detector = new EvidenceEventDetector();
-        EvidenceEventDetector.Signal[] first = detector.inspect(sample(10_000, 3, 0, 0, 0, 350, 0));
-        EvidenceEventDetector.Signal[] cooldown = detector.inspect(sample(11_000, 3, 0, 0, 0, 350, 0));
+        detector.inspect(sample(10_000, 0, 0, 1, 0, 20, 0));
+        detector.inspect(sample(10_400, 0.4, 0, 0, 0, 40, 0));
+        EvidenceEventDetector.Signal[] first = detector.inspect(sample(10_800, 3.2, 0, 0, 0, 600, 0));
+        EvidenceEventDetector.Signal[] cooldown = detector.inspect(sample(11_000, 3.2, 0, 0, 0, 600, 0));
 
         assertTrue(first.length >= 1);
         assertEquals("STRONG_MOTION", first[first.length - 1].type);
+        assertTrue(first[first.length - 1].requiresAction);
         assertEquals(0, cooldown.length);
+    }
+
+    @Test
+    public void doesNotTreatNormalFastFlexionAsImpact() {
+        EvidenceEventDetector detector = new EvidenceEventDetector();
+        detector.inspect(sample(10_000, 0, 0, 1, 0, 100, 0));
+        detector.inspect(sample(10_400, 0.9, 0, 0.5, 0, 650, 0));
+        EvidenceEventDetector.Signal[] signals = detector.inspect(sample(10_800, 1.2, 0, 0.4, 0, 700, 0));
+
+        assertEquals(0, signals.length);
+    }
+
+    @Test
+    public void rejectsReversedImpactSequence() {
+        EvidenceEventDetector detector = new EvidenceEventDetector();
+        detector.inspect(sample(10_000, 3.2, 0, 0, 0, 600, 0));
+        detector.inspect(sample(10_400, 0.4, 0, 0, 0, 40, 0));
+        EvidenceEventDetector.Signal[] signals = detector.inspect(sample(10_800, 1, 0, 0, 0, 20, 0));
+
+        assertEquals(0, signals.length);
     }
 
     @Test
@@ -31,6 +54,7 @@ public final class EvidenceEventDetectorTest {
         EvidenceEventDetector.Signal[] signals = detector.inspect(sample(5_001, 0, 0, 1, 0, 10, 0));
 
         assertEquals("DATA_GAP", signals[0].type);
+        assertTrue(!signals[0].requiresAction);
     }
 
     @Test

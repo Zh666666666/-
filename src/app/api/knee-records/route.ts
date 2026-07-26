@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       activityFrequency: body.activityFrequency,
       activityDuration: body.activityDuration,
       painScore: body.painScore ?? 0,
-      batteryLevel: body.batteryLevel ?? 92,
+      batteryLevel: body.batteryLevel ?? null,
       signalStrength: body.signalStrength ?? 96,
       source: body.source ?? "SMART_BRACE",
       recordedAt: body.recordedAt ? new Date(body.recordedAt) : new Date(),

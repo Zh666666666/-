@@ -150,23 +150,26 @@ final class LiveSensorPanel {
         if (!force && now - lastRenderAtMs < 50L && sampleCount > 1) {
             // Keep waveform dense, but avoid over-invalidating text every packet.
         }
-        boolean renderUi = force || now - lastRenderAtMs >= 80L || sampleCount <= 2;
-        if (renderUi) {
-            lastRenderAtMs = now;
-            if (!receiving || !sample.deviceName.equals(connectedAddress)) {
-                receiving = true;
-                connectedAddress = sample.deviceName;
-                title.setText(placementLabel + " · 数据中");
-                subtitle.setText(sample.deviceName);
-            }
-            meta.setText("帧数：" + sampleCount + "    刷新：" + formatTime(sample.recordedAtMs));
-            acceleration.setValues(sample.ax, sample.ay, sample.az);
-            gyroscope.setValues(sample.gx, sample.gy, sample.gz);
-            angle.setValues(sample.roll, sample.pitch, sample.yaw);
-            cube.setAttitude(sample.roll, sample.pitch, sample.yaw);
+        boolean renderUi = force || now - lastRenderAtMs >= 100L || sampleCount <= 2;
+        if (!renderUi) return;
+        lastRenderAtMs = now;
+        if (!receiving || !sample.deviceName.equals(connectedAddress)) {
+            receiving = true;
+            connectedAddress = sample.deviceName;
+            title.setText(placementLabel + " · 数据中");
+            subtitle.setText(sample.deviceName);
         }
+        meta.setText(
+                "帧数：" + sampleCount
+                        + "    刷新：" + formatTime(sample.recordedAtMs)
+                        + "    电量：" + (sample.batteryLevel == null ? "--" : sample.batteryLevel + "%")
+        );
+        acceleration.setValues(sample.ax, sample.ay, sample.az);
+        gyroscope.setValues(sample.gx, sample.gy, sample.gz);
+        angle.setValues(sample.roll, sample.pitch, sample.yaw);
+        cube.setAttitude(sample.roll, sample.pitch, sample.yaw);
 
-        // Always append waveform points so the curve stays continuous.
+        // Rendering is capped at 10 Hz; acquisition and upload retain every SDK frame.
         angleWave.push((float) sample.roll, (float) sample.pitch, (float) sample.yaw);
         accWave.push((float) sample.ax, (float) sample.ay, (float) sample.az);
         gyroWave.push((float) sample.gx, (float) sample.gy, (float) sample.gz);

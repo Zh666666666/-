@@ -16,6 +16,7 @@ const gatewayApiPrefixes = [
   "/api/device-calibrations",
   "/api/sensor-sessions",
   "/api/sensor-samples",
+  "/api/ai-analyses",
 ];
 
 function redirectTo(request: NextRequest, pathname: string) {
