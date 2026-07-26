@@ -455,6 +455,14 @@
   border-color: var(--hairline-inverse);
 }
 
+/* 应用骨架：桌面端存在左侧导航栏时，内容区整体让位。
+   用 :has 而不是改每个页面 —— 登录前后骨架切换零成本。 */
+@media (min-width: 768px) {
+  body:has([data-app-rail]) main {
+    margin-left: 15rem;
+  }
+}
+
 /* 环境光：页面级柔光背景 */
 .ambient {
   position: relative;
@@ -468,6 +476,21 @@
   background:
     radial-gradient(46rem 30rem at 8% -6%, rgba(91, 139, 114, 0.16), transparent 70%),
     radial-gradient(38rem 26rem at 96% 2%, rgba(221, 180, 116, 0.18), transparent 70%);
+}
+
+/* Recharts 防御：其 ResizeObserver 在开发模式双挂载下可能失灵，
+   内联 width 残留旧测量值导致横向溢出。强制跟随容器，
+   svg 依赖 viewBox 等比缩放；RO 正常时两值相等，覆盖无副作用。 */
+.recharts-responsive-container,
+.recharts-responsive-container > div,
+.recharts-responsive-container .recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.recharts-responsive-container svg.recharts-surface {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .rehab-grid {

@@ -903,13 +903,13 @@ export default function SensorLivePage() {
                 原始样本波形（近 30 帧）
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-72 min-w-0">
+            <CardContent className="relative h-72 min-w-0">
               {waveform.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-slate-500">
                   {loading ? "加载中…" : "等待 Android 网关上传 HARDWARE 样本"}
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
+                <div className="absolute inset-0 pt-1"><ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={waveform}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f2ebdf" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
@@ -920,7 +920,7 @@ export default function SensorLivePage() {
                     <Line type="monotone" dataKey="pitch" name="Pitch°" stroke="#2f7d5c" strokeWidth={2.5} dot={false} />
                     <Line type="monotone" dataKey="roll" name="Roll°" stroke="#E87BA4" strokeWidth={2.5} dot={false} />
                   </LineChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer></div>
               )}
             </CardContent>
           </Card>
@@ -932,14 +932,14 @@ export default function SensorLivePage() {
                 临床趋势（10 秒聚合）
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-72 min-w-0">
+            <CardContent className="relative h-72 min-w-0">
               {clinicalSeries.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
                   <AlertTriangle className="size-5 text-amber-600" />
                   尚无临床聚合点。单传感器 confidence=0.35 只保留原始帧。
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
+                <div className="absolute inset-0 pt-1"><ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={clinicalSeries}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f2ebdf" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={20} />
@@ -947,7 +947,7 @@ export default function SensorLivePage() {
                     <Tooltip />
                     <Line type="monotone" dataKey="flexion" name="临床屈曲°" stroke="#12211c" strokeWidth={2.5} dot />
                   </LineChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer></div>
               )}
             </CardContent>
           </Card>

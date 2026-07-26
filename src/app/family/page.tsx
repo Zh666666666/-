@@ -278,82 +278,79 @@ export default function FamilyPage() {
   return (
     <main className="ambient relative min-h-screen bg-canvas px-3 pb-28 pt-3 text-ink-900 md:px-10 md:pb-10 md:pt-6">
 
-      <section className="relative mx-auto flex max-w-6xl flex-col gap-3 md:gap-6">
-        <header className="panel-ink grain rim-light family-view-enter relative overflow-hidden rounded-2xl border border-white/8 p-5 text-white md:p-8">
-          <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-end">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[0.75rem] font-medium text-[#c9d6ce] backdrop-blur">
-                <span className={`sync-dot size-1.5 rounded-full ${hardwareOnline ? "bg-[#7ba892]" : "bg-[#ddb474]"}`} />
-                家庭照护台 · {hardwareOnline ? "双传感器实时在线" : "等待真实硬件数据"}
-              </span>
-              <h1 className="display-lg mt-5 max-w-3xl text-[1.75rem] text-[#f7f3ea] md:mt-6 md:text-[2.75rem]">
-                今日康复照护，一眼看清。
-              </h1>
-              <p className="mt-3.5 max-w-2xl text-[0.875rem] leading-7 text-white/55 md:mt-5 md:text-base md:leading-8">
-                先看今日陪伴和风险提醒，再查看训练数据、护士建议和上门护理安排，让家属照护更有把握。
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-2.5 md:mt-8 md:flex md:flex-wrap">
-                <Button asChild size="lg" variant="brass" className="h-11 rounded-lg px-5 text-sm md:text-[0.9375rem]">
-                  <Link href="/appointments">预约护理</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="h-11 rounded-lg border-white/18 bg-white/[0.06] px-5 text-sm text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:text-[0.9375rem]">
-                  <Link href="/family/profile">个人资料</Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/12 bg-white/[0.06] p-4 backdrop-blur md:p-5">
-              <div className="flex items-center justify-between gap-3 text-[0.8125rem] text-white/50">
-                <span className="truncate">{patient ? `${patient.name} · ${patient.age} 岁` : "正在读取家人信息"}</span>
-                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.08] px-2.5 py-1 text-[0.75rem] text-[#c9d6ce]">
-                  <span className={`sync-dot size-1.5 rounded-full ${hardwareOnline ? "bg-[#7ba892]" : "bg-[#ddb474]"}`} />
-                  {stateLabel}
+      <section className="relative mx-auto flex max-w-6xl flex-col gap-3 md:gap-5">
+        {/* ---------- 指挥台头部：一行读数据，两个动作，不再占半屏 ---------- */}
+        <header className="family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+            <div className="min-w-0">
+              <p className="eyebrow text-brass-700">Family Console</p>
+              <h1 className="display-md mt-2.5 flex flex-wrap items-baseline gap-x-3 text-[1.5rem] md:text-[1.75rem]">
+                {patient ? patient.name : "家庭照护台"}
+                <span className="text-[0.875rem] font-normal tracking-normal text-[var(--muted-foreground)]">
+                  {patient ? `${patient.age} 岁 · TKA 术后康复` : "正在读取家人信息"}
                 </span>
-              </div>
-              <div className="mt-6 flex items-end justify-between gap-3 md:mt-8 md:gap-4">
-                <div className="min-w-0">
-                  <p className="eyebrow text-white/40">{flexionLabel}</p>
-                  <p className="tabular mt-2.5 text-[2.5rem] font-semibold leading-none tracking-[-0.035em] text-[#f7f3ea] md:text-[3.5rem]">{flexionDisplay}</p>
-                  {!hardwareOnline && measurementAt ? <p className="mt-2.5 text-[0.75rem] text-white/40">测于 {formatTime(measurementAt)} · 当前没有实时数据</p> : null}
-                </div>
-                <div className="shrink-0 rounded-lg border border-white/10 bg-white/[0.08] px-3.5 py-2.5 text-right">
-                  <p className="text-[0.6875rem] text-white/45">阶段目标（因人而异）</p>
-                  <p className="tabular mt-1 text-xl font-semibold text-[#f7f3ea] md:text-2xl">{patient?.targetFlexion ?? 110}°</p>
-                </div>
-              </div>
+              </h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--hairline-strong)] bg-white px-3 py-1.5 text-[0.75rem] font-medium text-[#4d5c53] shadow-e1">
+                <span className={`sync-dot size-1.5 rounded-full ${hardwareOnline ? "bg-[#2f7d5c]" : "bg-brass-500"}`} />
+                {hardwareOnline ? "双传感器实时在线" : "等待真实硬件数据"}
+              </span>
+              <Button asChild size="sm" variant="brass" className="h-9 rounded-lg px-4">
+                <Link href="/appointments">预约护理</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="h-9 rounded-lg px-4">
+                <Link href="/family/profile">个人资料</Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* 关键读数条：屈曲角 · 阶段目标 · 同步状态，扫一眼即得 */}
+          <div className="grid grid-cols-3 divide-x divide-[var(--hairline)] rounded-xl border border-[var(--hairline)] bg-white shadow-e2">
+            <div className="px-4 py-3.5 md:px-6 md:py-4">
+              <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">{flexionLabel}</p>
+              <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-[-0.03em] text-[#3c6552] md:text-[2rem]">{flexionDisplay}</p>
+              {!hardwareOnline && measurementAt ? (
+                <p className="mt-1.5 truncate text-[0.6875rem] text-[var(--subtle-foreground)]">测于 {formatTime(measurementAt)}</p>
+              ) : null}
+            </div>
+            <div className="px-4 py-3.5 md:px-6 md:py-4">
+              <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">阶段目标（因人而异）</p>
+              <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-[-0.03em] md:text-[2rem]">{patient?.targetFlexion ?? 110}°</p>
+            </div>
+            <div className="px-4 py-3.5 md:px-6 md:py-4">
+              <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">数据状态</p>
+              <p className="mt-1.5 truncate text-[0.9375rem] font-semibold leading-none md:mt-2.5 md:text-[1.0625rem]">{stateLabel}</p>
             </div>
           </div>
         </header>
 
-        <nav className="family-view-enter grid grid-cols-4 gap-1 rounded-xl border border-[var(--hairline)] bg-[var(--surface)] p-1 shadow-e1 md:gap-1.5 md:p-1.5 lg:grid-cols-4">
-          {familyWorkspaces.map((item, index) => {
-            const Icon = item.icon;
-            const active = activeWorkspace === item.value;
+        {/* ---------- 工作区切换：分段控件，轻量贴顶 ---------- */}
+        <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
+          <div className="flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white p-1 shadow-e1 md:inline-flex">
+            {familyWorkspaces.map((item) => {
+              const Icon = item.icon;
+              const active = activeWorkspace === item.value;
 
-            return (
-              <button
-                key={item.value}
-                type="button"
-                aria-pressed={active}
-                className={cn(
-                  "group rounded-lg p-2 text-center transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:p-3.5 md:text-left",
-                  active
-                    ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_6px_16px_-10px_rgba(20,35,30,0.7)]"
-                    : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
-                )}
-                onClick={() => setActiveWorkspace(item.value)}
-              >
-                <div className="flex items-center justify-center gap-2 md:justify-between md:gap-3">
-                  <span className={cn("flex size-8 items-center justify-center rounded-md transition-colors duration-250 md:size-9", active ? "bg-white/10 text-[#edd3a3]" : "bg-[#e2ede6] text-[#497a62] group-hover:bg-[#d3e4da]") }>
-                    <Icon className="size-4 md:size-4.5" />
-                  </span>
-                  <span className={cn("eyebrow hidden md:inline", active ? "text-[#ddb474]" : "text-[#61716a]")}>0{index + 1}</span>
-                </div>
-                <p className="mt-1.5 text-[0.8125rem] font-medium md:mt-4 md:text-[1.0625rem] md:font-semibold md:tracking-[-0.015em]">{item.label}</p>
-                <p className={cn("mt-1 hidden text-[0.75rem] leading-5 md:block", active ? "text-white/45" : "text-[#61716a]")}>{item.helper}</p>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={active}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-[0.8125rem] font-medium transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex-none md:px-4",
+                    active
+                      ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+                      : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
+                  )}
+                  onClick={() => setActiveWorkspace(item.value)}
+                >
+                  <Icon className={cn("size-4 shrink-0", active ? "text-[#edd3a3]" : "text-[#497a62]")} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
         {activeWorkspace === "today" ? (

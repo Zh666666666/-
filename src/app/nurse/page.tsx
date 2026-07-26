@@ -670,42 +670,40 @@ export default function NursePage() {
     <main className="ambient relative min-h-screen bg-canvas pb-32 text-ink-900 md:pb-0">
 
       <section className="relative mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 md:gap-5 md:px-8 md:py-5">
-        <header className="panel-ink grain rim-light family-view-enter relative overflow-hidden rounded-2xl border border-white/8 p-5 text-white md:p-8">
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[0.75rem] font-medium text-[#edd3a3] backdrop-blur">
-                  <span className={cn("sync-dot size-1.5 rounded-full", syncState === "realtime" ? "bg-[#7ba892]" : "bg-[#ddb474]")} />
+        {/* ---------- 指挥台头部：标题 + 同步状态 + 动作组，一行收纳 ---------- */}
+        <header className="family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+            <div className="min-w-0">
+              <p className="eyebrow text-brass-700">Nurse Console</p>
+              <h1 className="display-md mt-2.5 flex flex-wrap items-baseline gap-x-3 text-[1.5rem] md:text-[1.75rem]">
+                病区护理工作台
+                <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-normal tracking-normal text-[var(--muted-foreground)]">
+                  <span className={cn("sync-dot size-1.5 rounded-full", syncState === "realtime" ? "bg-[#2f7d5c]" : "bg-brass-500")} />
                   {syncState === "realtime" ? "实时数据在线" : syncState === "polling" ? "定时同步在线" : "正在连接数据"}
                 </span>
-                <span className="inline-flex items-center rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[0.75rem] font-medium text-white/70 backdrop-blur">
-                  TKA 康复护士工作台
-                </span>
-              </div>
-              <h1 className="display-lg mt-5 max-w-4xl text-[1.75rem] text-[#f7f3ea] md:mt-6 md:text-[2.75rem]">病区护理，一屏掌握。</h1>
-              <p className="mt-3.5 max-w-3xl text-[0.875rem] leading-7 text-white/55 md:mt-5 md:text-[1.0625rem] md:leading-8">查看患者康复数据、开放预警、远程指导和护理记录，帮助护士更快发现风险、安排随访并完成交接。</p>
+              </h1>
             </div>
-            <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              <Button asChild size="lg" variant="outline" className="hidden h-11 rounded-lg border-white/15 bg-white/[0.06] px-4 text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] lg:inline-flex">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild size="sm" variant="outline" className="hidden h-9 rounded-lg px-3.5 lg:inline-flex">
                 <Link href="/nurse/profile">护士资料</Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="hidden h-11 rounded-lg border-white/15 bg-white/[0.06] px-4 text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] lg:inline-flex">
+              <Button asChild size="sm" variant="outline" className="hidden h-9 rounded-lg px-3.5 lg:inline-flex">
                 <Link href="/appointments">护理预约</Link>
               </Button>
-              <Button asChild size="sm" variant="outline" className="h-10 rounded-lg border-white/15 bg-white/[0.06] px-2 text-[0.75rem] text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:h-11 md:px-4 md:text-sm">
+              <Button asChild size="sm" variant="outline" className="h-9 rounded-lg px-3">
                 <Link href="/hardware-demo">
                   <Radio className="size-4" />
                   硬件
                 </Link>
               </Button>
-              <RoleSwitchButton role="family" size="sm" variant="outline" className="h-10 rounded-lg border-white/15 bg-white/[0.06] px-2 text-[0.75rem] text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:h-11 md:px-4 md:text-sm">
+              <RoleSwitchButton role="family" size="sm" variant="outline" className="h-9 rounded-lg px-3">
                 家属端
               </RoleSwitchButton>
-              <Button size="sm" variant="outline" className="h-10 rounded-lg border-white/15 bg-white/[0.06] px-2 text-[0.75rem] text-white shadow-none backdrop-blur hover:border-white/30 hover:bg-white/[0.12] md:h-11 md:px-4 md:text-sm" onClick={logout}>
+              <Button size="sm" variant="outline" className="h-9 rounded-lg px-3" onClick={logout}>
                 <LogOut className="size-4" />
                 退出
               </Button>
-              <Button size="sm" variant="brass" className="h-10 rounded-lg px-2 text-[0.75rem] md:h-11 md:px-4 md:text-sm" onClick={refreshDashboard}>
+              <Button size="sm" variant="brass" className="h-9 rounded-lg px-4" onClick={refreshDashboard}>
                 <Radio className="size-4" />
                 刷新
               </Button>
@@ -713,35 +711,32 @@ export default function NursePage() {
           </div>
         </header>
 
-        <nav className="family-view-enter grid grid-cols-5 gap-1 rounded-xl border border-[var(--hairline)] bg-[var(--surface)] p-1 shadow-e1 md:gap-1.5 md:p-1.5 lg:grid-cols-5">
-          {nurseWorkspaces.map((item, index) => {
-            const Icon = item.icon;
-            const active = activeWorkspace === item.value;
+        {/* ---------- 工作区切换：分段控件，滚动时贴顶 ---------- */}
+        <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
+          <div className="flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white p-1 shadow-e1 md:inline-flex">
+            {nurseWorkspaces.map((item) => {
+              const Icon = item.icon;
+              const active = activeWorkspace === item.value;
 
-            return (
-              <button
-                key={item.value}
-                type="button"
-                aria-pressed={active}
-                className={cn(
-                  "group rounded-lg p-2 text-center transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:p-3.5 md:text-left",
-                  active
-                    ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_6px_16px_-10px_rgba(20,35,30,0.7)]"
-                    : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
-                )}
-                onClick={() => setActiveWorkspace(item.value)}
-              >
-                <div className="flex items-center justify-center gap-2 md:justify-between md:gap-3">
-                  <span className={cn("flex size-8 items-center justify-center rounded-md transition-colors duration-250 md:size-9", active ? "bg-white/10 text-[#edd3a3]" : "bg-[#e2ede6] text-[#497a62] group-hover:bg-[#d3e4da]")}>
-                    <Icon className="size-4 md:size-4.5" />
-                  </span>
-                  <span className={cn("eyebrow hidden md:inline", active ? "text-[#ddb474]" : "text-[#61716a]")}>0{index + 1}</span>
-                </div>
-                <p className="mt-1.5 text-[0.8125rem] font-medium md:mt-4 md:text-[1.0625rem] md:font-semibold md:tracking-[-0.015em]">{item.label}</p>
-                <p className={cn("mt-1 hidden text-[0.75rem] leading-5 md:block", active ? "text-white/45" : "text-[#61716a]")}>{item.helper}</p>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={active}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-[0.8125rem] font-medium transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex-none md:px-4",
+                    active
+                      ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+                      : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
+                  )}
+                  onClick={() => setActiveWorkspace(item.value)}
+                >
+                  <Icon className={cn("size-4 shrink-0", active ? "text-[#edd3a3]" : "text-[#497a62]")} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
         {activeWorkspace === "quality" ? (
@@ -910,17 +905,19 @@ export default function NursePage() {
                   <PatientMetric icon={Clock3} metric="duration" label="训练时长" value={selectedLatest ? `${selectedLatest.activityDuration} 分` : "--"} danger={(selectedLatest?.activityDuration ?? 20) < 18} />
                 </div>
 
-                <div className="h-[280px] min-h-[280px] min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2 md:h-[340px] md:min-h-[340px] md:p-4">
+                <div className="relative h-[280px] min-h-[280px] min-w-0 rounded-xl border border-slate-200 bg-slate-50 md:h-[340px] md:min-h-[340px]">
                   {chartReady ? (
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
-                      <LineChart data={chartRows} margin={{ left: 4, right: 16, top: 18, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5dbc9" />
-                        <XAxis dataKey="time" tick={{ fontSize: 12 }} stroke="#576860" />
-                        <YAxis stroke="#576860" />
-                        <Tooltip contentStyle={{ borderRadius: 18, border: "1px solid #e5dbc9" }} />
-                        <Line type="monotone" dataKey="flexionAngle" name="屈曲角度" stroke="#2f6076" strokeWidth={3} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <div className="absolute inset-2 md:inset-4">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <LineChart data={chartRows} margin={{ left: 4, right: 16, top: 18, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5dbc9" />
+                          <XAxis dataKey="time" tick={{ fontSize: 12 }} stroke="#576860" />
+                          <YAxis stroke="#576860" />
+                          <Tooltip contentStyle={{ borderRadius: 18, border: "1px solid #e5dbc9" }} />
+                          <Line type="monotone" dataKey="flexionAngle" name="屈曲角度" stroke="#2f6076" strokeWidth={3} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   ) : null}
                 </div>
               </CardContent>
