@@ -165,5 +165,7 @@
 - `npm test`：44 项通过（29 runtime + 9 gateway + 6 API）。
 - `npm run lint`、`npm run build`：通过，48 个 Web 路由完成生产构建。
 - Android `verify-debug.ps1`：JVM、Lint、Debug APK 构建通过。
+- GitHub Build `30188926622` 与 Android Gateway `30188926619` 通过；云端 Android
+  同时完成 Release/R8、临时证书 v2/v3/v4 签名链路和无 USB 测试产物上传。
 - 仍需安装新 APK 做两只实物传感器的 30 分钟队列收敛、P95 小于 2 秒、真实电量变化和
   正常屈伸零误报验收；这些真机指标在复测前不得标记为通过。

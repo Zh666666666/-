@@ -408,16 +408,17 @@
   JVM、Lint、Debug APK 构建。
 - 本地 Debug APK：`mobile-gateway-android/app/build/outputs/apk/debug/app-debug.apk`，
   SHA256 `D7938540A18FEBE79BDD7A774B5BF0C1B209D3F5277D58162EC9368B34D969D5`。
-- 当前分支为 `codex/v043-field-remediation`，P0 第一检查点提交为 `9bcdd59`；
-  本检查点尚待提交、GitHub CI 与生产部署。
+- 当前分支为 `codex/v043-field-remediation`；P0 第一检查点为 `9bcdd59`，本轮功能提交
+  为 `e21a5fe`。GitHub Build `30188926622` 与 Android Gateway `30188926619`
+  均通过，生产部署尚未执行。
 - 真实双传感器的 30 分钟队列收敛、App 到 Web P95 小于 2 秒、真实电量变化和正常屈伸
   零误报仍需安装本轮 APK 后复测，不能用自动化结果代替。
 
 下一步任务：
 
-1. 推送本检查点并通过 GitHub Build 与 Android Gateway CI，生成长期证书签名 APK。
+1. 审查并合并 PR #37；合并后使用长期证书工作流生成正式签名 APK。
 2. 备份生产数据库，部署新增迁移和 Web 容器，运行生产健康、认证、历史隔离与迁移验收。
-3. 安装新 APK，用两只 BT50 连续训练 30 分钟，验证队列收敛、实时延迟、真实电量、
+3. 安装正式 APK，用两只 BT50 连续训练 30 分钟，验证队列收敛、实时延迟、真实电量、
    结束训练、历史摘要、正常屈伸误报和单侧断开。
 4. 真机验收后再决定是否将冲击筛查升级为正式告警；当前仍是需要人工核对的实验性提示。
 
@@ -425,7 +426,7 @@ Agent 工作记录：
 
 | 日期 | 已完成 | 当前状态 | 下一步 | 验证 |
 | --- | --- | --- | --- | --- |
-| 2026-07-26 | 补齐邮箱找回/修改密码/退出、账号资料、15 天训练历史、72 小时原始帧保留、完整会话总结、自动 AI、真实 SDK 电量、低负载渲染和有序冲击规则 | 本地软件验证通过；GitHub CI、生产部署和双实物长测待执行 | 提交推送后部署迁移与 Web，再安装签名 APK 真机验收 | `npm test` 44/44、`npm run lint`、`npm run build` 48 路由、Android JVM/Lint/Debug 通过 |
+| 2026-07-26 | 补齐邮箱找回/修改密码/退出、账号资料、15 天训练历史、72 小时原始帧保留、完整会话总结、自动 AI、真实 SDK 电量、低负载渲染和有序冲击规则 | 本地与 GitHub 软件门禁通过；生产部署和双实物长测待执行 | 合并 PR #37，部署迁移与 Web，再安装长期证书签名 APK 真机验收 | 本地 `npm test` 44/44、Lint、48 路由 Build、Android JVM/Lint/Debug；GitHub Build `30188926622`、Android `30188926619` 通过 |
 
 ## Agent 更新规则
 
