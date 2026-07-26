@@ -38,6 +38,16 @@ public final class EvidenceEventDetectorTest {
     }
 
     @Test
+    public void rejectsReversedImpactSequence() {
+        EvidenceEventDetector detector = new EvidenceEventDetector();
+        detector.inspect(sample(10_000, 3.2, 0, 0, 0, 600, 0));
+        detector.inspect(sample(10_400, 0.4, 0, 0, 0, 40, 0));
+        EvidenceEventDetector.Signal[] signals = detector.inspect(sample(10_800, 1, 0, 0, 0, 20, 0));
+
+        assertEquals(0, signals.length);
+    }
+
+    @Test
     public void detectsLongDataGap() {
         EvidenceEventDetector detector = new EvidenceEventDetector();
         detector.inspect(sample(1_000, 0, 0, 1, 0, 10, 0));

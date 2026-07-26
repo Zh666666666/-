@@ -55,17 +55,21 @@ export async function POST(request: Request) {
 
   const normalizedEmail = parsed.data.email.trim().toLowerCase();
   const expected = localCredentials(parsed.data.role);
-  const emailMatches = await secretsEqual(normalizedEmail, expected.email.trim().toLowerCase());
-  const passwordMatches = await secretsEqual(parsed.data.password, expected.password);
   let accountId: string | undefined;
-  if (!emailMatches || !passwordMatches) {
-    const expectedRole = parsed.data.role === "family" ? "patient" : "nurse";
-    const account = await prisma.authAccount.findUnique({ where: { email: normalizedEmail } });
+  const expectedRole = parsed.data.role === "family" ? "patient" : "nurse";
+  const account = await prisma.authAccount.findUnique({ where: { email: normalizedEmail } });
+  if (account) {
     const registeredPasswordMatches = account ? await verifyPassword(parsed.data.password, account.passwordHash) : false;
     if (!account || account.status !== "ACTIVE" || account.role !== expectedRole || !registeredPasswordMatches) {
       return NextResponse.json({ error: "账号或密码不正确。" }, { status: 401 });
     }
     accountId = account.id;
+  } else {
+    const emailMatches = await secretsEqual(normalizedEmail, expected.email.trim().toLowerCase());
+    const passwordMatches = await secretsEqual(parsed.data.password, expected.password);
+    if (!emailMatches || !passwordMatches) {
+      return NextResponse.json({ error: "账号或密码不正确。" }, { status: 401 });
+    }
   }
 
   const secret = process.env["LOCAL_AUTH_SESSION_SECRET"] ?? "";

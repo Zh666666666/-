@@ -260,7 +260,7 @@ export default function FamilyPage() {
   const frequency = latestRecord?.activityFrequency ?? recentRecords[0]?.activityFrequency ?? 0;
   const extension = latestRecord?.extensionAngle ?? recentRecords[0]?.extensionAngle ?? 0;
   const duration = latestRecord?.activityDuration ?? recentRecords[0]?.activityDuration ?? 0;
-  const battery = latestRecord?.batteryLevel ?? recentRecords[0]?.batteryLevel ?? 92;
+  const battery = latestRecord?.batteryLevel ?? recentRecords.find((record) => record.batteryLevel !== null)?.batteryLevel ?? null;
   const latestAnalysis = aiAnalyses[0] ?? null;
   const latestAlert = alerts[0] ?? null;
   const latestGuidance = nursingRecords[0] ?? null;
@@ -486,7 +486,7 @@ export default function FamilyPage() {
                   <MetricCard icon={Activity} metric="extension" label="伸直度" value={`${extension.toFixed(0)}°`} tone="text-[#2f5f8f]" />
                   <MetricCard icon={HeartPulse} metric="frequency" label="活动频次" value={`${frequency} 次`} tone="text-[#2f6f55]" />
                   <MetricCard icon={CheckCircle2} metric="duration" label="训练时长" value={`${duration} 分钟`} tone="text-[#b0823d]" />
-                  <MetricCard icon={BatteryCharging} metric="battery" label="护膝电量" value={`${battery}%`} tone="text-[#2f6f55]" />
+                  <MetricCard icon={BatteryCharging} metric="battery" label="传感器电量" value={battery === null ? "暂未读取" : `${battery}%`} tone="text-[#2f6f55]" />
                 </div>
               </CardContent>
             </Card>

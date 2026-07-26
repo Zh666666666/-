@@ -61,20 +61,31 @@ final class EvidenceEventDetector {
                 && sample.recordedAtMs - motionWindow.peekFirst().atMs > IMPACT_WINDOW_MS) {
             motionWindow.removeFirst();
         }
+        boolean lowSeen = false;
+        boolean impactSeen = false;
         double minimumAcceleration = Double.POSITIVE_INFINITY;
         double peakAcceleration = 0d;
         double peakAngularVelocity = 0d;
         for (MotionPoint point : motionWindow) {
-            minimumAcceleration = Math.min(minimumAcceleration, point.acceleration);
-            peakAcceleration = Math.max(peakAcceleration, point.acceleration);
-            peakAngularVelocity = Math.max(peakAngularVelocity, point.angularVelocity);
+            if (!lowSeen && point.acceleration < IMPACT_LOW_ACCELERATION_G) {
+                lowSeen = true;
+                minimumAcceleration = point.acceleration;
+                continue;
+            }
+            if (lowSeen && !impactSeen && point.acceleration >= IMPACT_ACCELERATION_G) {
+                impactSeen = true;
+            }
+            if (impactSeen) {
+                peakAcceleration = Math.max(peakAcceleration, point.acceleration);
+                peakAngularVelocity = Math.max(peakAngularVelocity, point.angularVelocity);
+            }
         }
         Signal impact = null;
         if (
-                sample.recordedAtMs - lastImpactAt >= 5_000L
+                sample.recordedAtMs - lastImpactAt >= 10_000L
                         && motionWindow.size() >= 3
-                        && minimumAcceleration < IMPACT_LOW_ACCELERATION_G
-                        && peakAcceleration >= IMPACT_ACCELERATION_G
+                        && lowSeen
+                        && impactSeen
                         && peakAngularVelocity >= IMPACT_ANGULAR_VELOCITY_DPS
         ) {
             lastImpactAt = sample.recordedAtMs;

@@ -303,7 +303,8 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
                 readKey(device, "AccZ"),
                 readKey(device, "AsX"),
                 readKey(device, "AsY"),
-                readKey(device, "AsZ")
+                readKey(device, "AsZ"),
+                readBattery(device)
         );
         listener.onReading(sample);
     }
@@ -320,6 +321,14 @@ final class WitBleGateway implements DeviceDataListener, DeviceFindListener {
     private static double readKey(DeviceModel device, String key) {
         Double value = device.GetData(key);
         return value == null ? 0.0d : value;
+    }
+
+    private static Integer readBattery(DeviceModel device) {
+        Double value = device.GetData("Electricity");
+        if (value == null || !Double.isFinite(value) || value < 0.0d || value > 100.0d) {
+            return null;
+        }
+        return (int) Math.round(value);
     }
 
     private static String zeroKey(String address) {

@@ -99,6 +99,7 @@ enum AccountStatus {
 
 enum VerificationPurpose {
   REGISTRATION
+  RESET_PASSWORD
 }
 
 enum Gender {
@@ -124,6 +125,8 @@ model Profile {
   affectedKnee        SurgicalSide? @map("affected_knee")
   phone               String?
   emergencyContact    String?  @map("emergency_contact")
+  relationToPatient   String?  @map("relation_to_patient")
+  notificationPreference String? @map("notification_preference")
   sensorDeviceId      String?  @map("sensor_device_id")
   department          String?
   title               String?
@@ -167,6 +170,9 @@ model AiAnalysis {
   id                String   @id @default(cuid())
   patientId         String   @map("patient_id")
   patientName       String   @map("patient_name")
+  sessionId         String?  @map("session_id")
+  confidence        Float?
+  status            String?
   flexionAngle      Float    @map("flexion_angle")
   activityFrequency Int      @map("activity_frequency")
   activityDuration  Int      @map("activity_duration")
@@ -177,6 +183,7 @@ model AiAnalysis {
   createdAt         DateTime @default(now()) @map("created_at")
 
   @@index([patientId, createdAt])
+  @@index([sessionId])
   @@map("ai_analyses")
 }
 
@@ -353,7 +360,7 @@ model KneeDataRecord {
   activityFrequency Int          @map("activity_frequency")
   activityDuration  Int          @map("activity_duration")
   painScore         Int          @default(0) @map("pain_score")
-  batteryLevel      Int          @default(92) @map("battery_level")
+  batteryLevel      Int?         @map("battery_level")
   signalStrength    Int          @default(96) @map("signal_strength")
   source            DeviceSource @default(SMART_BRACE)
   recordedAt        DateTime     @default(now()) @map("recorded_at")

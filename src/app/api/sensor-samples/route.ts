@@ -64,7 +64,7 @@ function serializeKneeRecord(record: {
   activityFrequency: number;
   activityDuration: number;
   painScore: number;
-  batteryLevel: number;
+  batteryLevel: number | null;
   signalStrength: number;
   source: "SMART_BRACE" | "HARDWARE" | "MANUAL" | "DEMO";
   recordedAt: Date;
@@ -526,7 +526,7 @@ export async function POST(request: Request) {
             activityFrequency: 1,
             activityDuration: 1,
             painScore: 0,
-            batteryLevel: body.batteryLevel ?? 92,
+            batteryLevel: body.batteryLevel ?? null,
             signalStrength: body.signalStrength ?? 96,
             source,
             recordedAt,

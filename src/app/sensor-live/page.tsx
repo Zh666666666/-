@@ -473,6 +473,7 @@ export default function SensorLivePage() {
   const dualActive = Boolean(live?.dualActive);
   const clinicalReady = Boolean(live?.metrics?.clinicalEligible);
   const metrics = live?.metrics ?? null;
+  const hasUsableReading = (metrics?.dataQuality.synchronizedPairs ?? 0) >= 2;
   const thighSample = live?.latestByPlacement?.THIGH;
   const shankSample = live?.latestByPlacement?.SHANK;
   const realtimeQualified = isTrustedRealtimeSample(thighSample, nowMs)
@@ -483,21 +484,19 @@ export default function SensorLivePage() {
     || typeof metrics?.training.activeDurationSeconds === "number";
   const familySafetyTitle = urgentWarning
     ? "请先确认家人是否安全"
-    : clinicalReady
+    : hasUsableReading
       ? "本次监测未发现明显异常"
       : hasObservedTraining
         ? "动作数据已收到，结论仍待核对"
         : "正在接收本次训练数据";
   const familySafetyDetail = urgentWarning
     ? urgentWarning.action
-    : clinicalReady
+    : hasUsableReading
       ? "可以继续按护士给出的方案训练；如出现明显疼痛、肿胀或不适，请暂停并联系护士。"
       : hasObservedTraining
         ? "下方数值来自两只传感器的同步实测；质量门未通过前仅作训练预览，不触发风险结论。"
         : "先保持两只设备连接，并缓慢完成一次弯曲再伸直；系统不会把不完整数据当成结论。";
-  const nextAction = measurementStatus === "SETUP_REQUIRED"
-    ? "请确认两只设备佩戴位置，并在设备页重新完成零点校准。"
-    : measurementStatus === "TECHNICAL_ISSUE"
+  const nextAction = measurementStatus === "TECHNICAL_ISSUE"
       ? "数据存在不同步或异常跳变，请暂停使用本次结果并检查蓝牙连接。"
       : measurementStatus === "COLLECTING"
         ? dualActive
@@ -595,7 +594,7 @@ export default function SensorLivePage() {
           <Card className={`border-2 shadow-sm ${urgentWarning ? "border-red-200 bg-red-50" : clinicalReady ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <CardContent className="p-5 md:p-6">
               <div className="flex items-start gap-3">
-                {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : clinicalReady ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
+                {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : hasUsableReading ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
                 <div>
                   <p className="text-sm font-bold text-slate-500">现在是否需要注意</p>
                   <h2 className="mt-1 text-2xl font-black text-[#12304a]">{familySafetyTitle}</h2>
@@ -611,18 +610,20 @@ export default function SensorLivePage() {
               <p className="mt-2 text-lg font-black leading-8 text-[#12304a]">{nextAction}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge variant={realtimeQualified ? "success" : "warning"}>{realtimeQualified ? "两只设备上传正常" : dualActive ? "两只设备有数据，正在追赶实时" : "等待两只设备实时数据"}</Badge>
-                <Badge variant={clinicalReady ? "success" : "outline"}>{clinicalReady ? "本次结果可用于训练监测" : "暂不输出训练结论"}</Badge>
+                <Badge variant={hasUsableReading ? "success" : "outline"}>{hasUsableReading ? clinicalReady ? "本次结果可信" : "已有结果，可信度较低" : "数据不足，暂不判断"}</Badge>
               </div>
             </CardContent>
           </Card>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="本次训练完成情况">
+        <section className={`grid gap-4 ${showProfessional ? "sm:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2"}`} aria-label="本次训练完成情况">
           {[
-            { label: "本次活动范围", value: metrics?.rom.value, suffix: "°", note: clinicalReady ? "已通过质量核对" : "同步实测预览，质量核对中" },
-            { label: "最深弯曲角度", value: metrics?.rom.peakFlexion, suffix: "°", note: `目标 ${metrics?.rom.targetFlexion ?? "--"}°；未核对前不作医疗结论` },
-            { label: "完成完整屈伸", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后回到起始位置才计一次" },
-            { label: "实际训练时间", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "仅累计检测到动作的连续时间" },
+            ...(showProfessional ? [
+              { label: "本次活动范围", value: metrics?.rom.value, suffix: "°", note: clinicalReady ? "已通过质量核对" : "同步实测预览，可信度较低" },
+              { label: "最深弯曲角度", value: metrics?.rom.peakFlexion, suffix: "°", note: `训练目标 ${metrics?.rom.targetFlexion ?? "--"}°；仅供护士复核` },
+            ] : []),
+            { label: showProfessional ? "完成完整屈伸" : "已完成动作", value: metrics?.training.repetitions, suffix: " 次", note: "弯曲后回到起始位置才计一次" },
+            { label: showProfessional ? "实际训练时间" : "已经活动", value: metrics?.training.activeDurationSeconds, suffix: " 秒", note: "静止和断开期间不会计入" },
           ].map((item) => (
             <Card key={item.label} className="border-[#d9e2e9] bg-white shadow-sm">
               <CardContent className="p-5">

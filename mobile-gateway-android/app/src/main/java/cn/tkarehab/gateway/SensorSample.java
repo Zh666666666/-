@@ -30,6 +30,7 @@ final class SensorSample {
     final double gx;
     final double gy;
     final double gz;
+    final Integer batteryLevel;
 
     SensorSample(
             String gatewayDeviceId,
@@ -50,7 +51,7 @@ final class SensorSample {
         this(
                 gatewayDeviceId, deviceName, placement, captureSequence, recordedAtMs,
                 0L, roll, pitch, yaw, SoftwareZeroCalibration.NONE,
-                ax, ay, az, gx, gy, gz
+                ax, ay, az, gx, gy, gz, null
         );
     }
 
@@ -72,6 +73,32 @@ final class SensorSample {
             double gy,
             double gz
     ) {
+        this(
+                gatewayDeviceId, deviceName, placement, captureSequence, recordedAtMs,
+                placementRevision, rawRoll, rawPitch, rawYaw, softwareZero,
+                ax, ay, az, gx, gy, gz, null
+        );
+    }
+
+    SensorSample(
+            String gatewayDeviceId,
+            String deviceName,
+            SensorPlacement placement,
+            long captureSequence,
+            long recordedAtMs,
+            long placementRevision,
+            double rawRoll,
+            double rawPitch,
+            double rawYaw,
+            SoftwareZeroCalibration softwareZero,
+            double ax,
+            double ay,
+            double az,
+            double gx,
+            double gy,
+            double gz,
+            Integer batteryLevel
+    ) {
         this.gatewayDeviceId = gatewayDeviceId;
         this.gatewaySampleId = UUID.randomUUID().toString();
         this.deviceName = deviceName;
@@ -92,6 +119,7 @@ final class SensorSample {
         this.gx = gx;
         this.gy = gy;
         this.gz = gz;
+        this.batteryLevel = batteryLevel;
     }
 
     JSONObject toUploadJson() throws JSONException {
@@ -125,6 +153,10 @@ final class SensorSample {
         payload.put("gx", gx);
         payload.put("gy", gy);
         payload.put("gz", gz);
+        if (batteryLevel != null) {
+            payload.put("batteryLevel", batteryLevel);
+            raw.put("batterySource", "WIT_SDK_ELECTRICITY_REGISTER_0X64");
+        }
         payload.put("raw", raw);
         return payload;
     }
@@ -150,6 +182,9 @@ final class SensorSample {
         payload.put("gx", gx);
         payload.put("gy", gy);
         payload.put("gz", gz);
+        if (batteryLevel != null) {
+            payload.put("batteryLevel", batteryLevel);
+        }
         return payload;
     }
 

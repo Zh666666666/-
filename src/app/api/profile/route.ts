@@ -3,131 +3,95 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { authRoleCookie, isUserRole } from "@/lib/auth";
-import { getDemoProfile, upsertDemoProfile } from "@/lib/demo-store";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
-import { isDemoMode } from "@/lib/env";
+import { getDemoProfile, upsertDemoProfile } from "@/lib/demo-store";
+import { isDemoMode, resolveAuthMode } from "@/lib/env";
+import { localSessionCookie, verifyLocalSession } from "@/lib/local-auth";
 import { prisma } from "@/lib/prisma";
 import type { ProfileItem, UserRole } from "@/lib/rehab";
 
-const profileSchema = z.object({
+const schema = z.object({
   role: z.enum(["family", "nurse"]),
-  name: z.string().min(1),
-  age: z.coerce.number().int().min(0).max(120).optional().nullable(),
-  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
-  tkaSurgeryDate: z.string().optional().nullable(),
-  affectedKnee: z.enum(["LEFT", "RIGHT", "BILATERAL"]).optional().nullable(),
-  phone: z.string().optional().nullable(),
-  emergencyContact: z.string().optional().nullable(),
-  sensorDeviceId: z.string().optional().nullable(),
-  department: z.string().optional().nullable(),
-  title: z.string().optional().nullable(),
+  name: z.string().trim().min(1).max(60),
+  phone: z.string().trim().max(30).optional().nullable(),
+  relationToPatient: z.string().trim().max(40).optional().nullable(),
+  notificationPreference: z.enum(["IMPORTANT_ONLY", "ALL", "NONE"]).optional().nullable(),
+  department: z.string().trim().max(80).optional().nullable(),
+  title: z.string().trim().max(80).optional().nullable(),
 });
 
-function toDatabaseRole(role: UserRole) {
-  return role === "family" ? "patient" : "nurse";
+function toDatabaseRole(role: UserRole) { return role === "family" ? "patient" : "nurse"; }
+function toAppRole(role: "patient" | "nurse"): UserRole { return role === "patient" ? "family" : "nurse"; }
+
+async function identity() {
+  const store = await cookies();
+  if (resolveAuthMode() === "local") {
+    const session = await verifyLocalSession(store.get(localSessionCookie)?.value, process.env["LOCAL_AUTH_SESSION_SECRET"]);
+    if (!session) return null;
+    return { role: session.role, userId: session.accountId ?? `${toDatabaseRole(session.role)}-default-profile` };
+  }
+  const role = store.get(authRoleCookie)?.value;
+  if (!isUserRole(role)) return null;
+  return { role, userId: `${toDatabaseRole(role)}-default-profile` };
 }
 
-function toAppRole(role: "patient" | "nurse") {
-  return role === "patient" ? "family" : "nurse";
-}
-
-async function currentRole(): Promise<UserRole> {
-  const cookieStore = await cookies();
-  const role = cookieStore.get(authRoleCookie)?.value;
-  return isUserRole(role) ? role : "family";
-}
-
-function serializeProfile(profile: {
-  id: string;
-  userId: string;
-  role: "patient" | "nurse";
-  name: string;
-  age: number | null;
-  gender: ProfileItem["gender"];
-  tkaSurgeryDate: Date | string | null;
-  affectedKnee: ProfileItem["affectedKnee"];
-  phone: string | null;
-  emergencyContact: string | null;
-  sensorDeviceId: string | null;
-  department: string | null;
-  title: string | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+function serialize(profile: {
+  id: string; userId: string; role: "patient" | "nurse"; name: string; age: number | null;
+  gender: ProfileItem["gender"]; tkaSurgeryDate: Date | null; affectedKnee: ProfileItem["affectedKnee"];
+  phone: string | null; emergencyContact: string | null; sensorDeviceId: string | null;
+  relationToPatient: string | null; notificationPreference: string | null;
+  department: string | null; title: string | null; createdAt: Date; updatedAt: Date;
 }): ProfileItem {
   return {
     ...profile,
     role: toAppRole(profile.role),
-    tkaSurgeryDate: profile.tkaSurgeryDate ? new Date(profile.tkaSurgeryDate).toISOString() : null,
-    createdAt: new Date(profile.createdAt).toISOString(),
-    updatedAt: new Date(profile.updatedAt).toISOString(),
+    tkaSurgeryDate: profile.tkaSurgeryDate?.toISOString() ?? null,
+    createdAt: profile.createdAt.toISOString(),
+    updatedAt: profile.updatedAt.toISOString(),
   };
 }
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const roleParam = url.searchParams.get("role");
-  const role = isUserRole(roleParam) ? roleParam : await currentRole();
-  const dbRole = toDatabaseRole(role);
-
+export async function GET() {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
-
-  if (isDemoMode()) {
-    return NextResponse.json(getDemoProfile(role));
-  }
-
-  const profile = await prisma.profile.findFirst({ where: { role: dbRole } });
-  return NextResponse.json(profile ? serializeProfile(profile) : null);
+  const current = await identity();
+  if (!current) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (isDemoMode()) return NextResponse.json(getDemoProfile(current.role));
+  const profile = await prisma.profile.findUnique({ where: { userId: current.userId } });
+  return NextResponse.json(profile ? serialize(profile) : null);
 }
 
 export async function PUT(request: Request) {
-  const parsed = profileSchema.safeParse(await request.json());
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid profile payload", issues: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const body = parsed.data;
-
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "资料格式不正确。" }, { status: 400 });
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
+  const current = await identity();
+  if (!current || parsed.data.role !== current.role) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (isDemoMode()) return NextResponse.json(upsertDemoProfile(parsed.data));
 
-  if (isDemoMode()) {
-    return NextResponse.json(upsertDemoProfile(body));
-  }
-
-  const dbRole = toDatabaseRole(body.role);
-  const userId = `${dbRole}-default-profile`;
+  const dbRole = toDatabaseRole(current.role);
+  const family = current.role === "family";
   const profile = await prisma.profile.upsert({
-    where: { userId },
+    where: { userId: current.userId },
     update: {
-      role: dbRole,
-      name: body.name,
-      age: body.age ?? null,
-      gender: body.gender ?? null,
-      tkaSurgeryDate: body.tkaSurgeryDate ? new Date(body.tkaSurgeryDate) : null,
-      affectedKnee: body.affectedKnee ?? null,
-      phone: body.phone ?? null,
-      emergencyContact: body.emergencyContact ?? null,
-      sensorDeviceId: body.sensorDeviceId ?? null,
-      department: body.department ?? null,
-      title: body.title ?? null,
+      name: parsed.data.name,
+      phone: parsed.data.phone ?? null,
+      relationToPatient: family ? parsed.data.relationToPatient ?? null : null,
+      notificationPreference: parsed.data.notificationPreference ?? null,
+      department: family ? null : parsed.data.department ?? null,
+      title: family ? null : parsed.data.title ?? null,
     },
     create: {
-      userId,
+      userId: current.userId,
       role: dbRole,
-      name: body.name,
-      age: body.age ?? null,
-      gender: body.gender ?? null,
-      tkaSurgeryDate: body.tkaSurgeryDate ? new Date(body.tkaSurgeryDate) : null,
-      affectedKnee: body.affectedKnee ?? null,
-      phone: body.phone ?? null,
-      emergencyContact: body.emergencyContact ?? null,
-      sensorDeviceId: body.sensorDeviceId ?? null,
-      department: body.department ?? null,
-      title: body.title ?? null,
+      name: parsed.data.name,
+      phone: parsed.data.phone ?? null,
+      relationToPatient: family ? parsed.data.relationToPatient ?? null : null,
+      notificationPreference: parsed.data.notificationPreference ?? null,
+      department: family ? null : parsed.data.department ?? null,
+      title: family ? null : parsed.data.title ?? null,
     },
   });
-
-  return NextResponse.json(serializeProfile(profile));
+  return NextResponse.json(serialize(profile));
 }

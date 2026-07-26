@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { defaultPathForRole, type UserRole } from "@/lib/auth";
-import { isLocalAuthConfigured, isRegistrationEnabled } from "@/lib/local-auth-config";
+import { isLocalAuthConfigured } from "@/lib/local-auth-config";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -177,7 +177,10 @@ export function LoginForm() {
                 <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="border-[#d8c8ad] bg-[#fffaf2]/80 focus-visible:ring-[#5b876f]/20" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-bold text-[#4c5b50]" htmlFor="password">密码</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-[#4c5b50]" htmlFor="password">密码</label>
+                  {isLocalAuthConfigured ? <Link href="/forgot-password" className="text-sm font-bold text-[#5b876f] hover:underline">忘记密码</Link> : null}
+                </div>
                 <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required className="border-[#d8c8ad] bg-[#fffaf2]/80 focus-visible:ring-[#5b876f]/20" />
               </div>
 
@@ -193,7 +196,7 @@ export function LoginForm() {
                 {loading ? <LockKeyhole className="size-5" /> : <LogIn className="size-5" />}
                 {loading ? "正在登录" : role ? "登录并进入系统" : "先选择登录端"}
               </Button>
-              {isLocalAuthConfigured && isRegistrationEnabled ? (
+              {isLocalAuthConfigured ? (
                 <Button asChild type="button" variant="outline" className="h-11 w-full border-[#cbb897] bg-white text-[#285c43] hover:bg-[#edf7f1]">
                   <Link href="/register"><UserPlus className="size-4" />使用邮箱注册家属账号</Link>
                 </Button>
