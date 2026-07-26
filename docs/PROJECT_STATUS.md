@@ -443,6 +443,24 @@ Agent 工作记录：
 | 2026-07-26 | 备份生产数据库并部署 v0.4.3 账号、历史、训练结果、保留策略与真实电量改造，应用新增数据库迁移 | 生产运行分支提交 `61acb87`；Web/API/数据库已上线，PR #37 尚待合并，真实双 BT50 长测待执行 | 合并 PR #37，生成长期签名 APK 并完成 30 分钟双实物验收 | 备份 1,450,785 字节且 `pg_restore -l` 可读；迁移成功；3 个容器正常；`verify-production.mjs` 通过；公网 ready/login 200、裸域 301 |
 | 2026-07-26 | 补齐邮箱找回/修改密码/退出、账号资料、15 天训练历史、72 小时原始帧保留、完整会话总结、自动 AI、真实 SDK 电量、低负载渲染和有序冲击规则 | 本地与 GitHub 软件门禁通过；生产部署和双实物长测待执行 | 合并 PR #37，部署迁移与 Web，再安装长期证书签名 APK 真机验收 | 本地 `npm test` 44/44、Lint、48 路由 Build、Android JVM/Lint/Debug；GitHub Build `30188926622`、Android `30188926619` 通过 |
 
+### 2026-07-26 生产部署：家属端/护士端全页面精修（d8d420a）
+
+PR #40 合并后立即部署到正式服务器，生产从 `5185374` 升至 `d8d420a`。
+
+- 部署前备份 `backups/tka-rehab-20260726T150742Z.dump`，`pg_restore -l`
+  校验 103 个可恢复对象；代码快照 `/root/pre-deploy-d8d420a.tar.gz`
+  （446 KB），上一版快照保留为 `/root/pre-deploy-keep-5185374.tar.gz`。
+- `git archive d8d420a` → scp → tar 覆盖，`.env.production` 与备份目录
+  确认保留，`.deployed-commit` 更新为 `d8d420a`。
+- 三容器健康（app 重建后 healthy）；容器内 `verify-production.mjs`
+  全项通过。
+- 公网验收：`/login` 200；未登录访问 `/family` 正确 307 →
+  `/login?next=%2Ffamily`（鉴权正常）；首页 SSR HTML 含
+  `panel-ink`/`serif-accent`/收尾 CTA（新 UI 确认在线）；CSP 头在发。
+- 已知渲染行为（非缺陷）：生产 `/login` 为静态预渲染，SSR 外壳是
+  Suspense fallback（`useSearchParams` 的标准行为），真实表单由客户端
+  渲染；新构建证据为外壳中的 `fraunces_706db30f` 字体模块引用。
+
 ### 2026-07-26 家属端/护士端全页面精修检查点
 
 按登录页/首页已达到的标准，把两端全部工作页（family、nurse、sensor-live、
