@@ -17,7 +17,9 @@ import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +28,16 @@ import java.util.UUID;
  */
 final class EncryptedSampleQueue {
     private static final int MAX_ITEMS = 50_000;
+
+    static final class Item {
+        final String key;
+        final JSONObject payload;
+
+        Item(String key, JSONObject payload) {
+            this.key = key;
+            this.payload = payload;
+        }
+    }
 
     private final Context context;
     private final MasterKey masterKey;
@@ -88,6 +100,17 @@ final class EncryptedSampleQueue {
         return result;
     }
 
+    synchronized List<Item> peekBalancedBatch(int limit) throws Exception {
+        File[] files = files();
+        int[] indexes = balancedIndexes(files.length, limit);
+        List<Item> result = new ArrayList<>(indexes.length);
+        for (int index : indexes) {
+            File file = files[index];
+            result.add(new Item(file.getName(), read(file)));
+        }
+        return result;
+    }
+
     synchronized void acknowledgeOne() {
         File[] files = files();
         if (files.length > 0 && !files[0].delete()) {
@@ -105,6 +128,15 @@ final class EncryptedSampleQueue {
         }
     }
 
+    synchronized void acknowledgeKeys(Set<String> keys) {
+        if (keys.isEmpty()) return;
+        for (File file : files()) {
+            if (keys.contains(file.getName()) && !file.delete()) {
+                throw new IllegalStateException("Could not remove an uploaded encrypted sample.");
+            }
+        }
+    }
+
     synchronized void quarantineOne(String reason) {
         File[] files = files();
         if (files.length == 0) return;
@@ -116,8 +148,43 @@ final class EncryptedSampleQueue {
         }
     }
 
+    synchronized void quarantineKey(String key, String reason) {
+        File head = new File(directory, key);
+        if (!head.exists()) return;
+        String safeReason = reason.replaceAll("[^a-zA-Z0-9-]", "-");
+        File quarantined = new File(directory, head.getName().replace(".payload", ".rejected-" + safeReason));
+        if (!head.renameTo(quarantined)) {
+            throw new IllegalStateException("Could not isolate a permanently rejected queued sample.");
+        }
+    }
+
     synchronized int size() {
         return files().length;
+    }
+
+    static int[] balancedIndexes(int total, int limit) {
+        if (total <= 0) return new int[0];
+        int count = Math.min(Math.max(1, limit), total);
+        if (count == total) {
+            int[] all = new int[count];
+            for (int index = 0; index < count; index += 1) all[index] = index;
+            return all;
+        }
+
+        int historicalCount = Math.max(1, count / 4);
+        int liveCount = count - historicalCount;
+        LinkedHashSet<Integer> indexes = new LinkedHashSet<>();
+        for (int index = total - 1; index >= Math.max(0, total - liveCount); index -= 1) {
+            indexes.add(index);
+        }
+        for (int index = 0; index < historicalCount; index += 1) {
+            indexes.add(index);
+        }
+
+        int[] result = new int[indexes.size()];
+        int offset = 0;
+        for (Integer index : indexes) result[offset++] = index;
+        return result;
     }
 
     private EncryptedFile encrypted(File destination) throws GeneralSecurityException, IOException {

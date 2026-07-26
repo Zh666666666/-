@@ -17,6 +17,7 @@ import java.util.EnumMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
@@ -275,10 +276,11 @@ final class PlatformGateway {
         int uploaded = 0;
         int isolated = 0;
         try {
-            List<JSONObject> samples = queue.peekBatch(80);
-            if (!samples.isEmpty()) {
+            List<EncryptedSampleQueue.Item> queuedItems = queue.peekBalancedBatch(100);
+            if (!queuedItems.isEmpty()) {
                 JSONArray payloads = new JSONArray();
-                for (JSONObject sample : samples) {
+                for (EncryptedSampleQueue.Item queuedItem : queuedItems) {
+                    JSONObject sample = queuedItem.payload;
                     normalizeLegacyIdentity(sample);
                     String deviceId = ensureDevice(sample);
                     String samplePatientId = sample.getString("patientId");
@@ -295,33 +297,47 @@ final class PlatformGateway {
                     JSONObject batchResponse = postJson("/api/sensor-samples/batch", batchBody);
                     JSONArray results = batchResponse.getJSONArray("results");
                     UploadReceipt latestReceipt = null;
-                    for (int index = 0; index < samples.size(); index += 1) {
+                    String latestReceiptKey = "";
+                    JSONObject latestReceiptSample = null;
+                    Set<String> acknowledgedKeys = new LinkedHashSet<>();
+                    Map<String, String> rejectedKeys = new HashMap<>();
+                    Exception retryableFailure = null;
+                    for (int index = 0; index < queuedItems.size(); index += 1) {
                         JSONObject result = results.getJSONObject(index);
                         int status = result.getInt("status");
                         if (status >= 200 && status < 300) {
-                            JSONObject sample = samples.get(index);
-                            latestReceipt = UploadReceipt.verify(sample, result.getJSONObject("body"));
+                            EncryptedSampleQueue.Item queuedItem = queuedItems.get(index);
+                            JSONObject sample = queuedItem.payload;
+                            UploadReceipt receipt = UploadReceipt.verify(sample, result.getJSONObject("body"));
+                            if (latestReceipt == null || queuedItem.key.compareTo(latestReceiptKey) > 0) {
+                                latestReceipt = receipt;
+                                latestReceiptKey = queuedItem.key;
+                                latestReceiptSample = sample;
+                            }
+                            acknowledgedKeys.add(queuedItem.key);
                             uploaded += 1;
                             continue;
                         }
-                        if (isPermanentSampleFailure(status) && index == uploaded) {
-                            queue.acknowledge(uploaded);
-                            uploaded = 0;
-                            queue.quarantineOne("http-" + status);
+                        if (isPermanentSampleFailure(status)) {
+                            rejectedKeys.put(queuedItems.get(index).key, "http-" + status);
                             isolated += 1;
-                            requestFlush(0L);
-                            return;
+                            continue;
                         }
-                        throw new HttpStatusException(status, String.valueOf(result.opt("body")));
+                        retryableFailure = new HttpStatusException(status, String.valueOf(result.opt("body")));
                     }
-                    queue.acknowledge(uploaded);
+                    queue.acknowledgeKeys(acknowledgedKeys);
+                    for (Map.Entry<String, String> rejected : rejectedKeys.entrySet()) {
+                        queue.quarantineKey(rejected.getKey(), rejected.getValue());
+                    }
                     if (latestReceipt != null) listener.onUploadReceipt(latestReceipt);
-                    JSONObject last = samples.get(samples.size() - 1);
-                    maybePublishCalibration(
-                            last.getString("patientId"),
-                            last.getString("sessionId"),
-                            last.optLong("placementRevision", 0L)
-                    );
+                    if (latestReceiptSample != null) {
+                        maybePublishCalibration(
+                                latestReceiptSample.getString("patientId"),
+                                latestReceiptSample.getString("sessionId"),
+                                latestReceiptSample.optLong("placementRevision", 0L)
+                        );
+                    }
+                    if (retryableFailure != null) throw retryableFailure;
                 } catch (Exception error) {
                     throw error;
                 }
@@ -333,7 +349,7 @@ final class PlatformGateway {
                                 + (remaining > 0 ? "；队列还剩 " + remaining + " 条。" : "；队列已清空。")
                 );
                 if (remaining > 0) {
-                    requestFlush(30L);
+                    requestFlush(5L);
                 }
             }
             if (remaining == 0) {
