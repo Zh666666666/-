@@ -106,7 +106,7 @@
 - 本机联调地址：`http://192.168.31.203:3000`；Demo 患者 ID：`demo-patient-1`。
 - Android 35 模拟器内已实际点击“测试平台连接”和“开始采集上传”，分别显示 `平台连通正常：ready / mode=demo` 与 `平台已连通（demo），开始上传队列 0 条…`。
 - 平台侧硬件上传链路已通过：device → binding → HARDWARE session → sample → live board / dashboard；781 条低置信积压通过真实 HTTP API 验证不会生成临床记录/告警，高置信数据按 10 秒聚合。
-- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），当前源码标记为 GitHub `main` 提交 `32ec37c`；本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
+- 正式服务器：`103.242.13.17` 已部署 Docker Compose 生产栈（PostgreSQL、Next.js、Caddy），当前源码为 GitHub `main` 提交 `5185374`（含全站视觉改版、Android v0.4.4 视觉统一、限流/错误码/安全响应头加固），`.deployed-commit` 已同步；历史上曾记录为 `32ec37c`；本地签名角色会话、业务 API 保护、网关 Bearer Token、日志轮转、每日备份、防火墙与仅密钥 SSH 均已验证。`www.dorianaistudio.cloud` 已解析至正式服务器并取得有效 HTTPS 证书，裸域自动跳转至 `www`。
 - 实时可信链路已部署到正式服务器：部署前数据库备份成功，容器重建后健康；生产验收脚本已通过健康、角色隔离、受保护数据、网关鉴权、登录态 `/sensor-live` 页面和 SSE `ready` 事件检查。软件格式双路并发验收约 0.37-0.41 秒入库、约 1.17 秒到网页；该结果不能替代用户手机网络下的连续实物验收。
 - Android v0.4.1 正式签名包来自合并提交 `f1ec633` 的 GitHub Actions 运行 `29676758183`，产物名 `android-gateway-release-f1ec6334b9fa78662c4dd204af54a567e714ebfa`，安装文件 `TKA-Gateway-v0.4.1.apk`，大小 1,548,166 字节，SHA256 `8484EF4EA43FECD01263FC14AD62AB5316E4269348F7EC4734A968E609C72788`；v2/v3 与独立 v4 验证均通过。该包包含双路连接后自动上传、`startRequested` 预检竞态保护、受保护患者预检、Keystore Token、旧队列迁移与隔离、重连恢复和活动患者保护。此前日志中的 `48A3F349...D1402E4E` 文件不在本机或 GitHub，不再作为交付依据。部署后生产 `sensor_samples` 表仍为 0 条，因此真实双传感器连续回传仍待用户手机验收。
 - 生产数据边界：数据库只初始化正式患者骨架，不包含模拟传感器样本；家属/护士账号分离，业务 API 需有效会话，硬件上传使用独立 Bearer Token。
@@ -177,6 +177,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
+| 2026-07-26 | 部署当日全部更新（`5185374`）到正式服务器：备份并校验数据库、快照旧版本、git archive 覆盖代码、重建容器；查明 SSH 长期连不上的真因是本地代理 TUN 模式而非服务器故障 | 生产已运行新 UI 与安全加固，三容器健康，验收全过；Android v0.4.4 真机观感与多患者越权修复仍待办 | 真机安装 v0.4.4 确认观感；规划账号↔患者关联的架构级修复 | 备份 1.4MB 且 `pg_restore -l` 得 103 个对象；快照 423KB；`No pending migrations`；`verify-production.mjs` 全项通过；公网 7 个安全头 + `/api/*` no-store 生效、畸形 body 返 400、未授权 401、裸域 301 |
 | 2026-07-26 | 缺陷排查与加固：修复限流表无界增长、16 处畸形 body 返 500、5 处记录不存在返 500；新增应用层安全响应头与 `/api/*` no-store；补 11 项单测 | 健壮性与安全边界已加固，业务语义未改；账号↔患者无关联导致的多患者越权风险已记录但未修（需架构决策） | 规划账号↔患者关联的数据库迁移与按归属过滤；审查三个大页面的客户端逻辑与 Android 并发路径 | `npm test` 55/55；ESLint 0 告警；48 路由构建通过；实测 7 个安全头下发、`/api/*` no-store 生效；11 页面 CSP 无误伤、新标签页控制台零错误 |
 | 2026-07-26 | 合并 PR #38（Web 两轮视觉 + Android 视觉统一 + v0.4.4 版本升级）至 main；用户触发长期证书签名，产出并核验 `TKA-Gateway-v0.4.4.apk` | Web 与 Android 视觉已统一在 main；签名包可交付；正式服务器尚未部署本次 Web 改版，真机观感待用户确认 | 用户安装 v0.4.4 确认观感；择期备份数据库后部署 Web 改版到正式服务器 | 合并后 main：Build `30198816777`、Android `30198816776` 通过，`npm test` 44/44；签名运行 `30200048340` 两 job 成功；APK SHA256 `E0C70E48...A9BFCFD`，v2/v3 true、v4 `Overall verified: true`，签名者 `CN=TKA Rehab Gateway` |
 | 2026-07-26 | Android 网关 UI 移植品牌设计系统：80 处色彩映射、衬线眉题、发丝描边卡片、accent 渐变卡头、品牌三色轴线/波形、主题与状态栏 | 视觉与 Web 端统一，功能零改动；Debug 构建通过，真机观感与正式签名包待验收 | 用户真机安装 Debug 包确认观感，满意后走 Actions 长期证书签名 | Android JVM 测试、Lint、assembleDebug 全过（BUILD SUCCESSFUL）；diff 功能扫描为空 |
@@ -440,6 +441,69 @@ Agent 工作记录：
 | --- | --- | --- | --- | --- |
 | 2026-07-26 | 备份生产数据库并部署 v0.4.3 账号、历史、训练结果、保留策略与真实电量改造，应用新增数据库迁移 | 生产运行分支提交 `61acb87`；Web/API/数据库已上线，PR #37 尚待合并，真实双 BT50 长测待执行 | 合并 PR #37，生成长期签名 APK 并完成 30 分钟双实物验收 | 备份 1,450,785 字节且 `pg_restore -l` 可读；迁移成功；3 个容器正常；`verify-production.mjs` 通过；公网 ready/login 200、裸域 301 |
 | 2026-07-26 | 补齐邮箱找回/修改密码/退出、账号资料、15 天训练历史、72 小时原始帧保留、完整会话总结、自动 AI、真实 SDK 电量、低负载渲染和有序冲击规则 | 本地与 GitHub 软件门禁通过；生产部署和双实物长测待执行 | 合并 PR #37，部署迁移与 Web，再安装长期证书签名 APK 真机验收 | 本地 `npm test` 44/44、Lint、48 路由 Build、Android JVM/Lint/Debug；GitHub Build `30188926622`、Android `30188926619` 通过 |
+
+### 2026-07-26 生产部署：UI 改版 + Android 视觉 + 安全加固
+
+把当日全部更新（`main` 提交 `5185374`）部署到正式服务器 `103.242.13.17`。
+部署前生产运行的是 `61acb87`。
+
+部署方式说明（供后续 Agent 参考）：
+
+- 服务器 `/opt/tka-rehab` **不是 git 工作副本**，没有 `.git`；版本由
+  `.deployed-commit` 文件记录。因此不能用 `git pull` 部署。
+- 本轮采用 `git archive <commit>` 生成纯净归档 → `scp` 到 `/tmp` →
+  在 `/opt/tka-rehab` 内 `tar xzf` 覆盖。`.env.production` 与 `backups/`
+  都被 `.gitignore` 排除，不在归档内，因此覆盖不会触碰服务器密钥和历史备份
+  （已实测确认：解包后 `.env.production` 仍在、10 个备份文件完整）。
+- 解包后手动写入 `.deployed-commit`。
+
+安全网：
+
+- 部署前数据库备份 `backups/tka-rehab-20260726T133824Z.dump`（1.4 MB），
+  已用 `pg_restore -l` 校验为有效 dump（103 个可恢复对象）。
+  注意校验须用管道形式 `cat dump | docker compose exec -T db sh -c
+  'pg_restore -l'`；直接 `exec -T db pg_restore -l -` 读不到 stdin。
+- 部署前完整代码快照 `/root/pre-deploy-5185374.tar.gz`（423 KB），
+  回滚时可直接解包还原到 `61acb87` 的文件状态。
+
+已验证：
+
+- 三容器状态：app `Up (healthy)`（已重建）、caddy `Up 2 days`、
+  db `Up (healthy)`。
+- Prisma：12 个迁移，`No pending migrations to apply`（本轮无 schema 变更，
+  符合预期）；应用 `Ready in 1222ms`。
+- 容器内 `deploy/verify-production.mjs` 全项通过：健康检查、本地角色隔离、
+  受保护数据、网关鉴权、实时页、传感器流。
+- 公网核验安全加固已生效：`/login` 返回全部 7 个安全头
+  （CSP / COOP / Permissions-Policy / Referrer-Policy / nosniff /
+  X-DNS-Prefetch-Control / X-Frame-Options）；`/api/health/live` 返回
+  `Cache-Control: no-store, no-cache, must-revalidate`；`x-powered-by`
+  已隐藏。
+- 公网核验接口修复已生效：畸形 JSON body 提交到 `/api/auth/role` 返回
+  **400**（修复前为 500）。
+- 公网核验鉴权边界未被破坏：未授权 PATCH `/api/alerts/<id>` 返回 401、
+  无 Token POST `/api/sensor-samples` 返回 401、裸域返回 301。
+- 首页 / 登录页 / 注册页均 200，新设计系统样式类已出现在生产 HTML 中。
+
+排障记录（重要，可省去后续重复排查）：
+
+- 本机 SSH 长期连不上服务器的真实原因是**本地代理的 TUN 模式**，不是服务器
+  故障。症状：TCP 22 秒连成功（`Connection established`）但
+  `Connection timed out during banner exchange`，同时 ICMP 不通、同一 IP 的
+  80/443 端口正常返回 200。佐证：本机 `HTTP_PROXY=http://127.0.0.1:7897`，
+  且 dev server 绑定地址出现 `198.18.0.1`（Clash/Mihomo TUN 保留网段）。
+  关闭 TUN 模式后 SSH 立即可用。
+  这一现象与 2026-07-23/24 记录的「SSH 在密钥交换前由远端关闭、疑似 sshd
+  故障」应为同一原因，此前的服务器侧排查方向有误。
+- 服务器 `sshd` 为 `PasswordAuthentication no` /
+  `PermitRootLogin prohibit-password`，控制台面板显示的 root 密码无法用于
+  SSH，必须用密钥（本机 `~/.ssh/codex_tka_deploy` 可用）。
+
+尚未完成：
+
+- Android v0.4.4 正式签名包尚未在真机安装验收观感。
+- 多患者越权风险（`AuthAccount` 与 `Patient` 无关联）仍未修复，见下方
+  排查检查点；当前生产库仅单个正式患者，暂不显现。
 
 ### 2026-07-26 全项目缺陷排查与加固检查点
 
