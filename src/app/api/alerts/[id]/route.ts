@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { resolveDemoAlert } from "@/lib/demo-store";
+import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -21,13 +22,17 @@ export async function PATCH(_: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json(alert);
   }
 
-  const alert = await prisma.alertLog.update({
+  const alert = await updateOrNull(prisma.alertLog.update({
     where: { id },
     data: {
       status: "RESOLVED",
       resolvedAt: new Date(),
     },
-  });
+  }));
+
+  if (!alert) {
+    return NextResponse.json({ error: "Alert not found" }, { status: 404 });
+  }
 
   return NextResponse.json({
     id: alert.id,

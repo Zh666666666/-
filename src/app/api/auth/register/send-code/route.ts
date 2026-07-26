@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { resolveAuthMode } from "@/lib/env";
+import { createRateLimiter } from "@/lib/rate-limit";
 import { secretsEqual } from "@/lib/local-auth";
 import { generateVerificationCode, hashVerificationCode, registrationConfiguration } from "@/lib/registration-auth";
 import { sendRegistrationCode } from "@/lib/registration-email";
@@ -15,19 +16,7 @@ const requestSchema = z.object({
   inviteCode: z.string().min(1).max(128),
 });
 
-const requests = new Map<string, { count: number; resetAt: number }>();
-const windowMs = 15 * 60 * 1000;
-
-function acceptRequest(key: string, now = Date.now()) {
-  const current = requests.get(key);
-  if (!current || current.resetAt <= now) {
-    requests.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (current.count >= 5) return false;
-  current.count += 1;
-  return true;
-}
+const requests = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 5 });
 
 export async function POST(request: Request) {
   if (resolveAuthMode() !== "local") {
@@ -50,7 +39,7 @@ export async function POST(request: Request) {
   const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? requestHeaders.get("x-real-ip")
     ?? "unknown";
-  if (!acceptRequest(`${client}:${parsed.data.email}`)) {
+  if (!requests.check(`${client}:${parsed.data.email}`).allowed) {
     return NextResponse.json({ error: "发送过于频繁，请稍后再试。" }, { status: 429 });
   }
 

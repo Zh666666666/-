@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { authRoleCookie, defaultPathForRole } from "@/lib/auth";
 import { resolveAuthMode } from "@/lib/env";
+import { createRateLimiter } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/registration-auth";
 import {
@@ -20,20 +21,7 @@ const loginSchema = z.object({
   role: z.enum(["family", "nurse"]),
 });
 
-const attempts = new Map<string, { count: number; resetAt: number }>();
-const attemptWindowMs = 15 * 60 * 1000;
-const maximumAttempts = 8;
-
-function consumeAttempt(client: string, now = Date.now()) {
-  const existing = attempts.get(client);
-  if (!existing || existing.resetAt <= now) {
-    attempts.set(client, { count: 1, resetAt: now + attemptWindowMs });
-    return true;
-  }
-  if (existing.count >= maximumAttempts) return false;
-  existing.count += 1;
-  return true;
-}
+const attempts = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 8 });
 
 export async function POST(request: Request) {
   if (resolveAuthMode() !== "local") {
@@ -44,11 +32,11 @@ export async function POST(request: Request) {
   const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? requestHeaders.get("x-real-ip")
     ?? "unknown";
-  if (!consumeAttempt(client)) {
+  if (!attempts.check(client).allowed) {
     return NextResponse.json({ error: "登录尝试过多，请 15 分钟后重试。" }, { status: 429 });
   }
 
-  const parsed = loginSchema.safeParse(await request.json());
+  const parsed = loginSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "账号或密码不正确。" }, { status: 400 });
   }
@@ -84,7 +72,7 @@ export async function POST(request: Request) {
   };
   cookieStore.set(localSessionCookie, token, options);
   cookieStore.set(authRoleCookie, parsed.data.role, options);
-  attempts.delete(client);
+  attempts.reset(client);
 
   return NextResponse.json({
     role: parsed.data.role,

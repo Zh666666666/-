@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { markDemoNursingRecordRead } from "@/lib/demo-store";
+import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -22,10 +23,14 @@ export async function PATCH(_: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json(record);
   }
 
-  const record = await prisma.nursingRecord.update({
+  const record = await updateOrNull(prisma.nursingRecord.update({
     where: { id },
     data: { readAt: new Date() },
-  });
+  }));
+
+  if (!record) {
+    return NextResponse.json({ error: "Nursing record not found" }, { status: 404 });
+  }
 
   return NextResponse.json(serializeNursingRecord(record));
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { finishDemoSensorSession } from "@/lib/demo-store";
+import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
@@ -15,7 +16,7 @@ const sessionUpdateSchema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const parsed = sessionUpdateSchema.safeParse(await request.json());
+  const parsed = sessionUpdateSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid sensor session update", issues: parsed.error.flatten() }, { status: 400 });
@@ -34,13 +35,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return session ? NextResponse.json(session) : NextResponse.json({ error: "Sensor session not found" }, { status: 404 });
   }
 
-  const session = await prisma.sensorSession.update({
+  const session = await updateOrNull(prisma.sensorSession.update({
     where: { id },
     data: {
       status,
       endedAt: new Date(),
     },
-  });
+  }));
+
+  if (!session) {
+    return NextResponse.json({ error: "Sensor session not found" }, { status: 404 });
+  }
 
   const evaluation = await evaluateSensorSession(session.id);
   const summary = evaluation ? {

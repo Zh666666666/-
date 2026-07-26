@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { updateDemoDeviceHeartbeat } from "@/lib/demo-store";
+import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { normalizeDeviceStatus, serializeDevice } from "@/lib/hardware";
@@ -15,7 +16,7 @@ const heartbeatSchema = z.object({
 }).refine((value) => value.deviceId || value.serialNo, "deviceId or serialNo is required");
 
 export async function POST(request: Request) {
-  const parsed = heartbeatSchema.safeParse(await request.json());
+  const parsed = heartbeatSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid heartbeat payload", issues: parsed.error.flatten() }, { status: 400 });
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  const device = await prisma.device.update({
+  const device = await updateOrNull(prisma.device.update({
     where: body.deviceId ? { id: body.deviceId } : { serialNo: body.serialNo },
     data: {
       batteryLevel: body.batteryLevel ?? undefined,
@@ -40,7 +41,11 @@ export async function POST(request: Request) {
       lastSeenAt: now,
       status: normalizeDeviceStatus({ batteryLevel: body.batteryLevel, lastSeenAt: now }),
     },
-  });
+  }));
+
+  if (!device) {
+    return NextResponse.json({ error: "Device not found" }, { status: 404 });
+  }
 
   return NextResponse.json(serializeDevice(device));
 }

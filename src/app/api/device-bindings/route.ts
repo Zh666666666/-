@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const parsed = bindingSchema.safeParse(await request.json());
+  const parsed = bindingSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid device binding payload", issues: parsed.error.flatten() }, { status: 400 });
