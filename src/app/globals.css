@@ -458,6 +458,12 @@
 /* 应用骨架：桌面端存在左侧导航栏时，内容区整体让位。
    用 :has 而不是改每个页面 —— 登录前后骨架切换零成本。 */
 @media (min-width: 768px) {
+  [data-app-rail] {
+    position: fixed;
+    inset: 0 auto 0 0;
+    height: 100dvh;
+  }
+
   body:has([data-app-rail]) main {
     margin-left: 15rem;
   }
