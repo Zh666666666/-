@@ -662,16 +662,16 @@ export default function NursePage() {
     painScore: record.painScore,
   }));
   const latestByPatient = patients.map((patient) => latestRecordFor(records, patient.id)).filter(Boolean) as KneeDataPoint[];
-  const averageFlexion = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.flexionAngle, 0) / latestByPatient.length : 0;
-  const averageExtension = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.extensionAngle, 0) / latestByPatient.length : 0;
-  const averageDuration = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.activityDuration, 0) / latestByPatient.length : 0;
+  const averageFlexion = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.flexionAngle, 0) / latestByPatient.length : null;
+  const averageExtension = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.extensionAngle, 0) / latestByPatient.length : null;
+  const averageDuration = latestByPatient.length ? latestByPatient.reduce((sum, record) => sum + record.activityDuration, 0) / latestByPatient.length : null;
 
   return (
-    <main className="ambient relative min-h-screen bg-canvas pb-32 text-ink-900 md:pb-0">
+    <main className="ambient app-workspace relative min-h-screen bg-canvas pb-32 text-ink-900 md:pb-0">
 
       <section className="relative mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 md:gap-5 md:px-8 md:py-5">
         {/* ---------- 指挥台头部：标题 + 同步状态 + 动作组，一行收纳 ---------- */}
-        <header className="family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
+        <header className="console-header family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
               <p className="eyebrow text-brass-700">Nurse Console</p>
@@ -713,7 +713,7 @@ export default function NursePage() {
 
         {/* ---------- 工作区切换：分段控件，滚动时贴顶 ---------- */}
         <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
-          <div className="flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white p-1 shadow-e1 md:inline-flex">
+          <div className="workspace-tabs flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white/95 p-1 shadow-e1 md:inline-flex">
             {nurseWorkspaces.map((item) => {
               const Icon = item.icon;
               const active = activeWorkspace === item.value;
@@ -781,7 +781,7 @@ export default function NursePage() {
 
             <Card className={nursePanelClass}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em]">
+                <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-normal">
                   <ClipboardCheck className="size-7 text-[#497a62]" />
                   为当前患者生成记录
                 </CardTitle>
@@ -817,9 +817,9 @@ export default function NursePage() {
         {activeWorkspace === "overview" ? (
           <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-5">
             <StatCard icon={UsersRound} metric="rom" label="监测患者" value={`${patients.length}`} helper="术后康复中" />
-            <StatCard icon={Activity} metric="flexion" label="平均屈曲" value={`${averageFlexion.toFixed(0)}°`} helper="最新采集均值" />
-            <StatCard icon={Stethoscope} metric="extension" label="平均伸直" value={`${averageExtension.toFixed(0)}°`} helper="越接近 0° 越理想" />
-            <StatCard icon={Clock3} metric="duration" label="平均训练" value={`${averageDuration.toFixed(0)} 分`} helper="今日累计时长" />
+            <StatCard icon={Activity} metric="flexion" label="平均屈曲" value={averageFlexion === null ? "--" : `${averageFlexion.toFixed(0)}°`} helper={`${latestByPatient.length} 位患者的最新有效样本`} />
+            <StatCard icon={Stethoscope} metric="extension" label="平均伸直" value={averageExtension === null ? "--" : `${averageExtension.toFixed(0)}°`} helper={averageExtension === null ? "等待有效样本" : "越接近 0° 越理想"} />
+            <StatCard icon={Clock3} metric="duration" label="平均训练" value={averageDuration === null ? "--" : `${averageDuration.toFixed(0)} 分`} helper={averageDuration === null ? "等待有效样本" : "今日累计时长"} />
             <StatCard icon={BellRing} metric="pain" label="高危预警" value={`${highAlerts.length}`} helper="需优先处理" danger={highAlerts.length > 0} />
           </div>
         ) : null}

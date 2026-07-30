@@ -273,7 +273,7 @@ export default function SensorLivePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
-  const [, setStreamState] = useState<"CONNECTING" | "LIVE" | "FALLBACK">("CONNECTING");
+  const [streamState, setStreamState] = useState<"CONNECTING" | "LIVE" | "FALLBACK">("CONNECTING");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [viewerRole, setViewerRole] = useState<"family" | "nurse" | null>(null);
   const [showProfessional, setShowProfessional] = useState(false);
@@ -484,16 +484,16 @@ export default function SensorLivePage() {
     || typeof metrics?.training.activeDurationSeconds === "number";
   const familySafetyTitle = urgentWarning
     ? "请先确认家人是否安全"
-    : hasUsableReading
+    : clinicalReady
       ? "本次监测未发现明显异常"
-      : hasObservedTraining
+      : hasObservedTraining || hasUsableReading
         ? "动作数据已收到，结论仍待核对"
         : "正在接收本次训练数据";
   const familySafetyDetail = urgentWarning
     ? urgentWarning.action
-    : hasUsableReading
+    : clinicalReady
       ? "可以继续按护士给出的方案训练；如出现明显疼痛、肿胀或不适，请暂停并联系护士。"
-      : hasObservedTraining
+      : hasObservedTraining || hasUsableReading
         ? "下方数值来自两只传感器的同步实测；质量门未通过前仅作训练预览，不触发风险结论。"
         : "先保持两只设备连接，并缓慢完成一次弯曲再伸直；系统不会把不完整数据当成结论。";
   const nextAction = measurementStatus === "TECHNICAL_ISSUE"
@@ -519,27 +519,27 @@ export default function SensorLivePage() {
   }
 
   return (
-    <main className="rehab-grid min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-10 md:pb-10 md:pt-6">
+    <main className="rehab-grid app-workspace min-h-screen px-4 pb-40 pt-4 text-slate-950 md:px-8 md:pb-10 md:pt-5">
       <section className="mx-auto max-w-7xl space-y-5">
-        <header className="panel-ink grain rim-light relative overflow-hidden rounded-2xl border border-white/8 p-5 text-white md:p-7">
-          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <Badge className="gap-2 border border-white/15 bg-white/10 px-3 py-1 text-sm text-white">
+        <header className="panel-ink grain rim-light relative overflow-hidden rounded-xl border border-white/8 p-4 text-white md:p-5">
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <Badge className="gap-2 border border-white/15 bg-white/10 px-2.5 py-1 text-xs text-white">
                 <Activity className="size-4" />
-                家人康复 · 实时动作
+                实时训练
               </Badge>
-              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
+              <h1 className="mt-3 text-2xl font-semibold tracking-normal text-white md:text-3xl">
                 现在练得怎么样，一眼看明白。
               </h1>
-              <p className="mt-3 max-w-3xl text-base leading-7 text-[#e5dbc9]">
+              <p className="mt-2 text-sm leading-6 text-[#dbe5df] md:text-base md:leading-7">
                 这里先告诉您设备是否正常、动作完成情况和下一步怎么做。系统拿不准时会明确说“暂时无法判断”，不会把不完整数据当成结论。
               </p>
-              <p className="mt-3 text-sm text-[#a8c6b4]">
+              <p className="mt-2 text-xs text-[#a8c6b4]">
                 患者 {patientName}
                  · 最近更新 {formatClock(lastRefresh)}
               </p>
             </div>
-            <div className="grid min-w-full gap-3 rounded-xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur lg:min-w-[360px]">
+            <div className="grid min-w-full gap-2.5 rounded-lg border border-white/10 bg-white/[0.07] p-3 backdrop-blur lg:min-w-[420px]">
               {viewerRole === "nurse" ? (
                 <label className="grid gap-2 text-sm font-medium text-[#e5dbc9]">
                   <span className="flex items-center gap-2"><UsersRound className="size-4" />当前监测患者</span>
@@ -552,7 +552,7 @@ export default function SensorLivePage() {
                   </select>
                 </label>
               ) : (
-                <div className="rounded-lg border border-white/10 bg-white/10 px-3 py-3">
+                <div className="rounded-md border border-white/10 bg-white/[0.08] px-3 py-2.5">
                   <p className="text-xs text-[#a8c6b4]">当前家人</p>
                   <p className="mt-1 font-medium text-white">{patientName}</p>
                 </div>
@@ -576,10 +576,10 @@ export default function SensorLivePage() {
                   {showProfessional ? "返回易懂视图" : "专业详情"}
                 </Button>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-xs text-[#e5dbc9]">
-                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{realtimeQualified ? "正常" : "检查中"}</b>数据上传</span>
-                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{dualActive ? "2 只" : latest ? "1 只" : "0 只"}</b>设备数据</span>
-                <span className="rounded-lg bg-white/10 px-2 py-2"><b className="block text-base text-white">{clinicalReady ? "可用" : "等待"}</b>训练评估</span>
+              <div className="grid grid-cols-3 gap-2 text-center text-[0.6875rem] text-[#dbe5df]">
+                <span className="rounded-md border border-white/[0.06] bg-white/[0.07] px-2 py-1.5"><b className="block text-sm text-white">{streamState === "LIVE" ? "实时" : streamState === "FALLBACK" ? "轮询" : "连接中"}</b>传输方式</span>
+                <span className="rounded-md border border-white/[0.06] bg-white/[0.07] px-2 py-1.5"><b className="block text-sm text-white">{dualActive ? "2 只" : latest ? "1 只" : "0 只"}</b>设备数据</span>
+                <span className="rounded-md border border-white/[0.06] bg-white/[0.07] px-2 py-1.5"><b className="block text-sm text-white">{clinicalReady ? "可用" : "等待"}</b>训练评估</span>
               </div>
             </div>
           </div>
@@ -592,7 +592,7 @@ export default function SensorLivePage() {
           <Card className={`border-2 shadow-e1 ${urgentWarning ? "border-red-200 bg-red-50" : clinicalReady ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <CardContent className="p-5 md:p-6">
               <div className="flex items-start gap-3">
-                {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : hasUsableReading ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
+                {urgentWarning ? <AlertTriangle className="mt-1 size-6 shrink-0 text-red-700" /> : clinicalReady ? <ShieldCheck className="mt-1 size-6 shrink-0 text-emerald-700" /> : <ShieldAlert className="mt-1 size-6 shrink-0 text-amber-700" />}
                 <div>
                   <p className="text-sm font-medium text-slate-500">现在是否需要注意</p>
                   <h2 className="mt-1 text-2xl font-semibold text-[#12211c]">{familySafetyTitle}</h2>
@@ -608,7 +608,7 @@ export default function SensorLivePage() {
               <p className="mt-2 text-lg font-semibold leading-8 text-[#12211c]">{nextAction}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge variant={realtimeQualified ? "success" : "warning"}>{realtimeQualified ? "两只设备上传正常" : dualActive ? "两只设备有数据，正在追赶实时" : "等待两只设备实时数据"}</Badge>
-                <Badge variant={hasUsableReading ? "success" : "outline"}>{hasUsableReading ? clinicalReady ? "本次结果可信" : "已有结果，可信度较低" : "数据不足，暂不判断"}</Badge>
+                <Badge variant={clinicalReady ? "success" : "outline"}>{clinicalReady ? "本次结果可信" : hasUsableReading ? "数据已收到，暂不能判断" : "数据不足，暂不判断"}</Badge>
               </div>
             </CardContent>
           </Card>
