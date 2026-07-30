@@ -41,10 +41,10 @@
   --sand-500: #b6a488;
 
   /* ---- 语义色 ------------------------------------------------------ */
-  --canvas: #f7f4ec;
+  --canvas: #f3f6f4;
   --surface: #ffffff;
-  --surface-2: #fdfbf7;
-  --surface-sunken: #f4f0e6;
+  --surface-2: #f8faf9;
+  --surface-sunken: #edf2ef;
   --surface-inverse: var(--ink-900);
 
   --background: var(--canvas);
@@ -352,21 +352,21 @@
 .display-xl {
   font-family: var(--font-display);
   font-weight: 500;
-  letter-spacing: -0.035em;
+  letter-spacing: 0;
   line-height: 1.04;
 }
 
 .display-lg {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   line-height: 1.08;
 }
 
 .display-md {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: 0;
   line-height: 1.18;
 }
 
@@ -374,7 +374,7 @@
 .eyebrow {
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -402,7 +402,7 @@
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-xl);
-  box-shadow: var(--elev-2);
+  box-shadow: var(--elev-inset), var(--elev-2);
 }
 
 .surface-quiet {
@@ -465,11 +465,13 @@
   }
 
   body:has([data-app-rail]) main {
-    margin-left: 15rem;
+    margin-left: 16rem;
+    min-height: 100dvh;
+    border-left: 1px solid rgba(255, 255, 255, 0.5);
   }
 }
 
-/* 环境光：页面级柔光背景 */
+/* 页面级柔光背景：只使用顶部光带，不使用装饰性光球。 */
 .ambient {
   position: relative;
 }
@@ -479,9 +481,137 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(46rem 30rem at 8% -6%, rgba(91, 139, 114, 0.16), transparent 70%),
-    radial-gradient(38rem 26rem at 96% 2%, rgba(221, 180, 116, 0.18), transparent 70%);
+  background: linear-gradient(180deg, rgba(226, 237, 230, 0.72) 0, rgba(247, 232, 202, 0.22) 9rem, transparent 21rem);
+}
+
+/* 登录后页面统一骨架。 */
+.app-workspace {
+  background-color: var(--canvas);
+}
+
+.app-workspace::after {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 0;
+  height: 1px;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.console-header {
+  position: relative;
+}
+
+.console-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 3.5rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--brass-500);
+}
+
+.metric-strip {
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--elev-inset), var(--elev-2);
+}
+
+.metric-strip > * {
+  position: relative;
+}
+
+.metric-strip > *::after {
+  content: "";
+  position: absolute;
+  inset: auto 1rem 0;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 180ms var(--ease-snap);
+}
+
+.metric-strip > *:hover::after {
+  background: var(--sage-400);
+}
+
+.workspace-tabs {
+  scrollbar-width: none;
+}
+
+.workspace-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.workspace-tabs > button {
+  min-height: 2.25rem;
+}
+
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--brass-700);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.section-kicker::before {
+  content: "";
+  width: 1.2rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--brass-400);
+}
+
+.interactive-surface {
+  transition:
+    border-color 180ms var(--ease-snap),
+    box-shadow 180ms var(--ease-snap),
+    transform 180ms var(--ease-snap);
+}
+
+.interactive-surface:hover {
+  border-color: rgba(60, 101, 82, 0.28);
+  box-shadow: var(--elev-inset), var(--elev-3);
+  transform: translateY(-1px);
+}
+
+.status-beacon {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+[data-slot="card"] {
+  box-shadow: var(--elev-inset), var(--elev-2);
+}
+
+[data-slot="card-title"],
+[data-slot="button"] {
+  letter-spacing: 0;
+}
+
+/* 更精细但克制的滚动条，避免桌面端出现粗重系统滚动条。 */
+@media (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sage-300) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: var(--sage-300);
+    background-clip: padding-box;
+  }
 }
 
 /* Recharts 防御：其 ResizeObserver 在开发模式双挂载下可能失灵，
@@ -492,6 +622,7 @@
 .recharts-responsive-container .recharts-wrapper {
   width: 100% !important;
   height: 100% !important;
+  min-width: 0 !important;
 }
 
 .recharts-responsive-container svg.recharts-surface {
@@ -582,9 +713,15 @@
   color: var(--ink-900);
   font-family: var(--font-display);
   font-style: normal;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
   line-height: 1;
   animation: hello-reveal 1.15s var(--ease-fluid) both;
+}
+
+@media (min-width: 768px) {
+  .app-workspace::after {
+    left: 16rem;
+  }
 }
 
 /* 关节活动度扫描线 */

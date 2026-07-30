@@ -86,7 +86,7 @@ const careToolCards = [
 ];
 
 const panelClass = "rounded-xl border border-[var(--hairline)] bg-white text-[#12211c] shadow-e2";
-const quietPanelClass = "rounded-lg border border-[var(--hairline)] bg-[#fdfbf7]";
+const quietPanelClass = "rounded-lg border border-[var(--hairline)] bg-[var(--surface-2)]";
 const darkPanelClass = "panel-ink grain rounded-xl border border-white/8 text-white shadow-e3 [&>*]:relative [&>*]:z-10";
 
 export default function FamilyPage() {
@@ -276,11 +276,11 @@ export default function FamilyPage() {
       : "先完成今日陪伴打卡，再查看最新角度和训练时长；如有疼痛、肿胀或不放心，及时预约护士。";
 
   return (
-    <main className="ambient relative min-h-screen bg-canvas px-3 pb-28 pt-3 text-ink-900 md:px-10 md:pb-10 md:pt-6">
+    <main className="ambient app-workspace relative min-h-screen bg-canvas px-3 pb-28 pt-3 text-ink-900 md:px-10 md:pb-10 md:pt-6">
 
       <section className="relative mx-auto flex max-w-6xl flex-col gap-3 md:gap-5">
         {/* ---------- 指挥台头部：一行读数据，两个动作，不再占半屏 ---------- */}
-        <header className="family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
+        <header className="console-header family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
               <p className="eyebrow text-brass-700">Family Console</p>
@@ -306,17 +306,17 @@ export default function FamilyPage() {
           </div>
 
           {/* 关键读数条：屈曲角 · 阶段目标 · 同步状态，扫一眼即得 */}
-          <div className="grid grid-cols-3 divide-x divide-[var(--hairline)] rounded-xl border border-[var(--hairline)] bg-white shadow-e2">
+          <div className="metric-strip grid grid-cols-3 divide-x divide-[var(--hairline)] rounded-xl">
             <div className="px-4 py-3.5 md:px-6 md:py-4">
               <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">{flexionLabel}</p>
-              <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-[-0.03em] text-[#3c6552] md:text-[2rem]">{flexionDisplay}</p>
+              <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-normal text-[#3c6552] md:text-[2rem]">{flexionDisplay}</p>
               {!hardwareOnline && measurementAt ? (
                 <p className="mt-1.5 truncate text-[0.6875rem] text-[var(--subtle-foreground)]">测于 {formatTime(measurementAt)}</p>
               ) : null}
             </div>
             <div className="px-4 py-3.5 md:px-6 md:py-4">
               <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">阶段目标（因人而异）</p>
-              <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-[-0.03em] md:text-[2rem]">{patient?.targetFlexion ?? 110}°</p>
+              <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-normal md:text-[2rem]">{patient?.targetFlexion ?? 110}°</p>
             </div>
             <div className="px-4 py-3.5 md:px-6 md:py-4">
               <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">数据状态</p>
@@ -327,7 +327,7 @@ export default function FamilyPage() {
 
         {/* ---------- 工作区切换：分段控件，轻量贴顶 ---------- */}
         <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
-          <div className="flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white p-1 shadow-e1 md:inline-flex">
+          <div className="workspace-tabs flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white/95 p-1 shadow-e1 md:inline-flex">
             {familyWorkspaces.map((item) => {
               const Icon = item.icon;
               const active = activeWorkspace === item.value;
@@ -357,7 +357,7 @@ export default function FamilyPage() {
           <div className="family-view-enter grid gap-5 lg:grid-cols-[1.18fr_0.82fr]">
             <Card className={cn(panelClass, "overflow-hidden") }>
               <CardHeader className="pb-1 md:pb-2">
-                <p className="text-xs font-semibold text-[#8f6427]">今天先做这些</p>
+                <p className="section-kicker">今天先做这些</p>
                 <CardTitle className="display-md mt-1 text-xl md:mt-2 md:text-2xl">今日照护节奏</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 p-4 pt-1 md:space-y-5 md:p-6 md:pt-2">
@@ -375,12 +375,12 @@ export default function FamilyPage() {
                   </div>
 
                   <MetricEducationDialog metric="flexion">
-                    <button className={cn(quietPanelClass, "group p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:p-6") }>
+                    <button className={cn(quietPanelClass, "interactive-surface group p-4 text-left hover:bg-white md:p-6") }>
                       <div className="flex items-center justify-between text-sm text-[#576860]">
                         <span>今天最关键指标</span>
                         <Activity className="size-5 text-[#497a62]" />
                       </div>
-                      <p className="tabular mt-3 text-5xl font-semibold tracking-[-0.03em] text-[#3c6552] md:mt-5 md:text-6xl">{flexionDisplay}</p>
+                      <p className="tabular mt-3 text-5xl font-semibold tracking-normal text-[#3c6552] md:mt-5 md:text-6xl">{flexionDisplay}</p>
                       <p className="mt-3 text-base leading-7 text-[#576860]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
@@ -389,7 +389,7 @@ export default function FamilyPage() {
                 <div className={cn(quietPanelClass, "p-5") }>
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <p className="text-xs font-semibold text-[#8f6427]">陪伴小提醒</p>
+                      <p className="section-kicker">陪伴小提醒</p>
                       <p className="mt-3 max-w-2xl text-base leading-7 text-[#4d5c53]">{encouragement}</p>
                     </div>
                     <Button size="lg" className="h-10 rounded-lg text-sm md:h-12 md:text-base" onClick={() => setDailyCheckIn(true)} disabled={dailyCheckIn}>
@@ -421,20 +421,20 @@ export default function FamilyPage() {
 
             <Card className={cn(panelClass, "bg-[#fcf4e4]") }>
               <CardHeader>
-                <p className="text-xs font-semibold text-[#8f6427]">家属行动提示</p>
+                <p className="section-kicker">家属行动提示</p>
                 <CardTitle className="display-md mt-2 text-xl md:text-2xl">下一步提醒</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="rounded-lg bg-white/70 p-4 text-base font-semibold leading-7 text-[#12211c] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] md:rounded-xl md:p-5 md:text-xl md:leading-9">{nextCareStep}</p>
                 <div className="grid gap-3">
-                  <button type="button" onClick={() => setActiveWorkspace("nurse")} className="group flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-white/70 p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:rounded-xl md:p-4">
+                  <button type="button" onClick={() => setActiveWorkspace("nurse")} className="interactive-surface group flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-white/70 p-3 text-left hover:bg-white md:rounded-xl md:p-4">
                     <span>
                       <span className="block font-semibold text-[#12211c]">看护士建议</span>
                       <span className="mt-1 hidden text-sm leading-6 text-[#576860] sm:block">查看护士评估、预警提醒和护理记录。</span>
                     </span>
                     <ChevronRight className="size-5 text-[#497a62] transition group-hover:translate-x-1" />
                   </button>
-                  <button type="button" onClick={() => setActiveWorkspace("data")} className="group flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-white/70 p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-e3 md:rounded-xl md:p-4">
+                  <button type="button" onClick={() => setActiveWorkspace("data")} className="interactive-surface group flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-white/70 p-3 text-left hover:bg-white md:rounded-xl md:p-4">
                     <span>
                       <span className="block font-semibold text-[#12211c]">看数据变化</span>
                       <span className="mt-1 hidden text-sm leading-6 text-[#576860] sm:block">查看护膝上传的角度、频次、时长和疼痛记录。</span>
@@ -477,7 +477,7 @@ export default function FamilyPage() {
                         <span>{flexionLabel}</span>
                         <Activity className="size-5 text-[#497a62]" />
                       </div>
-                      <p className="tabular mt-3 text-5xl font-semibold tracking-[-0.03em] text-[#3c6552] md:mt-5 md:text-6xl">{flexionDisplay}</p>
+                      <p className="tabular mt-3 text-5xl font-semibold tracking-normal text-[#3c6552] md:mt-5 md:text-6xl">{flexionDisplay}</p>
                       <p className="mt-3 text-base leading-7 text-[#576860]">目标角度 {patient?.targetFlexion ?? 110}°，点击查看康复科普。</p>
                     </button>
                   </MetricEducationDialog>
@@ -538,7 +538,7 @@ export default function FamilyPage() {
             <Card className={cn(panelClass, "bg-[#fcf4e4]") }>
               <CardHeader>
                 <p className="text-xs font-semibold text-[#8f6427]">分析与人工确认</p>
-                <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em]">
+                <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-normal">
                   <Sparkles className="size-7 text-[#8f6427]" />
                   护士评估
                 </CardTitle>
@@ -569,7 +569,7 @@ export default function FamilyPage() {
             <Card className={panelClass}>
               <CardHeader>
                 <p className="text-xs font-semibold text-[#8f6427]">护士处理记录</p>
-                <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em]">
+                <CardTitle className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-normal">
                   <FileText className="size-7 text-[#497a62]" />
                   护士处理动态
                 </CardTitle>
@@ -645,7 +645,7 @@ export default function FamilyPage() {
             <div className="grid gap-5 lg:grid-cols-2">
               <Card className={panelClass}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em]">
+                  <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-normal">
                     <HeartPulse className="size-7 text-[#497a62]" />
                     家属须知
                   </CardTitle>
@@ -659,7 +659,7 @@ export default function FamilyPage() {
 
               <Card className={panelClass}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em]">
+                  <CardTitle className="flex items-center gap-3 text-3xl font-semibold tracking-normal">
                     <Sparkles className="size-7 text-[#8f6427]" />
                     护理小贴士
                   </CardTitle>
@@ -702,7 +702,7 @@ function MetricCard({ icon: Icon, metric, label, value, tone }: { icon: typeof A
           <span>{label}</span>
           <Icon className={`size-5 ${tone}`} />
         </div>
-        <p className={`tabular mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl ${tone}`}>{value}</p>
+        <p className={`tabular mt-4 text-3xl font-semibold tracking-normal md:text-4xl ${tone}`}>{value}</p>
         <p className="mt-2 text-xs font-semibold text-[#61716a]">点击查看指标说明</p>
       </button>
     </MetricEducationDialog>

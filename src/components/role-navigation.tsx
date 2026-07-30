@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, CalendarClock, FileCheck2, HeartPulse, Home, LogOut, Radio, Stethoscope, UserRound } from "lucide-react";
+import { Activity, CalendarClock, ChevronRight, FileCheck2, HeartPulse, Home, LogOut, Radio, ShieldCheck, Stethoscope, UserRound } from "lucide-react";
 
 import { BrandLockup } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -16,20 +16,20 @@ type RoleResponse = {
 };
 
 const familyLinks = [
-  { href: "/family", label: "监测", icon: Home },
-  { href: "/sensor-live", label: "实时", icon: Radio },
-  { href: "/family/devices", label: "设备", icon: Activity },
-  { href: "/evidence", label: "回放", icon: FileCheck2 },
-  { href: "/appointments", label: "预约", icon: CalendarClock },
-  { href: "/family/profile", label: "资料", icon: UserRound },
+  { href: "/family", label: "首页", helper: "今日状态与提醒", icon: Home },
+  { href: "/sensor-live", label: "正在测", helper: "设备数据同步", icon: Radio },
+  { href: "/evidence", label: "训练记录", helper: "历史训练与复盘", icon: FileCheck2 },
+  { href: "/family/devices", label: "设备连接", helper: "绑定与在线状态", icon: Activity },
+  { href: "/appointments", label: "预约护理", helper: "联系护理服务", icon: CalendarClock },
+  { href: "/family/profile", label: "我的", helper: "账号与个人信息", icon: UserRound },
 ];
 
 const nurseLinks = [
-  { href: "/nurse", label: "工作台", icon: Stethoscope },
-  { href: "/sensor-live", label: "实时", icon: Radio },
-  { href: "/evidence", label: "回放", icon: FileCheck2 },
-  { href: "/appointments", label: "预约", icon: CalendarClock },
-  { href: "/nurse/profile", label: "资料", icon: UserRound },
+  { href: "/nurse", label: "工作台", helper: "患者与待办总览", icon: Stethoscope },
+  { href: "/sensor-live", label: "实时", helper: "双传感器数据", icon: Radio },
+  { href: "/evidence", label: "回放", helper: "证据与训练复盘", icon: FileCheck2 },
+  { href: "/appointments", label: "预约", helper: "护理排期管理", icon: CalendarClock },
+  { href: "/nurse/profile", label: "资料", helper: "账号与执业信息", icon: UserRound },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -93,6 +93,7 @@ export function RoleNavigation() {
   }
 
   const links = role === "family" ? familyLinks : nurseLinks;
+  const mobileLinks = role === "family" ? links.filter((item) => item.href !== "/appointments") : links;
   const oppositeRole: UserRole = role === "family" ? "nurse" : "family";
   const oppositeLabel = role === "family" ? "护士端" : "家属端";
 
@@ -102,14 +103,27 @@ export function RoleNavigation() {
       <nav
         data-app-rail
         aria-label="主导航"
-        className="panel-ink grain fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-white/8 md:flex"
+        className="panel-ink grain fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-white/8 md:flex"
       >
-        <div className="relative z-10 flex h-full flex-col px-4 pb-5 pt-6">
+        <div className="relative z-10 flex h-full flex-col px-4 pb-5 pt-5">
           <Link href={role === "family" ? "/family" : "/nurse"} className="block px-2">
             <BrandLockup tone="light" subtitle={role === "family" ? "家庭照护工作台" : "病区护理工作台"} />
           </Link>
 
-          <div className="mt-7 space-y-0.5">
+          <div className="mx-1 mt-5 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="status-beacon size-2 rounded-full bg-emerald-300" />
+              <span className="truncate text-xs font-medium text-white/75">{role === "family" ? "家属照护视图" : "护理专业视图"}</span>
+            </span>
+            <ShieldCheck className="size-4 text-brass-300" aria-label="安全会话" />
+          </div>
+
+          <div className="mb-2 mt-6 flex items-center justify-between px-3">
+            <p className="text-[0.625rem] font-semibold text-white/35">主要工作区</p>
+            <span className="text-[0.625rem] text-white/25">{links.length} 项</span>
+          </div>
+
+          <div className="space-y-1">
             {links.map((item) => {
               const Icon = item.icon;
               const active = isActive(pathname, item.href);
@@ -120,10 +134,10 @@ export function RoleNavigation() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.875rem] font-medium transition-colors duration-200",
+                    "group relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-[0.875rem] font-medium transition-all duration-200",
                     active
-                      ? "bg-white/[0.09] text-[#f7f3ea] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                      : "text-white/55 hover:bg-white/[0.05] hover:text-white/85",
+                      ? "bg-white/[0.10] text-[#f7f3ea] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_22px_-16px_rgba(0,0,0,0.8)]"
+                      : "text-white/55 hover:bg-white/[0.055] hover:text-white/90",
                   )}
                 >
                   <span
@@ -133,17 +147,29 @@ export function RoleNavigation() {
                       active ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <Icon className={cn("size-4 transition-colors", active ? "text-brass-300" : "text-white/40 group-hover:text-white/70")} />
-                  {item.label}
+                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-md border transition-colors", active ? "border-white/10 bg-white/[0.07]" : "border-transparent bg-white/[0.025]")}>
+                    <Icon className={cn("size-4 transition-colors", active ? "text-brass-300" : "text-white/40 group-hover:text-white/70")} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block leading-4">{item.label}</span>
+                    <span className={cn("mt-0.5 block truncate text-[0.625rem] font-normal leading-4", active ? "text-white/50" : "text-white/30")}>{item.helper}</span>
+                  </span>
+                  <ChevronRight className={cn("size-3.5 transition-all", active ? "translate-x-0 text-brass-300/80 opacity-100" : "-translate-x-1 text-white/30 opacity-0 group-hover:translate-x-0 group-hover:opacity-100")} />
                 </Link>
               );
             })}
           </div>
 
           <div className="mt-auto space-y-2 border-t border-white/10 pt-4">
-            <p className="px-3 text-[0.6875rem] tracking-[0.08em] text-white/35">
-              {role === "family" ? "家属账号" : "护士账号"} · 数据仅授权可见
-            </p>
+            <div className="mb-2 flex items-center gap-3 rounded-lg bg-black/10 px-3 py-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-xs font-semibold text-brass-200">
+                {role === "family" ? "家" : "护"}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-white/75">{role === "family" ? "家属账号" : "护士账号"}</span>
+                <span className="mt-0.5 block text-[0.625rem] text-white/35">数据仅对授权用户可见</span>
+              </span>
+            </div>
             {role === "nurse" && !isLocalAuthConfigured ? (
               <button
                 type="button"
@@ -176,8 +202,8 @@ export function RoleNavigation() {
         )}
       >
         <div className="mx-auto flex max-w-lg flex-col gap-1.5">
-          <div className={cn("order-2 grid w-full gap-0.5", role === "family" ? "grid-cols-6" : "grid-cols-5")}>
-            {links.map((item) => {
+          <div className="order-2 grid w-full grid-cols-5 gap-0.5">
+            {mobileLinks.map((item) => {
               const Icon = item.icon;
               const active = isActive(pathname, item.href);
 
@@ -188,7 +214,7 @@ export function RoleNavigation() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[0.6875rem] font-medium transition-colors duration-200",
-                    active ? "text-ink-900" : "text-[var(--muted-foreground)] hover:text-ink-900",
+                    active ? "bg-sage-100/80 text-ink-900" : "text-[var(--muted-foreground)] hover:bg-sage-50 hover:text-ink-900",
                   )}
                 >
                   <Icon className="size-4" />
