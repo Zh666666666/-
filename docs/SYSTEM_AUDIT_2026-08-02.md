@@ -10,11 +10,12 @@ Android 离线队列和部署配置审计。
 - 15 项均已完成代码修复或配置加固。
 - Web/服务端自动化、类型检查、Lint、生产构建、Prisma 校验和依赖审计已通过。
 - Android Lint 与 Debug APK 构建已通过；Windows 中文路径下的 Gradle 测试运行器
-  无法加载测试类，必须以 GitHub Actions 的 ASCII Linux 路径结果作为发布门禁。
+  无法加载测试类，GitHub Actions 已在 ASCII Linux 路径完成 JVM 测试和 Android verify。
 - 本轮未执行生产数据库迁移和正式服务器部署。发布前必须先备份数据库，在预发布
   环境执行迁移并通过 GitHub CI，不应直接跳过这些步骤。
 
-结论：代码可进入预发布验证；在 CI、迁移演练和生产备份完成前，不建议直接发布。
+结论：Web Build 与 Android verify 已通过，代码可进入数据库迁移演练；在迁移演练和
+生产备份完成前，不建议直接发布。
 
 ## 2. 项目与信任边界
 
@@ -80,13 +81,14 @@ APK 和构建产物均处于忽略规则内。
 | Prisma | generate 与 validate 通过 |
 | 依赖漏洞 | 0 个中危及以上，`npm audit` 通过 |
 | Android 静态与构建 | `:app:lintDebug`、`:app:assembleDebug` 通过 |
-| Android JVM 测试 | 本地中文路径 Gradle worker 无法加载测试类；等待 GitHub Actions |
+| Android JVM 测试 | 本地中文路径 Gradle worker 无法加载测试类；GitHub Actions verify `30755502166` 通过 |
+| GitHub Web Build | Actions `30755502168` 通过 |
 | Docker Compose 展开 | 本机未保存 `.env.production`，无法展开；必须在服务器发布前执行 `docker compose config --quiet` |
 | 密钥扫描 | 当前文件、Git 跟踪文件和提交历史未发现真实密钥 |
 
 ## 7. 发布步骤
 
-1. 推送分支并等待 Web Build 与 Android verify 全部通过。
+1. Web Build 与 Android verify 已通过；将 PR 保持为草稿直至迁移演练完成。
 2. 在生产变更窗口开始前记录当前提交和镜像，并生成 PostgreSQL 自包含备份。
 3. 在预发布数据库执行 `npm run db:deploy`，确认重复活动绑定清理结果符合预期。
 4. 运行生产构建、健康检查、家属隔离、护士权限、网关鉴权和同源写请求冒烟测试。
@@ -134,7 +136,7 @@ ALTER TABLE "profiles" DROP COLUMN IF EXISTS "patient_id";
 2. 限流器和 SSE 事件总线仍是单进程内存实现；水平扩容前需迁移到 Redis 或数据库。
 3. 新注册家属账号默认不关联患者，这是安全的 fail-closed 行为，但需要管理员关联
    界面或受控邀请流程降低运维成本。
-4. 数据库迁移尚未在生产副本演练，Android JVM 测试尚待 GitHub Actions。
+4. 数据库迁移尚未在生产副本演练；本机 Android JVM 测试仍受中文路径限制，但同一提交的 GitHub Actions 已通过。
 5. 真实传感器、弱网补传、长时任务和算法有效性仍需实物验收；本报告不等同于
    医疗器械、临床准确性或渗透测试认证。
 6. 凡曾在聊天、截图或工单中暴露过的生产口令与 API Key 都应轮换，即使仓库扫描

@@ -92,7 +92,7 @@
 ## 当前状态
 
 - 系统级代码审计已在 `codex/system-audit-hardening` 完成：修复 Supabase 角色提升、家属跨患者访问、网关权限过宽、Cookie 写请求 CSRF、禁用账号重置、改密后旧会话、设备换绑竞态、生产模拟来源、Android 长任务队列扫描、请求体上限、错误泄漏、容器 root/CSP 和 8 个依赖漏洞。完整报告、发布边界和回滚步骤见 `docs/SYSTEM_AUDIT_2026-08-02.md`。
-- 审计分支本机门禁：68 项 Web/网关/API 测试、TypeScript、ESLint、Prisma 校验、48 路由生产构建和 0 漏洞依赖审计通过；Android Lint 与 Debug 构建通过。Android JVM 测试在 Windows 中文路径下遇到 Gradle 测试类加载问题，必须等待 GitHub Actions 的 ASCII Linux 路径结果后才能发布。
+- 审计分支本机门禁：68 项 Web/网关/API 测试、TypeScript、ESLint、Prisma 校验、48 路由生产构建和 0 漏洞依赖审计通过；Android Lint 与 Debug 构建通过。GitHub Web Build `30755502168` 与 Android verify `30755502166` 均通过，草稿 PR #43 保持待迁移演练状态。
 - 新注册但尚未关联患者的家属账号现在默认无权读取任何患者数据；发布前必须为现有家属资料明确配置 `Profile.patientId`。本轮数据库迁移尚未在正式服务器执行，生产仍运行审计前版本。
 - 默认分支与当前交付基线：`main`；批量实时链路、后台证据处理、双路均衡指标窗口和易懂版实测预览已通过 PR #35 合并，生产部署提交为 `32ec37c`。
 - v0.4.3 真机复测确认 App 采集更新及时、导出与 Web 回放可用，但实时闭环仍未达标：手机到服务器约 272 秒、采集到网页约 279 秒，App 队列可积压约 230 条；正常屈膝任务仍产生大量待处理事件和疑似强晃动误报。完整事实、边界与验收清单见 `docs/V043_FIELD_TEST_REMEDIATION.md`。
@@ -126,7 +126,7 @@
 
 按优先级从上到下执行：
 
-1. 推送审计分支并等待 GitHub Web Build 与 Android verify 全绿；在生产数据库副本演练 `20260802120000_add_patient_account_scope`，核对重复活动绑定清理结果并验证回滚备份。
+1. 在生产数据库副本演练 `20260802120000_add_patient_account_scope`，核对重复活动绑定清理结果并验证回滚备份；完成后再把 PR #43 转为可合并状态。
 2. 为现有家属账号补齐显式患者关联，完成家属 A 无法读取患者 B、护士可访问授权患者、改密强制重登和设备换绑不串线的预发布验收。
 3. CI 与迁移演练通过后，按 `docs/SYSTEM_AUDIT_2026-08-02.md` 备份、部署和生产冒烟；不得跳过数据库备份或直接把审计分支发布到正式环境。
 4. 继续按 `docs/V043_FIELD_TEST_REMEDIATION.md` 做真实双传感器长时弱网验收，使 App 到 Web 最新帧 P95 不超过 2 秒且在线队列收敛。
@@ -184,7 +184,7 @@
 
 | 日期 | 已完成事项 | 当前状态 | 下一步任务 | 验证 |
 | --- | --- | --- | --- | --- |
-| 2026-08-02 | 完成全栈系统审计与直接加固：修复角色提升、患者越权、网关权限、CSRF、账号生命周期、设备换绑竞态、来源污染、Android 队列性能、请求限额、错误泄漏、部署与依赖供应链问题；新增患者关联迁移、回滚文档和 CI 漏洞门禁 | 15 项问题均已代码处理；分支可进入预发布，但正式库未迁移、生产未部署，Android JVM 测试等待 GitHub Actions | 推送审计分支，等待 Web/Android CI；备份并在生产副本演练迁移，为家属账号配置 `Profile.patientId` 后再部署 | Web/网关/API 68/68；TypeScript、ESLint、Prisma、48 路由 build、`npm audit` 0 漏洞；Android Lint/Debug build 通过；详见 `docs/SYSTEM_AUDIT_2026-08-02.md` |
+| 2026-08-02 | 完成全栈系统审计与直接加固：修复角色提升、患者越权、网关权限、CSRF、账号生命周期、设备换绑竞态、来源污染、Android 队列性能、请求限额、错误泄漏、部署与依赖供应链问题；新增患者关联迁移、回滚文档和 CI 漏洞门禁 | 15 项问题均已代码处理；PR #43 的 Web/Android 门禁通过，正式库未迁移、生产未部署 | 备份并在生产副本演练迁移，为家属账号配置 `Profile.patientId` 后再将 PR 转为可合并并部署 | Web/网关/API 68/68；TypeScript、ESLint、Prisma、48 路由 build、`npm audit` 0 漏洞；Android Lint/Debug 与 Actions verify 通过；详见 `docs/SYSTEM_AUDIT_2026-08-02.md` |
 | 2026-07-30 | 双角色审查后升级全局设计细节、桌面/移动导航、家属/护士工作台和实时页首屏；补充传输方式反馈，并收紧质量门与缺失数据展示边界；部署 GitHub `main` 合并提交 `422c490` | GitHub Build 成功，生产三容器健康，正式域名已运行新版 UI | 继续真机验证 App→Web 最新帧 P95、双路断开冻结和风险误报 | `npm test` 55/55；ESLint 0；48 路由生产构建；9 个登录后入口 × 1280/390 双视口 0 横向溢出；备份 1.3MB、`pg_restore -l` 118 条；GitHub Build `30558599959` 成功；`verify-production.mjs` 与公网 ready/login/裸域跳转通过 |
 | 2026-07-28 | 修复 `.panel-ink` 覆盖侧栏 `fixed` 导致导航排到页面末尾的全局 CSS 冲突；桌面侧栏恢复贴左上角和全视口高度，移动端底部导航不变 | PR #42 已合并，生产已部署 `7ee5e14`，全部登录后页面统一生效 | 继续真机验证 App→Web 实时吞吐和风险误报 | `npm test` 55/55、ESLint、48 路由生产构建通过；Playwright 验证 8 个桌面入口滚动前后坐标 `(0,0)`、高度等于视口，390px 底部导航贴底；生产三容器健康且 `verify-production.mjs` 全项通过 |
 | 2026-07-27 | 结构级重排：桌面端 240px 持久左侧导航栏（:has 骨架让位）、双端工作台改紧凑指挥台 + 贴顶分段控件、家属端三格关键读数条；修复 recharts RO 失灵导致的 170px 溢出 | 登录后区域整体换骨架，功能句柄逐字保留；待部署生产 | 部署生产并公网验收 | 55/55 测试；ESLint 0；48 路由构建；桌面/移动双视口实测侧栏、让位、活动态、溢出全过 |
