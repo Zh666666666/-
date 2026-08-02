@@ -8,10 +8,22 @@ import type { NextConfig } from "next";
  * 任何安全头。放在 Next 这一层，两条部署路径都能覆盖。
  *
  * CSP 说明：next/font 会注入内联样式，Next 运行时会注入内联脚本，因此
- * style-src / script-src 保留 'unsafe-inline'。connect-src 允许 self 与
- * https:（Supabase / Resend / AI 供应商均为 https）。frame-ancestors 'none'
+ * style-src / script-src 保留 'unsafe-inline'。connect-src 只允许 self 与
+ * 已配置的 Supabase 源；服务端邮件和 AI 调用不需要浏览器直连。frame-ancestors 'none'
  * 与 X-Frame-Options 双写，兼容旧浏览器。
  */
+function configuredOrigin(value: string | undefined) {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+const supabaseOrigin = configuredOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const connectSources = ["'self'", ...(supabaseOrigin ? [supabaseOrigin] : [])].join(" ");
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -21,8 +33,8 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "connect-src 'self' https:",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
+  `connect-src ${connectSources}`,
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join("; ");
@@ -38,6 +50,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  images: {
+    unoptimized: true,
+  },
   env: {
     NEXT_PUBLIC_APP_MODE: process.env.APP_MODE ?? (process.env.NODE_ENV === "production" ? "invalid" : "demo"),
     NEXT_PUBLIC_AUTH_MODE: process.env.AUTH_MODE ?? (process.env.NODE_ENV === "production" ? "invalid" : "demo"),

@@ -32,7 +32,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates openssl \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app /app
+COPY --chown=node:node --from=builder /app /app
 
 EXPOSE 3000
+USER node
 CMD ["sh", "-c", "npm run db:deploy && npm run start"]

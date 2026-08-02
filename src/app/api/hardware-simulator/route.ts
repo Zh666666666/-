@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { addDemoDevice, addDemoDeviceBinding, addDemoSensorSample, addDemoSensorSession } from "@/lib/demo-store";
-import { ensureDemoPatients } from "@/lib/data";
-import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { calculateKneeAngleFromPitch } from "@/lib/hardware";
-import { prisma } from "@/lib/prisma";
 import { seedPatients } from "@/lib/rehab";
 
 const simulatorSchema = z.object({
@@ -31,6 +28,10 @@ function makeSimulatedAngles() {
 }
 
 export async function POST(request: Request) {
+  if (!isDemoMode()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const parsed = simulatorSchema.safeParse(await request.json().catch(() => ({})));
 
   if (!parsed.success) {
@@ -40,9 +41,6 @@ export async function POST(request: Request) {
   const patientId = parsed.data.patientId ?? seedPatients[0].id;
   const simulated = makeSimulatedAngles();
   const now = new Date().toISOString();
-
-  const unavailable = runtimeUnavailableResponse();
-  if (unavailable) return unavailable;
 
   if (isDemoMode()) {
     const thigh = addDemoDevice({ serialNo: SIMULATED_THIGH_SERIAL, name: "Simulated WT9011DCL-BT50 thigh sensor", model: "WT9011DCL-BT50" });
@@ -101,70 +99,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ source: SIMULATED_SOURCE, session: activeSession, simulated, ...result });
   }
 
-  await ensureDemoPatients();
-
-  const thigh = await prisma.device.upsert({
-    where: { serialNo: SIMULATED_THIGH_SERIAL },
-    update: { lastSeenAt: new Date(now), status: "ONLINE", batteryLevel: 89, signalStrength: 95 },
-    create: {
-      serialNo: SIMULATED_THIGH_SERIAL,
-      name: "Simulated WT9011DCL-BT50 thigh sensor",
-      model: "WT9011DCL-BT50",
-      manufacturer: "WitMotion",
-      status: "ONLINE",
-      batteryLevel: 89,
-      signalStrength: 95,
-      lastSeenAt: new Date(now),
-    },
-  });
-  const shank = await prisma.device.upsert({
-    where: { serialNo: SIMULATED_SHANK_SERIAL },
-    update: { lastSeenAt: new Date(now), status: "ONLINE", batteryLevel: 90, signalStrength: 96 },
-    create: {
-      serialNo: SIMULATED_SHANK_SERIAL,
-      name: "Simulated WT9011DCL-BT50 shank sensor",
-      model: "WT9011DCL-BT50",
-      manufacturer: "WitMotion",
-      status: "ONLINE",
-      batteryLevel: 90,
-      signalStrength: 96,
-      lastSeenAt: new Date(now),
-    },
-  });
-
-  const existingBindings = await prisma.deviceBinding.findMany({ where: { patientId, active: true } });
-  const hasThigh = existingBindings.some((binding) => binding.deviceId === thigh.id && binding.placement === "THIGH");
-  const hasShank = existingBindings.some((binding) => binding.deviceId === shank.id && binding.placement === "SHANK");
-
-  if (!hasThigh) {
-    await prisma.deviceBinding.create({ data: { deviceId: thigh.id, patientId, placement: "THIGH" } });
-  }
-
-  if (!hasShank) {
-    await prisma.deviceBinding.create({ data: { deviceId: shank.id, patientId, placement: "SHANK" } });
-  }
-
-  const session = await prisma.sensorSession.create({ data: { patientId, source: SIMULATED_SOURCE } });
-  const response = await fetch(new URL("/api/sensor-samples", request.url), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: session.id,
-      deviceId: shank.id,
-      patientId,
-      source: SIMULATED_SOURCE,
-      placement: "SHANK",
-      recordedAt: now,
-      pitch: simulated.shankPitch,
-      flexionAngle: simulated.flexionAngle,
-      extensionAngle: simulated.extensionAngle,
-      confidence: simulated.confidence,
-      batteryLevel: 90,
-      signalStrength: 96,
-      raw: { origin: "HARDWARE_SIMULATOR", ...simulated },
-    }),
-  });
-
-  const data = await response.json();
-  return NextResponse.json({ source: SIMULATED_SOURCE, session, simulated, ...data });
+  return NextResponse.json({ error: "Not found" }, { status: 404 });
 }

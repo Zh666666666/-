@@ -12,7 +12,7 @@ export async function ensureDemoPatients() {
   return;
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(patientId?: string): Promise<DashboardData> {
   const readiness = getRuntimeReadiness();
 
   if (!readiness.ready) {
@@ -20,42 +20,52 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
 
   if (isDemoMode()) {
-    return getDemoDashboardData();
+    const dashboard = getDemoDashboardData();
+    if (!patientId) return dashboard;
+    return {
+      patients: dashboard.patients.filter((patient) => patient.id === patientId),
+      records: dashboard.records.filter((record) => record.patientId === patientId),
+      alerts: dashboard.alerts.filter((alert) => alert.patientId === patientId),
+      nursingRecords: dashboard.nursingRecords.filter((record) => record.patientId === patientId),
+      aiAnalyses: dashboard.aiAnalyses.filter((analysis) => analysis.patientId === patientId),
+    };
   }
 
-  const [patients, records, alerts, nursingRecords, aiAnalyses, familyProfile] = await Promise.all([
+  const patientWhere = patientId ? { patientId } : undefined;
+  const [patients, records, alerts, nursingRecords, aiAnalyses] = await Promise.all([
     prisma.patient.findMany({
+      where: patientId ? { id: patientId } : undefined,
       orderBy: [
         { riskLevel: "desc" },
         { createdAt: "asc" },
       ],
     }),
     prisma.kneeDataRecord.findMany({
+      where: patientWhere,
       orderBy: { recordedAt: "desc" },
       take: 80,
     }),
     prisma.alertLog.findMany({
+      where: patientWhere,
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
     prisma.nursingRecord.findMany({
+      where: patientWhere,
       ...includePatientOrder,
       take: 10,
     }),
     prisma.aiAnalysis.findMany({
+      where: patientWhere,
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
-    prisma.profile.findFirst({ where: { role: "patient" } }),
   ]);
 
   return {
-    patients: patients.map((patient, index) => ({
+    patients: patients.map((patient) => ({
       ...patient,
-      name: index === 0 && familyProfile ? familyProfile.name : patient.name,
-      age: index === 0 && familyProfile && familyProfile.age ? familyProfile.age : patient.age,
-      surgeryDate: index === 0 && familyProfile?.tkaSurgeryDate ? familyProfile.tkaSurgeryDate.toISOString() : patient.surgeryDate.toISOString(),
-      surgicalSide: index === 0 && familyProfile?.affectedKnee ? familyProfile.affectedKnee : patient.surgicalSide,
+      surgeryDate: patient.surgeryDate.toISOString(),
       createdAt: undefined,
       updatedAt: undefined,
     })) as DashboardData["patients"],

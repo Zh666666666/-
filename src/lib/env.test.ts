@@ -43,7 +43,7 @@ test("accepts complete self-hosted authentication and rejects incomplete credent
     NODE_ENV: "production",
     DATABASE_URL: "postgresql://postgres:secret@example.test:5432/tka",
     GATEWAY_API_TOKEN: "test-gateway-token-24-chars",
-  };
+  } as const;
   assert.equal(resolveAuthMode(base), "local");
   assert.equal(getRuntimeReadiness(base).ready, false);
 

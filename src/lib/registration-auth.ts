@@ -51,6 +51,10 @@ export function generateVerificationCode() {
   return String(value[0] % 1_000_000).padStart(6, "0");
 }
 
+export function canResetAccount(status: string | null | undefined) {
+  return status === undefined || status === null || status === "ACTIVE";
+}
+
 export async function hashVerificationCode(email: string, code: string, secret: string) {
   const key = await crypto.subtle.importKey(
     "raw",

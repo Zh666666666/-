@@ -31,16 +31,16 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "请填写有效邮箱和照护邀请码。" }, { status: 400 });
 
-  if (!await secretsEqual(parsed.data.inviteCode, config.inviteCode)) {
-    return NextResponse.json({ error: "照护邀请码不正确。" }, { status: 403 });
-  }
-
   const requestHeaders = await headers();
   const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? requestHeaders.get("x-real-ip")
     ?? "unknown";
   if (!requests.check(`${client}:${parsed.data.email}`).allowed) {
     return NextResponse.json({ error: "发送过于频繁，请稍后再试。" }, { status: 429 });
+  }
+
+  if (!await secretsEqual(parsed.data.inviteCode, config.inviteCode)) {
+    return NextResponse.json({ error: "照护邀请码不正确。" }, { status: 403 });
   }
 
   const existing = await prisma.authAccount.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     await sendRegistrationCode({ apiKey: config.apiKey, from: config.from, to: parsed.data.email, code });
   } catch (error) {
     await prisma.emailVerification.delete({ where: { id: verification.id } }).catch(() => undefined);
-    console.error("Registration email delivery failed", error);
+    console.error("Registration email delivery failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "验证码邮件暂时发送失败，请稍后重试。" }, { status: 502 });
   }
 

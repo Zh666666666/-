@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canAccessPatient } from "@/lib/access-control";
 import { addDemoDeviceBinding, getDemoDeviceBindings } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { serializeDeviceBinding } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
+import { getDataAccessContext, requestCanAccessPatient } from "@/lib/server-access";
 
 const bindingSchema = z.object({
   deviceId: z.string().min(1),
@@ -26,10 +28,24 @@ export async function GET(request: Request) {
     return NextResponse.json(getDemoDeviceBindings(patientId));
   }
 
+  const gatewayOrUserCanAccessRequestedPatient = patientId
+    ? await requestCanAccessPatient(request, patientId, true)
+    : false;
+  const access = gatewayOrUserCanAccessRequestedPatient ? null : await getDataAccessContext();
+  if (!gatewayOrUserCanAccessRequestedPatient && !access) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (patientId && access && !canAccessPatient(access, patientId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const scopedPatientId = gatewayOrUserCanAccessRequestedPatient
+    ? patientId
+    : access?.unrestricted ? patientId : access?.patientId ?? "__none__";
+
   const bindings = await prisma.deviceBinding.findMany({
     where: {
       active: true,
-      patientId,
+      patientId: scopedPatientId,
     },
     include: { device: true },
     orderBy: { boundAt: "desc" },
@@ -55,10 +71,31 @@ export async function POST(request: Request) {
     return binding ? NextResponse.json(binding) : NextResponse.json({ error: "Device not found" }, { status: 404 });
   }
 
+  if (!await requestCanAccessPatient(request, body.patientId, true)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   await ensureDemoPatients();
 
   const binding = await prisma.$transaction(async (transaction) => {
     const now = new Date();
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'patient:' + body.patientId}))`;
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'device:' + body.deviceId}))`;
+    const conflictingBindings = await transaction.deviceBinding.findMany({
+      where: { deviceId: body.deviceId, active: true, patientId: { not: body.patientId } },
+      select: { patientId: true },
+    });
+    const conflictingPatientIds = [...new Set(conflictingBindings.map((binding) => binding.patientId))];
+    if (conflictingPatientIds.length > 0) {
+      await transaction.sensorSession.updateMany({
+        where: { patientId: { in: conflictingPatientIds }, status: "ACTIVE" },
+        data: { status: "ABORTED", endedAt: now },
+      });
+      await transaction.deviceBinding.updateMany({
+        where: { deviceId: body.deviceId, active: true, patientId: { not: body.patientId } },
+        data: { active: false, unboundAt: now },
+      });
+    }
     await transaction.sensorSession.updateMany({
       where: {
         patientId: body.patientId,

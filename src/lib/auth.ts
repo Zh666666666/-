@@ -15,17 +15,16 @@ export function isUserRole(value: unknown): value is UserRole {
 
 export function roleFromAuthUser(user: AuthUserLike): UserRole | null {
   const appRole = user?.app_metadata?.role;
-  const userRole = user?.user_metadata?.role;
 
-  if (isUserRole(appRole)) {
-    return appRole;
-  }
-
-  return isUserRole(userRole) ? userRole : null;
+  return isUserRole(appRole) ? appRole : null;
 }
 
 export function resolveAuthRole(user: AuthUserLike, cookieRole: unknown): UserRole | null {
-  return roleFromAuthUser(user) ?? (isUserRole(cookieRole) ? cookieRole : null);
+  if (user) {
+    return roleFromAuthUser(user);
+  }
+
+  return isUserRole(cookieRole) ? cookieRole : null;
 }
 
 export function defaultPathForRole(role: UserRole) {

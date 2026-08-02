@@ -6,6 +6,7 @@ import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { assessKneeRecord } from "@/lib/rehab";
+import { requestCanAccessPatient } from "@/lib/server-access";
 
 const kneeRecordSchema = z.object({
   patientId: z.string().min(1),
@@ -29,11 +30,19 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
+  if (!isDemoMode() && body.source && body.source !== "MANUAL") {
+    return NextResponse.json({ error: "Device provenance is accepted only through the sensor ingestion API" }, { status: 403 });
+  }
+
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
 
   if (isDemoMode()) {
     return NextResponse.json(addDemoKneeRecord(body));
+  }
+
+  if (!await requestCanAccessPatient(request, body.patientId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const record = await prisma.kneeDataRecord.create({
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
       painScore: body.painScore ?? 0,
       batteryLevel: body.batteryLevel ?? null,
       signalStrength: body.signalStrength ?? 96,
-      source: body.source ?? "SMART_BRACE",
+      source: "MANUAL",
       recordedAt: body.recordedAt ? new Date(body.recordedAt) : new Date(),
     },
   });

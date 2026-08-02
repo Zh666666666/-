@@ -9,6 +9,7 @@ test("creates and verifies a role-bound local session", async () => {
   const token = await createLocalSession("nurse", secret, 1_000);
   assert.deepEqual(await verifyLocalSession(token, secret, 2_000), {
     role: "nurse",
+    issuedAt: 1_000,
     expiresAt: 1_000 + 12 * 60 * 60 * 1000,
   });
 });
@@ -24,6 +25,7 @@ test("preserves an optional registered account id in the signed session", async 
   assert.deepEqual(await verifyLocalSession(token, secret, 2_000), {
     role: "family",
     accountId: "account-1",
+    issuedAt: 1_000,
     expiresAt: 1_000 + 12 * 60 * 60 * 1000,
   });
 });

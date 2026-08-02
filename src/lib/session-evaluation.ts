@@ -96,3 +96,20 @@ export async function purgeExpiredSensorData(now = new Date()) {
   ]);
   return { rawSamplesDeleted: raw.count, sessionsDeleted: sessions.count, verificationsDeleted: verifications.count };
 }
+
+const purgeState = globalThis as typeof globalThis & {
+  sensorPurgeLastStartedAt?: number;
+  sensorPurgeInFlight?: Promise<unknown>;
+};
+
+export function scheduleSensorDataPurge(now = Date.now()) {
+  if (purgeState.sensorPurgeInFlight || now - (purgeState.sensorPurgeLastStartedAt ?? 0) < 60 * 60 * 1_000) {
+    return;
+  }
+  purgeState.sensorPurgeLastStartedAt = now;
+  purgeState.sensorPurgeInFlight = purgeExpiredSensorData(new Date(now))
+    .catch((error) => console.error("Retention cleanup failed", error instanceof Error ? error.message : "unknown error"))
+    .finally(() => {
+      purgeState.sensorPurgeInFlight = undefined;
+    });
+}

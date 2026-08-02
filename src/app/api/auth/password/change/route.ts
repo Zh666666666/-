@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { authRoleCookie } from "@/lib/auth";
 import { localCredentials, localSessionCookie, secretsEqual, verifyLocalSession } from "@/lib/local-auth";
 import { hashPassword, verifyPassword } from "@/lib/registration-auth";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     ? await prisma.authAccount.findUnique({ where: { id: session.accountId } })
     : null;
   if (account) {
-    if (!await verifyPassword(parsed.data.currentPassword, account.passwordHash)) {
+    if (account.status !== "ACTIVE" || !await verifyPassword(parsed.data.currentPassword, account.passwordHash)) {
       return NextResponse.json({ error: "当前密码不正确。" }, { status: 403 });
     }
   } else {
@@ -49,5 +50,7 @@ export async function POST(request: Request) {
     where: { id: account.id },
     data: { passwordHash: await hashPassword(parsed.data.newPassword) },
   });
-  return NextResponse.json({ ok: true });
+  cookieStore.delete(localSessionCookie);
+  cookieStore.delete(authRoleCookie);
+  return NextResponse.json({ ok: true, requiresReauthentication: true });
 }

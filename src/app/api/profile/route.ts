@@ -1,14 +1,12 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { authRoleCookie, isUserRole } from "@/lib/auth";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { getDemoProfile, upsertDemoProfile } from "@/lib/demo-store";
-import { isDemoMode, resolveAuthMode } from "@/lib/env";
-import { localSessionCookie, verifyLocalSession } from "@/lib/local-auth";
+import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import type { ProfileItem, UserRole } from "@/lib/rehab";
+import { getDataAccessContext } from "@/lib/server-access";
 
 const schema = z.object({
   role: z.enum(["family", "nurse"]),
@@ -23,20 +21,8 @@ const schema = z.object({
 function toDatabaseRole(role: UserRole) { return role === "family" ? "patient" : "nurse"; }
 function toAppRole(role: "patient" | "nurse"): UserRole { return role === "patient" ? "family" : "nurse"; }
 
-async function identity() {
-  const store = await cookies();
-  if (resolveAuthMode() === "local") {
-    const session = await verifyLocalSession(store.get(localSessionCookie)?.value, process.env["LOCAL_AUTH_SESSION_SECRET"]);
-    if (!session) return null;
-    return { role: session.role, userId: session.accountId ?? `${toDatabaseRole(session.role)}-default-profile` };
-  }
-  const role = store.get(authRoleCookie)?.value;
-  if (!isUserRole(role)) return null;
-  return { role, userId: `${toDatabaseRole(role)}-default-profile` };
-}
-
 function serialize(profile: {
-  id: string; userId: string; role: "patient" | "nurse"; name: string; age: number | null;
+  id: string; userId: string; patientId: string | null; role: "patient" | "nurse"; name: string; age: number | null;
   gender: ProfileItem["gender"]; tkaSurgeryDate: Date | null; affectedKnee: ProfileItem["affectedKnee"];
   phone: string | null; emergencyContact: string | null; sensorDeviceId: string | null;
   relationToPatient: string | null; notificationPreference: string | null;
@@ -54,7 +40,7 @@ function serialize(profile: {
 export async function GET() {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
-  const current = await identity();
+  const current = await getDataAccessContext();
   if (!current) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (isDemoMode()) return NextResponse.json(getDemoProfile(current.role));
   const profile = await prisma.profile.findUnique({ where: { userId: current.userId } });
@@ -66,7 +52,7 @@ export async function PUT(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "资料格式不正确。" }, { status: 400 });
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
-  const current = await identity();
+  const current = await getDataAccessContext();
   if (!current || parsed.data.role !== current.role) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (isDemoMode()) return NextResponse.json(upsertDemoProfile(parsed.data));
 

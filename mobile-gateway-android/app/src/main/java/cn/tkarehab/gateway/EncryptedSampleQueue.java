@@ -14,12 +14,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -42,6 +43,7 @@ final class EncryptedSampleQueue {
     private final Context context;
     private final MasterKey masterKey;
     private final File directory;
+    private final NavigableMap<String, File> queuedFiles = new TreeMap<>();
 
     EncryptedSampleQueue(Context context) throws Exception {
         this.context = context.getApplicationContext();
@@ -52,10 +54,16 @@ final class EncryptedSampleQueue {
         if (!directory.exists() && !directory.mkdirs()) {
             throw new IllegalStateException("Could not create the encrypted sample queue directory.");
         }
+        File[] existing = directory.listFiles((file, name) -> name.endsWith(".payload"));
+        if (existing != null) {
+            for (File file : existing) {
+                queuedFiles.put(file.getName(), file);
+            }
+        }
     }
 
     synchronized void append(JSONObject item) throws Exception {
-        if (files().length >= MAX_ITEMS) {
+        if (queuedFiles.size() >= MAX_ITEMS) {
             throw new IllegalStateException("Offline queue limit reached.");
         }
         File destination = new File(
@@ -65,14 +73,15 @@ final class EncryptedSampleQueue {
         try (OutputStream output = encrypted(destination).openFileOutput()) {
             output.write(item.toString().getBytes(StandardCharsets.UTF_8));
         }
+        queuedFiles.put(destination.getName(), destination);
     }
 
     synchronized JSONObject peek() throws Exception {
-        File[] files = files();
-        if (files.length == 0) {
+        Map.Entry<String, File> first = queuedFiles.firstEntry();
+        if (first == null) {
             return null;
         }
-        File head = files[0];
+        File head = first.getValue();
         try (InputStream input = encrypted(head).openFileInput();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[4096];
@@ -86,80 +95,108 @@ final class EncryptedSampleQueue {
             if (!head.renameTo(quarantined)) {
                 throw new IllegalStateException("A damaged queued sample could not be quarantined.", error);
             }
+            queuedFiles.remove(first.getKey());
             throw new IllegalStateException("A damaged queued sample was quarantined for inspection.", error);
         }
     }
 
     synchronized List<JSONObject> peekBatch(int limit) throws Exception {
-        File[] files = files();
-        int count = Math.min(Math.max(1, limit), files.length);
+        int count = Math.min(Math.max(1, limit), queuedFiles.size());
         List<JSONObject> result = new ArrayList<>(count);
-        for (int index = 0; index < count; index += 1) {
-            result.add(read(files[index]));
+        int index = 0;
+        for (File file : queuedFiles.values()) {
+            if (index++ >= count) break;
+            result.add(read(file));
         }
         return result;
     }
 
     synchronized List<Item> peekBalancedBatch(int limit) throws Exception {
-        File[] files = files();
-        int[] indexes = balancedIndexes(files.length, limit);
-        List<Item> result = new ArrayList<>(indexes.length);
-        for (int index : indexes) {
-            File file = files[index];
-            result.add(new Item(file.getName(), read(file)));
+        int total = queuedFiles.size();
+        int count = Math.min(Math.max(1, limit), total);
+        if (count == 0) return new ArrayList<>();
+
+        int historicalCount = count == total ? count : Math.max(1, count / 4);
+        int liveCount = count - historicalCount;
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        for (String key : queuedFiles.descendingKeySet()) {
+            if (keys.size() >= liveCount) break;
+            keys.add(key);
+        }
+        for (String key : queuedFiles.navigableKeySet()) {
+            if (keys.size() >= count) break;
+            keys.add(key);
+        }
+
+        List<Item> result = new ArrayList<>(keys.size());
+        for (String key : keys) {
+            File file = queuedFiles.get(key);
+            if (file != null) result.add(new Item(key, read(file)));
         }
         return result;
     }
 
     synchronized void acknowledgeOne() {
-        File[] files = files();
-        if (files.length > 0 && !files[0].delete()) {
+        Map.Entry<String, File> first = queuedFiles.firstEntry();
+        if (first == null) return;
+        if (!first.getValue().delete()) {
             throw new IllegalStateException("Could not remove an uploaded encrypted sample.");
         }
+        queuedFiles.remove(first.getKey());
     }
 
     synchronized void acknowledge(int count) {
-        File[] files = files();
-        int removable = Math.min(Math.max(0, count), files.length);
-        for (int index = 0; index < removable; index += 1) {
-            if (!files[index].delete()) {
+        int removable = Math.min(Math.max(0, count), queuedFiles.size());
+        List<String> keys = new ArrayList<>(removable);
+        for (String key : queuedFiles.navigableKeySet()) {
+            if (keys.size() >= removable) break;
+            keys.add(key);
+        }
+        for (String key : keys) {
+            File file = queuedFiles.get(key);
+            if (file != null && !file.delete()) {
                 throw new IllegalStateException("Could not remove an uploaded encrypted sample.");
             }
+            queuedFiles.remove(key);
         }
     }
 
     synchronized void acknowledgeKeys(Set<String> keys) {
         if (keys.isEmpty()) return;
-        for (File file : files()) {
-            if (keys.contains(file.getName()) && !file.delete()) {
+        for (String key : keys) {
+            File file = queuedFiles.get(key);
+            if (file != null && !file.delete()) {
                 throw new IllegalStateException("Could not remove an uploaded encrypted sample.");
             }
+            queuedFiles.remove(key);
         }
     }
 
     synchronized void quarantineOne(String reason) {
-        File[] files = files();
-        if (files.length == 0) return;
-        File head = files[0];
+        Map.Entry<String, File> first = queuedFiles.firstEntry();
+        if (first == null) return;
+        File head = first.getValue();
         String safeReason = reason.replaceAll("[^a-zA-Z0-9-]", "-");
         File quarantined = new File(directory, head.getName().replace(".payload", ".rejected-" + safeReason));
         if (!head.renameTo(quarantined)) {
             throw new IllegalStateException("Could not isolate a permanently rejected queued sample.");
         }
+        queuedFiles.remove(first.getKey());
     }
 
     synchronized void quarantineKey(String key, String reason) {
-        File head = new File(directory, key);
-        if (!head.exists()) return;
+        File head = queuedFiles.get(key);
+        if (head == null || !head.exists()) return;
         String safeReason = reason.replaceAll("[^a-zA-Z0-9-]", "-");
         File quarantined = new File(directory, head.getName().replace(".payload", ".rejected-" + safeReason));
         if (!head.renameTo(quarantined)) {
             throw new IllegalStateException("Could not isolate a permanently rejected queued sample.");
         }
+        queuedFiles.remove(key);
     }
 
     synchronized int size() {
-        return files().length;
+        return queuedFiles.size();
     }
 
     static int[] balancedIndexes(int total, int limit) {
@@ -206,14 +243,5 @@ final class EncryptedSampleQueue {
             }
             return new JSONObject(output.toString(StandardCharsets.UTF_8.name()));
         }
-    }
-
-    private File[] files() {
-        File[] files = directory.listFiles((file, name) -> name.endsWith(".payload"));
-        if (files == null) {
-            return new File[0];
-        }
-        Arrays.sort(files, Comparator.comparing(File::getName));
-        return files;
     }
 }

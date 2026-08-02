@@ -60,15 +60,11 @@ export async function POST(request: Request) {
   }
 
   if (!existingRole) {
-    const { error } = await supabase.auth.updateUser({ data: { role: parsed.data.role } });
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
+    return NextResponse.json({ error: "Account role has not been assigned by an administrator" }, { status: 403 });
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(authRoleCookie, existingRole ?? parsed.data.role, {
+  cookieStore.set(authRoleCookie, existingRole, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -76,7 +72,7 @@ export async function POST(request: Request) {
     maxAge: 60 * 60 * 24 * 30,
   });
 
-  const role = existingRole ?? parsed.data.role;
+  const role = existingRole;
 
   return NextResponse.json({ role, redirectTo: defaultPathForRole(role) });
 }

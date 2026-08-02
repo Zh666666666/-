@@ -9,9 +9,11 @@ import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { calculateRehabMetrics } from "@/lib/rehab-metrics";
+import { isJsonWithinBytes } from "@/lib/request-limits";
 import { assessKneeRecord, type SensorSampleItem } from "@/lib/rehab";
 import { resolveSensorDataSource, sensorDataSources } from "@/lib/sample-provenance";
 import { publishSensorLiveEvent } from "@/lib/sensor-live-broker";
+import { requestCanAccessPatient } from "@/lib/server-access";
 import {
   buildIngestRaw,
   buildUploadReceipt,
@@ -28,9 +30,9 @@ import {
 const sensorSampleSchema = z.object({
   gatewaySampleId: z.string().min(8).max(128).optional(),
   captureSequence: z.coerce.number().int().nonnegative().optional(),
-  sessionId: z.string().optional().nullable(),
-  deviceId: z.string().optional().nullable(),
-  patientId: z.string().min(1),
+  sessionId: z.string().max(128).optional().nullable(),
+  deviceId: z.string().max(128).optional().nullable(),
+  patientId: z.string().min(1).max(128),
   source: z.enum(sensorDataSources).optional(),
   placement: z.enum(["THIGH", "SHANK", "BRACE", "UNKNOWN"]).optional().default("UNKNOWN"),
   placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
@@ -53,7 +55,7 @@ const sensorSampleSchema = z.object({
   confidence: z.coerce.number().min(0).max(1).optional().nullable(),
   batteryLevel: z.coerce.number().int().min(0).max(100).optional().nullable(),
   signalStrength: z.coerce.number().int().min(0).max(100).optional().nullable(),
-  raw: z.unknown().optional(),
+  raw: z.unknown().refine((value) => isJsonWithinBytes(value), "raw metadata is too large").optional(),
 });
 
 function serializeKneeRecord(record: {
@@ -178,6 +180,10 @@ export async function GET(request: Request) {
 
   if (isDemoMode()) {
     return NextResponse.json(getDemoSensorLiveSnapshot(patientId));
+  }
+
+  if (!await requestCanAccessPatient(request, patientId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const session = await prisma.sensorSession.findFirst({
