@@ -4,6 +4,7 @@ import { z } from "zod";
 import { updateDemoDeviceHeartbeat } from "@/lib/demo-store";
 import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
+import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
 import { normalizeDeviceStatus, serializeDevice } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
 
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
+
+  const unauthorized = gatewayUnauthorizedResponse(request);
+  if (unauthorized) return unauthorized;
 
   if (isDemoMode()) {
     const device = updateDemoDeviceHeartbeat(body);

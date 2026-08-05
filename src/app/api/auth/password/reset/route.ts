@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { localCredentials, secretsEqual } from "@/lib/local-auth";
-import { hashPassword, hashVerificationCode } from "@/lib/registration-auth";
+import { canResetAccount, hashPassword, hashVerificationCode } from "@/lib/registration-auth";
 import { prisma } from "@/lib/prisma";
 
 const schema = z.object({
@@ -35,6 +35,9 @@ export async function POST(request: Request) {
   }
 
   let account = await prisma.authAccount.findUnique({ where: { email: parsed.data.email } });
+  if (account && !canResetAccount(account.status)) {
+    return NextResponse.json({ error: "Verification code is invalid or expired" }, { status: 400 });
+  }
   if (!account) {
     const family = localCredentials("family");
     const nurse = localCredentials("nurse");
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
   await prisma.$transaction([
     prisma.authAccount.update({
       where: { id: account.id },
-      data: { passwordHash: await hashPassword(parsed.data.password), status: "ACTIVE" },
+      data: { passwordHash: await hashPassword(parsed.data.password) },
     }),
     prisma.emailVerification.update({ where: { id: verification.id }, data: { consumedAt: new Date() } }),
   ]);

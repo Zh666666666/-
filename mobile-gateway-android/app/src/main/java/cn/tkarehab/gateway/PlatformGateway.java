@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * bind, create a session, then upload. Network errors leave the queue untouched.
  */
 final class PlatformGateway {
+    private static final int MAX_RESPONSE_CHARS = 256 * 1024;
+
     interface Listener {
         void onStatus(String message);
         void onUploadReceipt(UploadReceipt receipt);
@@ -323,7 +325,10 @@ final class PlatformGateway {
                             isolated += 1;
                             continue;
                         }
-                        retryableFailure = new HttpStatusException(status, String.valueOf(result.opt("body")));
+                        retryableFailure = new HttpStatusException(
+                                status,
+                                "Batch item failed (" + status + ")"
+                        );
                     }
                     queue.acknowledgeKeys(acknowledgedKeys);
                     for (Map.Entry<String, String> rejected : rejectedKeys.entrySet()) {
@@ -769,7 +774,7 @@ final class PlatformGateway {
                 : connection.getErrorStream();
         String response = readFully(stream);
         if (status < 200 || status >= 300) {
-            throw new HttpStatusException(status, label + " failed (" + status + "): " + response);
+            throw new HttpStatusException(status, label + " failed (" + status + ")");
         }
         if (response == null || response.trim().isEmpty()) {
             return new JSONObject();
@@ -785,6 +790,9 @@ final class PlatformGateway {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
+                if (result.length() + line.length() > MAX_RESPONSE_CHARS) {
+                    throw new IllegalStateException("Platform response exceeded the safety limit.");
+                }
                 result.append(line);
             }
         }

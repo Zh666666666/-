@@ -27,8 +27,8 @@ export async function sendVerificationCode(params: {
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Email provider rejected the request (${response.status}): ${detail.slice(0, 200)}`);
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(`Email provider rejected the request (${response.status})`);
   }
 }
 

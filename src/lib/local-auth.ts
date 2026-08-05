@@ -6,6 +6,7 @@ export const localSessionMaxAgeSeconds = 60 * 60 * 12;
 type LocalSession = {
   role: UserRole;
   accountId?: string;
+  issuedAt: number;
   expiresAt: number;
 };
 
@@ -42,6 +43,7 @@ export async function createLocalSession(
   const payload = toBase64Url(encoder.encode(JSON.stringify({
     role,
     ...(accountId ? { accountId } : {}),
+    issuedAt: nowMs,
     expiresAt: nowMs + localSessionMaxAgeSeconds * 1000,
   } satisfies LocalSession)));
   const signature = await crypto.subtle.sign("HMAC", await signingKey(secret), encoder.encode(payload));
@@ -66,11 +68,19 @@ export async function verifyLocalSession(
     );
     if (!valid) return null;
     const decoded = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as Partial<LocalSession>;
-    if (!isUserRole(decoded.role) || typeof decoded.expiresAt !== "number" || decoded.expiresAt <= nowMs) return null;
+    if (!isUserRole(decoded.role)
+      || typeof decoded.issuedAt !== "number"
+      || typeof decoded.expiresAt !== "number"
+      || decoded.expiresAt <= nowMs) return null;
     const accountId = typeof decoded.accountId === "string" && decoded.accountId.length > 0
       ? decoded.accountId
       : undefined;
-    return { role: decoded.role, ...(accountId ? { accountId } : {}), expiresAt: decoded.expiresAt };
+    return {
+      role: decoded.role,
+      ...(accountId ? { accountId } : {}),
+      issuedAt: decoded.issuedAt,
+      expiresAt: decoded.expiresAt,
+    };
   } catch {
     return null;
   }

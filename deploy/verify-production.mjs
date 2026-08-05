@@ -94,10 +94,10 @@ if (dashboard.status !== 200 || dashboardBody.patients?.[0]?.id !== "prod-patien
   throw new Error("Authenticated dashboard or production seed patient verification failed");
 }
 
-const invalidGateway = await request("/api/sensor-samples?patientId=prod-patient-1&limit=1", {
+const invalidGateway = await request("/api/gateway/ready?patientId=prod-patient-1", {
   headers: { authorization: "Bearer invalid" },
 });
-const validGateway = await request("/api/sensor-samples?patientId=prod-patient-1&limit=1", {
+const validGateway = await request("/api/gateway/ready?patientId=prod-patient-1", {
   headers: { authorization: `Bearer ${process.env.GATEWAY_API_TOKEN}` },
 });
 if (invalidGateway.status !== 401 || validGateway.status !== 200) {

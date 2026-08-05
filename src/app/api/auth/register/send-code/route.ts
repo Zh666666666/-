@@ -1,22 +1,16 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { resolveAuthMode } from "@/lib/env";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { secretsEqual } from "@/lib/local-auth";
-import { generateVerificationCode, hashVerificationCode, registrationConfiguration } from "@/lib/registration-auth";
+import { generateVerificationCode, hashVerificationCode, registrationConfiguration, registrationEmailSchema } from "@/lib/registration-auth";
 import { sendRegistrationCode } from "@/lib/registration-email";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const requestSchema = z.object({
-  email: z.string().trim().toLowerCase().email().max(254),
-  inviteCode: z.string().min(1).max(128),
-});
-
-const requests = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 5 });
+const requestsByIp = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+const requestsByEmail = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 3 });
 
 export async function POST(request: Request) {
   if (resolveAuthMode() !== "local") {
@@ -28,18 +22,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "邮箱注册服务尚未配置完成。" }, { status: 503 });
   }
 
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "请填写有效邮箱和照护邀请码。" }, { status: 400 });
-
-  if (!await secretsEqual(parsed.data.inviteCode, config.inviteCode)) {
-    return NextResponse.json({ error: "照护邀请码不正确。" }, { status: 403 });
-  }
+  const parsed = registrationEmailSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "请填写有效邮箱。" }, { status: 400 });
 
   const requestHeaders = await headers();
   const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? requestHeaders.get("x-real-ip")
     ?? "unknown";
-  if (!requests.check(`${client}:${parsed.data.email}`).allowed) {
+  if (!requestsByIp.check(client).allowed || !requestsByEmail.check(parsed.data.email).allowed) {
     return NextResponse.json({ error: "发送过于频繁，请稍后再试。" }, { status: 429 });
   }
 
@@ -72,7 +62,7 @@ export async function POST(request: Request) {
     await sendRegistrationCode({ apiKey: config.apiKey, from: config.from, to: parsed.data.email, code });
   } catch (error) {
     await prisma.emailVerification.delete({ where: { id: verification.id } }).catch(() => undefined);
-    console.error("Registration email delivery failed", error);
+    console.error("Registration email delivery failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "验证码邮件暂时发送失败，请稍后重试。" }, { status: 502 });
   }
 

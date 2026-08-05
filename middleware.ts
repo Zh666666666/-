@@ -4,32 +4,28 @@ import { NextResponse, type NextRequest } from "next/server";
 import { authRoleCookie, resolveAuthRole, type UserRole } from "@/lib/auth";
 import { resolveAuthMode } from "@/lib/env";
 import { localSessionCookie, secretsEqual, verifyLocalSession } from "@/lib/local-auth";
+import {
+  gatewayCanAccess,
+  hasSameOrigin,
+  isPublicApi,
+  requiresSameOrigin,
+  roleCanAccessApi,
+} from "@/lib/request-security";
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase-config";
 
 const protectedPrefixes = ["/family", "/nurse"];
 const localProtectedPrefixes = [...protectedPrefixes, "/appointments", "/sensor-live", "/evidence", "/hardware-demo"];
-const publicApiPrefixes = ["/api/auth", "/api/health"];
-const gatewayApiPrefixes = [
-  "/api/gateway",
-  "/api/devices",
-  "/api/device-bindings",
-  "/api/device-calibrations",
-  "/api/sensor-sessions",
-  "/api/sensor-samples",
-  "/api/ai-analyses",
-];
-
 function redirectTo(request: NextRequest, pathname: string) {
-  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host;
-  const forwardedProto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
-
-  return NextResponse.redirect(new URL(pathname, `${forwardedProto}://${forwardedHost}`));
+  const target = request.nextUrl.clone();
+  target.pathname = pathname;
+  target.search = "";
+  return NextResponse.redirect(target);
 }
 
 function loginRedirect(request: NextRequest, pathname: string) {
-  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host;
-  const forwardedProto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
-  const loginUrl = new URL("/login", `${forwardedProto}://${forwardedHost}`);
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = "/login";
+  loginUrl.search = "";
   loginUrl.searchParams.set("next", pathname);
 
   return NextResponse.redirect(loginUrl);
@@ -43,6 +39,26 @@ function matchesPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+async function hasValidGatewayToken(request: NextRequest, pathname: string) {
+  if (!gatewayCanAccess(pathname, request.method)) return false;
+  const authorization = request.headers.get("authorization") ?? "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const expected = process.env["GATEWAY_API_TOKEN"] ?? "";
+  return expected.length >= 24 && secretsEqual(token, expected);
+}
+
+function authorizeCookieApi(request: NextRequest, role: UserRole | null, response = NextResponse.next()) {
+  if (!role) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (requiresSameOrigin(request.method)
+    && !hasSameOrigin(request.url, request.headers.get("origin"), process.env["NEXT_PUBLIC_APP_URL"])) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+  if (!roleCanAccessApi(role, request.nextUrl.pathname, request.method)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return response;
+}
+
 async function localAuthMiddleware(request: NextRequest, pathname: string) {
   const session = await verifyLocalSession(
     request.cookies.get(localSessionCookie)?.value,
@@ -50,17 +66,9 @@ async function localAuthMiddleware(request: NextRequest, pathname: string) {
   );
 
   if (pathname.startsWith("/api/")) {
-    if (matchesPrefix(pathname, publicApiPrefixes)) return NextResponse.next();
-    if (session) return NextResponse.next();
-
-    if (matchesPrefix(pathname, gatewayApiPrefixes)) {
-      const authorization = request.headers.get("authorization") ?? "";
-      const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-      const expected = process.env["GATEWAY_API_TOKEN"] ?? "";
-      if (expected.length >= 24 && await secretsEqual(token, expected)) return NextResponse.next();
-    }
-
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (isPublicApi(pathname)) return NextResponse.next();
+    if (await hasValidGatewayToken(request, pathname)) return NextResponse.next();
+    return authorizeCookieApi(request, session?.role ?? null);
   }
 
   if (!matchesPrefix(pathname, localProtectedPrefixes)) return NextResponse.next();
@@ -88,12 +96,25 @@ function redirectForMismatchedRole(request: NextRequest, pathname: string, role:
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const authMode = resolveAuthMode();
 
-  if (resolveAuthMode() === "local") {
+  if (authMode === "local") {
     return localAuthMiddleware(request, pathname);
   }
 
   if (!isSupabaseConfigured) {
+    if (authMode === "invalid" && (pathname.startsWith("/api/") || matchesPrefix(pathname, localProtectedPrefixes))) {
+      return pathname.startsWith("/api/")
+        ? NextResponse.json({ error: "Authentication is not configured" }, { status: 503 })
+        : loginRedirect(request, pathname);
+    }
+
+    if (pathname.startsWith("/api/")) {
+      if (isPublicApi(pathname) || authMode === "demo") return NextResponse.next();
+      const role = resolveAuthRole(null, request.cookies.get(authRoleCookie)?.value);
+      return authorizeCookieApi(request, role);
+    }
+
     const role = resolveAuthRole(null, request.cookies.get(authRoleCookie)?.value);
 
     if (!isProtectedPath(pathname)) {
@@ -105,6 +126,14 @@ export async function middleware(request: NextRequest) {
     }
 
     return redirectForMismatchedRole(request, pathname, role) ?? NextResponse.next();
+  }
+
+  if (pathname.startsWith("/api/") && isPublicApi(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/api/") && await hasValidGatewayToken(request, pathname)) {
+    return NextResponse.next();
   }
 
   let response = NextResponse.next({ request });
@@ -127,6 +156,11 @@ export async function middleware(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const role = resolveAuthRole(data.user, request.cookies.get(authRoleCookie)?.value);
+
+  if (pathname.startsWith("/api/")) {
+    if (!data.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return authorizeCookieApi(request, role, response);
+  }
 
   if (!isProtectedPath(pathname)) {
     return response;

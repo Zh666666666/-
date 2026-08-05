@@ -1,4 +1,5 @@
 import { subscribeSensorLiveEvents } from "@/lib/sensor-live-broker";
+import { requestCanAccessPatient } from "@/lib/server-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,6 +10,10 @@ export async function GET(request: Request) {
   const patientId = new URL(request.url).searchParams.get("patientId");
   if (!patientId) {
     return Response.json({ error: "patientId is required" }, { status: 400 });
+  }
+
+  if (!await requestCanAccessPatient(request, patientId)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let close: (() => void) | null = null;

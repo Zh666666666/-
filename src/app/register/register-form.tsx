@@ -10,15 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const assurances = [
-  ["邮箱验证", "验证码确认账号归属，避免误绑。"],
-  ["邀请制开通", "照护邀请码由责任护士发放。"],
-  ["角色隔离", "家属仅能看到自己患者的数据。"],
+  ["邮箱验证", "验证码确认邮箱归属，保护账号安全。"],
+  ["直接注册", "任何有效邮箱都可以创建家属账号。"],
+  ["角色隔离", "公开注册不会获得护士管理权限。"],
 ] as const;
 
 export function RegisterForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +41,7 @@ export function RegisterForm() {
       const response = await fetch("/api/auth/register/send-code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, inviteCode }),
+        body: JSON.stringify({ email }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "验证码发送失败");
@@ -65,7 +64,7 @@ export function RegisterForm() {
       const response = await fetch("/api/auth/register/complete", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email, code, inviteCode, password }),
+        body: JSON.stringify({ name, email, code, password }),
       });
       const data = (await response.json()) as { error?: string; redirectTo?: string };
       if (!response.ok) throw new Error(data.error ?? "注册失败");
@@ -142,7 +141,7 @@ export function RegisterForm() {
             <p className="eyebrow text-brass-700">Step 1 — 验证邮箱</p>
             <h2 className="display-md mt-3 text-[1.625rem] lg:text-[1.875rem]">邮箱验证码注册</h2>
             <p className="mt-2.5 text-[0.875rem] leading-6 text-[var(--muted-foreground)]">
-              请使用与护士登记一致的邮箱，并填写收到的照护邀请码。
+              填写常用邮箱并接收验证码，无需邀请码即可创建家属账号。
             </p>
           </header>
 
@@ -156,21 +155,12 @@ export function RegisterForm() {
                 required
               />
             </Field>
-            <Field label="照护邀请码">
-              <Input
-                type="password"
-                autoComplete="off"
-                value={inviteCode}
-                onChange={(event) => setInviteCode(event.target.value)}
-                required
-              />
-            </Field>
             <Button
               type="button"
               variant="outline"
               className="h-11 w-full"
               onClick={sendCode}
-              disabled={loading !== null || countdown > 0 || !email || !inviteCode}
+              disabled={loading !== null || countdown > 0 || !email}
             >
               {loading === "code" ? (
                 <span

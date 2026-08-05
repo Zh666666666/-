@@ -1,17 +1,16 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { authRoleCookie, isUserRole } from "@/lib/auth";
+import { canAccessPatient } from "@/lib/access-control";
 import { addDemoSensorSession } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
-import { isDemoMode, resolveAuthMode } from "@/lib/env";
+import { isDemoMode } from "@/lib/env";
 import { serializeSensorSession } from "@/lib/hardware";
-import { localSessionCookie, verifyLocalSession } from "@/lib/local-auth";
 import { prisma } from "@/lib/prisma";
-import { purgeExpiredSensorData } from "@/lib/session-evaluation";
+import { getDataAccessContext } from "@/lib/server-access";
+import { scheduleSensorDataPurge } from "@/lib/session-evaluation";
 
 const sessionSchema = z.object({
   patientId: z.string().min(1),
@@ -19,32 +18,20 @@ const sessionSchema = z.object({
   placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
 });
 
-async function currentRole() {
-  const store = await cookies();
-  if (resolveAuthMode() === "local") {
-    return (await verifyLocalSession(
-      store.get(localSessionCookie)?.value,
-      process.env["LOCAL_AUTH_SESSION_SECRET"],
-    ))?.role ?? null;
-  }
-  const role = store.get(authRoleCookie)?.value;
-  return isUserRole(role) ? role : null;
-}
-
 export async function GET(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
   if (isDemoMode()) return NextResponse.json([]);
 
   const url = new URL(request.url);
-  const role = await currentRole();
-  if (!role) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await getDataAccessContext();
+  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const requestedPatientId = url.searchParams.get("patientId");
-  const familyPatient = role === "family"
-    ? await prisma.patient.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } })
-    : null;
-  const patientId = role === "family" ? familyPatient?.id ?? "__none__" : requestedPatientId;
-  await purgeExpiredSensorData().catch((error) => console.error("Retention cleanup failed", error));
+  if (requestedPatientId && !canAccessPatient(access, requestedPatientId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const patientId = access.unrestricted ? requestedPatientId : access.patientId ?? "__none__";
+  scheduleSensorDataPurge();
   const sessions = await prisma.sensorSession.findMany({
     where: {
       ...(patientId ? { patientId } : {}),

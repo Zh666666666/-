@@ -8,10 +8,11 @@ import { prisma } from "@/lib/prisma";
 import { calculateRehabMetrics } from "@/lib/rehab-metrics";
 import { type AiAnalysisItem, type KneeDataPoint, type SensorSampleItem } from "@/lib/rehab";
 import { readSampleProvenance } from "@/lib/sensor-receipt";
+import { requestCanAccessPatient } from "@/lib/server-access";
 
 const analysisRequestSchema = z.object({
-  patientId: z.string().min(1),
-  sessionId: z.string().min(1).optional(),
+  patientId: z.string().min(1).max(128),
+  sessionId: z.string().min(1).max(128).optional(),
 });
 
 type AnalysisDraft = Pick<AiAnalysisItem, "provider" | "report" | "recommendation">;
@@ -166,8 +167,8 @@ async function callResponsesApi(evidence: unknown): Promise<AnalysisDraft> {
   });
 
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 500);
-    throw new Error(`Responses API returned ${response.status}: ${detail}`);
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(`Responses API returned ${response.status}`);
   }
   const payload = await response.json() as ResponsesPayload;
   const text = extractResponseText(payload);
@@ -207,6 +208,9 @@ export async function POST(request: Request) {
   }
 
   const patientId = parsed.data.patientId;
+  if (!await requestCanAccessPatient(request, patientId, true)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const [patient, session] = await Promise.all([
     prisma.patient.findUnique({ where: { id: patientId } }),
     prisma.sensorSession.findFirst({
@@ -284,7 +288,7 @@ export async function POST(request: Request) {
     try {
       draft = await callResponsesApi(evidence);
     } catch (error) {
-      console.error("AI analysis failed", error);
+      console.error("AI analysis failed", error instanceof Error ? error.message : "unknown error");
       draft = {
         provider: "local:fallback",
         report: metrics.clinicalEligible

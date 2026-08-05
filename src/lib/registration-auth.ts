@@ -1,5 +1,19 @@
+import { z } from "zod";
+
 const encoder = new TextEncoder();
 const passwordIterations = 210_000;
+
+export const registrationEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+});
+
+export const registrationCompletionSchema = registrationEmailSchema.extend({
+  name: z.string().trim().min(2).max(40),
+  code: z.string().regex(/^\d{6}$/),
+  password: z.string().min(12).max(72)
+    .regex(/[A-Za-z]/, "password must contain a letter")
+    .regex(/\d/, "password must contain a number"),
+});
 
 function encode(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -51,6 +65,10 @@ export function generateVerificationCode() {
   return String(value[0] % 1_000_000).padStart(6, "0");
 }
 
+export function canResetAccount(status: string | null | undefined) {
+  return status === undefined || status === null || status === "ACTIVE";
+}
+
 export async function hashVerificationCode(email: string, code: string, secret: string) {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -66,11 +84,9 @@ export async function hashVerificationCode(email: string, code: string, secret: 
 export function registrationConfiguration() {
   const apiKey = process.env["RESEND_API_KEY"] ?? "";
   const from = process.env["EMAIL_FROM"] ?? "";
-  const inviteCode = process.env["REGISTRATION_INVITE_CODE"] ?? "";
   return {
     apiKey,
     from,
-    inviteCode,
-    ready: apiKey.startsWith("re_") && from.includes("@") && inviteCode.length >= 12,
+    ready: apiKey.startsWith("re_") && from.includes("@"),
   };
 }

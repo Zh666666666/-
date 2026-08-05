@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { localCredentials, secretsEqual } from "@/lib/local-auth";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { generateVerificationCode, hashVerificationCode, registrationConfiguration } from "@/lib/registration-auth";
+import { canResetAccount, generateVerificationCode, hashVerificationCode, registrationConfiguration } from "@/lib/registration-auth";
 import { sendVerificationCode } from "@/lib/registration-email";
 import { prisma } from "@/lib/prisma";
 
@@ -28,11 +28,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "验证码已发送，请 60 秒后再试。" }, { status: 429 });
   }
 
-  const account = await prisma.authAccount.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
+  const account = await prisma.authAccount.findUnique({
+    where: { email: parsed.data.email },
+    select: { id: true, status: true },
+  });
   const matchesDefault = await Promise.all(["family", "nurse"].map(async (role) => (
     secretsEqual(parsed.data.email, localCredentials(role as "family" | "nurse").email.trim().toLowerCase())
   )));
-  if (!account && !matchesDefault.some(Boolean)) {
+  if ((!account && !matchesDefault.some(Boolean)) || (account && !canResetAccount(account.status))) {
     return NextResponse.json({ ok: true, message: "若该邮箱已注册，验证码将很快送达。" });
   }
 
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     await sendVerificationCode({ apiKey: config.apiKey, from: config.from, to: parsed.data.email, code, purpose: "reset" });
   } catch (error) {
     await prisma.emailVerification.delete({ where: { id: verification.id } }).catch(() => undefined);
-    console.error("Password reset email delivery failed", error);
+    console.error("Password reset email delivery failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "验证码邮件暂时发送失败，请稍后重试。" }, { status: 502 });
   }
   return NextResponse.json({ ok: true, expiresInSeconds: 600 });

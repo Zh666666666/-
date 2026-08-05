@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canAccessPatient } from "@/lib/access-control";
 import { addDemoCalibrationRecord, getDemoCalibrationRecords } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { serializeCalibrationRecord } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
+import { isJsonWithinBytes } from "@/lib/request-limits";
+import { getDataAccessContext, requestCanAccessPatient } from "@/lib/server-access";
 
 const calibrationSchema = z.object({
   patientId: z.string().min(1),
@@ -16,8 +19,8 @@ const calibrationSchema = z.object({
   placementRevision: z.coerce.number().int().nonnegative().optional().default(0),
   quality: z.enum(["PENDING", "GOOD", "FAIR", "POOR"]).optional(),
   zeroFlexionAngle: z.coerce.number().min(-30).max(30).optional(),
-  baseline: z.unknown().optional(),
-  notes: z.string().optional().nullable(),
+  baseline: z.unknown().refine((value) => isJsonWithinBytes(value), "baseline is too large").optional(),
+  notes: z.string().max(2000).optional().nullable(),
 });
 
 export async function GET(request: Request) {
@@ -33,6 +36,12 @@ export async function GET(request: Request) {
 
   if (isDemoMode()) {
     return NextResponse.json(getDemoCalibrationRecords(patientId));
+  }
+
+  const access = await getDataAccessContext();
+  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canAccessPatient(access, patientId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const records = await prisma.calibrationRecord.findMany({
@@ -58,6 +67,10 @@ export async function POST(request: Request) {
 
   if (isDemoMode()) {
     return NextResponse.json(addDemoCalibrationRecord(body));
+  }
+
+  if (!await requestCanAccessPatient(request, body.patientId, true)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   await ensureDemoPatients();

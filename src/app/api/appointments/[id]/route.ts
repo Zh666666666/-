@@ -6,6 +6,7 @@ import { updateOrNull } from "@/lib/api-errors";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { getDataAccessContext } from "@/lib/server-access";
 
 const appointmentUpdateSchema = z.object({
   status: z.enum(["PENDING", "CONFIRMED", "REJECTED"]),
@@ -26,6 +27,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
+
+  const access = await getDataAccessContext();
+  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (access.role !== "nurse") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   if (isDemoMode()) {
     const appointment = updateDemoAppointment(id, body);

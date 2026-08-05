@@ -8,7 +8,7 @@ import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
 import { serializeSensorSession } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
-import { evaluateSensorSession, familyStatus, purgeExpiredSensorData } from "@/lib/session-evaluation";
+import { evaluateSensorSession, familyStatus, scheduleSensorDataPurge } from "@/lib/session-evaluation";
 
 const sessionUpdateSchema = z.object({
   status: z.enum(["COMPLETED", "ABORTED"]).optional().default("COMPLETED"),
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const finalized = summary
     ? await prisma.sensorSession.update({ where: { id: session.id }, data: { summary } })
     : session;
-  await purgeExpiredSensorData().catch((error) => console.error("Retention cleanup failed", error));
+  scheduleSensorDataPurge();
 
   if (status === "COMPLETED") {
     const target = new URL("/api/ai-analyses", request.url);
@@ -68,7 +68,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         authorization: request.headers.get("authorization") ?? "",
       },
       body: JSON.stringify({ patientId: session.patientId, sessionId: session.id }),
-    }).catch((error) => console.error("Automatic AI analysis failed", error));
+    }).catch((error) => console.error(
+      "Automatic AI analysis failed",
+      error instanceof Error ? error.message : "unknown error",
+    ));
   }
 
   return NextResponse.json({ ...serializeSensorSession(finalized), summary });

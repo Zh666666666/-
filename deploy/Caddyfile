@@ -30,5 +30,5 @@
 }
 
 http://{$SERVER_IP} {
-  reverse_proxy app:3000
+  redir https://{$DOMAIN}{uri} permanent
 }

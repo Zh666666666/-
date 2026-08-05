@@ -74,9 +74,13 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const data = await response.json() as { error?: string };
+      const data = await response.json() as { error?: string; requiresReauthentication?: boolean };
       if (!response.ok) throw new Error(data.error ?? "密码修改失败");
       setCurrentPassword(""); setNewPassword("");
+      if (data.requiresReauthentication) {
+        window.location.assign("/login");
+        return;
+      }
       setMessage("密码修改成功，下次登录请使用新密码");
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "密码修改失败");
