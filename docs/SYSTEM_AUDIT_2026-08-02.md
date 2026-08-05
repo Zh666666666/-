@@ -148,3 +148,7 @@ ALTER TABLE "profiles" DROP COLUMN IF EXISTS "patient_id";
 密码，仍然只能创建家属账号。发信与注册尝试分别使用 IP 和邮箱双层限流；邮箱
 服务未配置时继续 fail-closed。新账号不会继承任何已有患者，患者数据访问仍由
 `Profile.patientId` 显式关联控制。
+
+该补充已随 PR #43 合并提交 `ff0e3fec3e0255eb7decfb1b0def4a510d6675f5`
+部署生产。发布前数据库备份已通过恢复目录校验，患者范围迁移和设备绑定唯一约束
+已生效；公网注册页、邮件验证码发送接口和生产验收脚本均已验证。
