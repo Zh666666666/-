@@ -29,7 +29,6 @@ LOCAL_FAMILY_PASSWORD=<random-password-at-least-12-characters>
 LOCAL_NURSE_EMAIL=<nurse-login-email>
 LOCAL_NURSE_PASSWORD=<random-password-at-least-12-characters>
 NEXT_PUBLIC_REGISTRATION_ENABLED=true
-REGISTRATION_INVITE_CODE=<random-care-team-invite-code>
 RESEND_API_KEY=<resend-api-key>
 EMAIL_FROM=TKA Rehab <verify@updates.example.com>
 AI_RESPONSES_BASE_URL=https://api.openai.com
@@ -43,10 +42,11 @@ AI_RESPONSES_ACTOR_AUTHORIZATION=
 to `DOMAIN`, preserving the request path and query string.
 
 Email registration is optional and fail-closed. Verify a dedicated sending
-subdomain with Resend, set all four registration variables, then rebuild the app
-so `NEXT_PUBLIC_REGISTRATION_ENABLED=true` is included in the client bundle.
-Public registration creates family accounts only and requires the care-team
-invite code; nurse accounts remain administrator-provisioned.
+subdomain with Resend, configure the registration switch, API key, and sender,
+then rebuild the app so `NEXT_PUBLIC_REGISTRATION_ENABLED=true` is included in
+the client bundle. Any verified email may create a family account; nurse
+accounts remain administrator-provisioned. Public registration is protected by
+IP and email rate limits.
 
 AI analysis is manual and fail-closed. `POST /api/ai-analyses` first recomputes
 the latest hardware session's synchronization, calibration, ROM, repetition,

@@ -22,8 +22,9 @@ family/nurse role switching, local signed sessions, or Supabase Auth changes.
 6. Preserve demo login behavior unless explicitly asked to remove it.
 7. In local production auth, keep role credentials separate, require the signed
    HTTP-only session, and do not permit client-side role switching.
-8. Public email registration is family-only, invite-gated, rate-limited, and
-   disabled unless the transactional email configuration is complete.
+8. Public email registration is family-only, protected by email verification
+   plus IP/email rate limits, and disabled unless the transactional email
+   configuration is complete. It never creates nurse privileges.
 
 ## Commands
 
@@ -51,7 +52,7 @@ family/nurse role switching, local signed sessions, or Supabase Auth changes.
 - Assuming Supabase public keys imply a usable database.
 - Treating the readable role cookie as authentication without verifying the
   signed local session.
-- Logging plaintext verification codes, passwords, invite codes, or email API keys.
+- Logging plaintext verification codes, passwords, or email API keys.
 - Forgetting that role can come from Supabase metadata or the `tka-role` cookie.
 - Redirecting `/family` users to nurse paths or vice versa after refresh.
 - Leaving loading states stuck when Supabase sign-in fails.

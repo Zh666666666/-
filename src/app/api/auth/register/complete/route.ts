@@ -1,27 +1,17 @@
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { authRoleCookie } from "@/lib/auth";
 import { resolveAuthMode } from "@/lib/env";
 import { createLocalSession, localSessionCookie, localSessionMaxAgeSeconds, secretsEqual } from "@/lib/local-auth";
-import { hashPassword, hashVerificationCode, registrationConfiguration } from "@/lib/registration-auth";
+import { hashPassword, hashVerificationCode, registrationCompletionSchema, registrationConfiguration } from "@/lib/registration-auth";
 import { prisma } from "@/lib/prisma";
 import { createRateLimiter } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-const registrationSchema = z.object({
-  name: z.string().trim().min(2).max(40),
-  email: z.string().trim().toLowerCase().email().max(254),
-  code: z.string().regex(/^\d{6}$/),
-  inviteCode: z.string().min(1).max(128),
-  password: z.string().min(12).max(72)
-    .regex(/[A-Za-z]/, "password must contain a letter")
-    .regex(/\d/, "password must contain a number"),
-});
-
-const completions = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+const completionsByIp = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 30 });
+const completionsByEmail = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
 
 export async function POST(request: Request) {
   if (resolveAuthMode() !== "local") {
@@ -30,7 +20,7 @@ export async function POST(request: Request) {
   const config = registrationConfiguration();
   if (!config.ready) return NextResponse.json({ error: "邮箱注册服务尚未配置完成。" }, { status: 503 });
 
-  const parsed = registrationSchema.safeParse(await request.json().catch(() => null));
+  const parsed = registrationCompletionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "请完整填写资料，密码至少 12 位并包含字母和数字。" }, { status: 400 });
   }
@@ -38,12 +28,8 @@ export async function POST(request: Request) {
   const client = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? requestHeaders.get("x-real-ip")
     ?? "unknown";
-  const completionKey = `${client}:${parsed.data.email}`;
-  if (!completions.check(completionKey).allowed) {
+  if (!completionsByIp.check(client).allowed || !completionsByEmail.check(parsed.data.email).allowed) {
     return NextResponse.json({ error: "注册尝试过多，请稍后再试。" }, { status: 429 });
-  }
-  if (!await secretsEqual(parsed.data.inviteCode, config.inviteCode)) {
-    return NextResponse.json({ error: "照护邀请码不正确。" }, { status: 403 });
   }
 
   const verification = await prisma.emailVerification.findFirst({
@@ -103,7 +89,7 @@ export async function POST(request: Request) {
   };
   cookieStore.set(localSessionCookie, token, options);
   cookieStore.set(authRoleCookie, "family", options);
-  completions.reset(completionKey);
+  completionsByEmail.reset(parsed.data.email);
 
   return NextResponse.json({ ok: true, role: "family", redirectTo: "/family" }, { status: 201 });
 }
