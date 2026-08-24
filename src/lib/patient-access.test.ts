@@ -22,6 +22,14 @@ test("requires explicit confirmation before creating or linking a patient", () =
   }).success, false);
 });
 
+test("allows a nurse to create a patient ownership code before seeing the patient", () => {
+  assert.equal(patientAccessActionSchema.safeParse({ action: "CREATE_INVITE", confirmed: true }).success, true);
+});
+
+test("requires explicit confirmation for nurse handoff", () => {
+  assert.equal(patientAccessActionSchema.safeParse({ action: "NURSE_RELEASE", confirmed: false, patientId: "patient-a" }).success, false);
+});
+
 test("normalizes human-friendly one-time invitation codes", () => {
   assert.equal(normalizeInviteCode("abcd-23ef"), "ABCD23EF");
   assert.equal(formatInviteCode("abcd23ef"), "ABCD-23EF");

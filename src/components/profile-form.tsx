@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PatientAccessManager } from "@/components/patient-access-manager";
+import { PatientMedicalRecord } from "@/components/patient-medical-record";
 import type { ProfileItem, UserRole } from "@/lib/rehab";
 
 type ProfileFormProps = { role: UserRole; title: string; backHref: string };
@@ -101,7 +102,7 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
             <Badge variant="success" className="gap-2"><UserRound className="size-4" />{role === "family" ? "家属账号" : "护士账号"}</Badge>
             <h1 className="display-md mt-3 text-2xl md:text-3xl">{title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              {role === "family" ? "维护你的联系方式、与患者关系和通知偏好。" : "维护你的联系方式和工作信息；患者医疗资料在患者档案中管理。"}
+              {role === "family" ? "账号联系人资料与患者病历分开保存；下方患者档案会与主管护士共享。" : "维护你的联系方式和工作信息；你只会看到由归属码绑定给你的患者。"}
             </p>
           </div>
           <div className="flex gap-2">
@@ -119,7 +120,7 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
               <Button variant={editing ? "secondary" : "outline"} onClick={() => setEditing((value) => !value)}>{editing ? "取消" : "编辑"}</Button>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field label="姓名" value={profile.name} disabled={!editing} onChange={(value) => update("name", value)} />
+              <Field label={role === "family" ? "账号使用人姓名" : "护士姓名"} value={profile.name} disabled={!editing} onChange={(value) => update("name", value)} />
               <Field label="联系电话" value={profile.phone ?? ""} disabled={!editing} onChange={(value) => update("phone", value)} />
               {role === "family" ? <>
                 <Field label="与患者关系" value={profile.relationToPatient ?? ""} disabled={!editing} onChange={(value) => update("relationToPatient", value)} />
@@ -156,12 +157,13 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
               <CardContent className="grid gap-2">
                 <Button asChild variant="outline" className="justify-start"><Link href={`${backHref}/history`}><History className="size-4" />查看训练历史</Link></Button>
                 <Button asChild variant="outline" className="justify-start"><Link href="/appointments"><Bell className="size-4" />预约与提醒</Link></Button>
-                <div className="mt-2 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-5 text-slate-600"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-700" />家属不能修改手术资料或专业评估数据，避免误操作。</div>
+                <div className="mt-2 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-5 text-slate-600"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-700" />患者身份、过敏史和既往史保存在统一档案中；主管护士与家属读取的是同一份最新资料。</div>
               </CardContent>
             </Card>
           </div>
         </div>
 
+        {role === "family" ? <PatientMedicalRecord role="family" /> : null}
         <PatientAccessManager role={role} />
       </section>
     </main>

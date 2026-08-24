@@ -6,12 +6,14 @@ import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { getDataAccessContext } from "@/lib/server-access";
+import { accessiblePatientIds, canAccessPatient } from "@/lib/access-control";
 
 const appointmentSchema = z.object({
   patientName: z.string().min(1).max(80),
   patientPhone: z.string().max(30).optional().nullable(),
   expectedTime: z.string().datetime(),
   description: z.string().min(1).max(2000),
+  patientId: z.string().min(1).max(128).optional().nullable(),
 });
 
 function serializeAppointment(appointment: {
@@ -48,7 +50,7 @@ export async function GET() {
   const access = await getDataAccessContext();
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const appointments = await prisma.appointment.findMany({
-    where: access.unrestricted ? undefined : { patientId: access.patientId ?? "__none__" },
+    where: access.unrestricted ? undefined : { patientId: { in: accessiblePatientIds(access) ?? [] } },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(appointments.map(serializeAppointment));
@@ -72,13 +74,14 @@ export async function POST(request: Request) {
 
   const access = await getDataAccessContext();
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!access.unrestricted && !access.patientId) {
+  const patientId = access.role === "nurse" ? body.patientId : access.patientId;
+  if (!patientId || !canAccessPatient(access, patientId)) {
     return NextResponse.json({ error: "This account is not linked to a patient" }, { status: 409 });
   }
 
   const appointment = await prisma.appointment.create({
     data: {
-      patientId: access.unrestricted ? null : access.patientId,
+      patientId,
       patientName: body.patientName,
       patientPhone: body.patientPhone ?? null,
       expectedTime: new Date(body.expectedTime),

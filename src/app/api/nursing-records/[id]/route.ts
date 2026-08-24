@@ -7,6 +7,7 @@ import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { serializeNursingRecord } from "@/lib/rehab";
 import { getDataAccessContext } from "@/lib/server-access";
+import { accessiblePatientIds } from "@/lib/access-control";
 
 export async function PATCH(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,7 +31,7 @@ export async function PATCH(_: Request, { params }: { params: Promise<{ id: stri
   const visibleRecord = await prisma.nursingRecord.findFirst({
     where: {
       id,
-      ...(access.unrestricted ? {} : { patientId: access.patientId ?? "__none__" }),
+      ...(access.unrestricted ? {} : { patientId: { in: accessiblePatientIds(access) ?? [] } }),
     },
     select: { id: true },
   });

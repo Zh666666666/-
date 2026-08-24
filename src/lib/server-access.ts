@@ -18,7 +18,7 @@ export async function getDataAccessContext(): Promise<DataAccessContext | null> 
   if (isDemoMode()) {
     const cookieRole = store.get(authRoleCookie)?.value;
     const role = isUserRole(cookieRole) ? cookieRole : "family";
-    return { role, userId: `demo-${role}`, patientId: null, unrestricted: true };
+    return { role, userId: `demo-${role}`, patientId: null, managedPatientIds: [], unrestricted: true };
   }
 
   const authMode = resolveAuthMode();
@@ -67,9 +67,15 @@ export async function getDataAccessContext(): Promise<DataAccessContext | null> 
   });
 
   const scopedUserId = profile?.userId ?? userId;
-  if (role === "nurse") return { role, userId: scopedUserId, patientId: null, unrestricted: true };
+  if (role === "nurse") {
+    const managedPatients = await prisma.patient.findMany({
+      where: { primaryNurseUserId: scopedUserId },
+      select: { id: true },
+    });
+    return { role, userId: scopedUserId, patientId: null, managedPatientIds: managedPatients.map((patient) => patient.id), unrestricted: false };
+  }
 
-  return { role, userId: scopedUserId, patientId: profile?.patientId ?? null, unrestricted: false };
+  return { role, userId: scopedUserId, patientId: profile?.patientId ?? null, managedPatientIds: [], unrestricted: false };
 }
 
 export async function requestCanAccessPatient(request: Request, patientId: string, allowGateway = false) {

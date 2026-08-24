@@ -533,6 +533,7 @@ export default function NursePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          patientId: patient?.id ?? null,
           patientName: patient?.name ?? "未知患者",
           patientPhone: null,
           expectedTime: new Date(payload.expectedTime).toISOString(),
@@ -1099,7 +1100,8 @@ function PatientDetailDialog({ patient, records, alerts, nursingRecords, aiAnaly
         <DialogHeader>
           <Badge className="w-fit bg-sky-600 text-white">{patient.medicalRecordNo}</Badge>
           <DialogTitle>{patient.name} · 术后第 {daysAfterSurgery(patient.surgeryDate)} 天</DialogTitle>
-          <DialogDescription>{patient.roomNumber ?? "居家随访"} · 目标屈曲 {patient.targetFlexion}° · 风险等级 {patient.riskLevel}</DialogDescription>
+        <DialogDescription>{patient.roomNumber ?? "居家随访"} · 目标屈曲 {patient.targetFlexion}° · 风险等级 {patient.riskLevel}</DialogDescription>
+        <Button asChild variant="outline" className="w-fit"><Link href={`/nurse/patients/${encodeURIComponent(patient.id)}`}><ClipboardCheck className="size-4" />查看并编辑完整患者档案</Link></Button>
         </DialogHeader>
         <div className="grid gap-4">
           <section className="grid gap-3 md:grid-cols-4">

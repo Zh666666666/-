@@ -12,7 +12,7 @@ export async function ensureDemoPatients() {
   return;
 }
 
-export async function getDashboardData(patientId?: string): Promise<DashboardData> {
+export async function getDashboardData(patientScope?: string | string[]): Promise<DashboardData> {
   const readiness = getRuntimeReadiness();
 
   if (!readiness.ready) {
@@ -21,20 +21,22 @@ export async function getDashboardData(patientId?: string): Promise<DashboardDat
 
   if (isDemoMode()) {
     const dashboard = getDemoDashboardData();
-    if (!patientId) return dashboard;
+    if (!patientScope) return dashboard;
+    const patientIds = Array.isArray(patientScope) ? patientScope : [patientScope];
     return {
-      patients: dashboard.patients.filter((patient) => patient.id === patientId),
-      records: dashboard.records.filter((record) => record.patientId === patientId),
-      alerts: dashboard.alerts.filter((alert) => alert.patientId === patientId),
-      nursingRecords: dashboard.nursingRecords.filter((record) => record.patientId === patientId),
-      aiAnalyses: dashboard.aiAnalyses.filter((analysis) => analysis.patientId === patientId),
+      patients: dashboard.patients.filter((patient) => patientIds.includes(patient.id)),
+      records: dashboard.records.filter((record) => patientIds.includes(record.patientId)),
+      alerts: dashboard.alerts.filter((alert) => patientIds.includes(alert.patientId)),
+      nursingRecords: dashboard.nursingRecords.filter((record) => patientIds.includes(record.patientId)),
+      aiAnalyses: dashboard.aiAnalyses.filter((analysis) => patientIds.includes(analysis.patientId)),
     };
   }
 
-  const patientWhere = patientId ? { patientId } : undefined;
-  const [patients, records, alerts, nursingRecords, aiAnalyses] = await Promise.all([
+  const patientIds = patientScope ? (Array.isArray(patientScope) ? patientScope : [patientScope]) : undefined;
+  const patientWhere = patientIds ? { patientId: { in: patientIds } } : undefined;
+  const [patients, records, alerts, nursingRecords, aiAnalyses, nurseProfiles] = await Promise.all([
     prisma.patient.findMany({
-      where: patientId ? { id: patientId } : undefined,
+      where: patientIds ? { id: { in: patientIds } } : undefined,
       orderBy: [
         { riskLevel: "desc" },
         { createdAt: "asc" },
@@ -60,14 +62,19 @@ export async function getDashboardData(patientId?: string): Promise<DashboardDat
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    prisma.profile.findMany({ where: { role: "nurse" }, select: { userId: true, name: true } }),
   ]);
+
+  const nurseNames = new Map(nurseProfiles.map((profile) => [profile.userId, profile.name]));
 
   return {
     patients: patients.map((patient) => ({
       ...patient,
+      dateOfBirth: patient.dateOfBirth?.toISOString() ?? null,
       surgeryDate: patient.surgeryDate.toISOString(),
+      primaryNurseName: patient.primaryNurseUserId ? nurseNames.get(patient.primaryNurseUserId) ?? null : null,
       createdAt: undefined,
-      updatedAt: undefined,
+      updatedAt: patient.updatedAt.toISOString(),
     })) as DashboardData["patients"],
     records: records.toReversed().map((record) => ({
       id: record.id,

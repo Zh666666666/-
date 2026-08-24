@@ -19,7 +19,7 @@ type FamilyAccess = {
 
 type NurseAccess = {
   role: "nurse";
-  patient: PatientSummary;
+  patient: PatientSummary | null;
   linkedProfiles: Array<{ id: string; name: string; relationToPatient: string | null; updatedAt: string }>;
   invitations: Array<{ id: string; status: string; expiresAt: string; createdAt: string; acceptedAt: string | null }>;
   recentAudits: Array<{ id: string; action: string; actorRole: UserRole; createdAt: string }>;
@@ -33,6 +33,9 @@ const actionLabels: Record<string, string> = {
   FAMILY_UNLINKED: "家属解除了档案关联",
   NURSE_REVOKED: "护士撤销了档案关联",
   MIGRATED: "既有授权已纳入审计",
+  PATIENT_UPDATED: "患者病历资料已更新",
+  NURSE_ASSIGNED: "已绑定主管护士",
+  NURSE_RELEASED: "主管护士已发起移交",
 };
 
 async function requestPatientAccess(body: object) {
@@ -121,9 +124,17 @@ function FamilyPatientAccess() {
               <Data label="手术侧" value={sideLabel(access.patient.surgicalSide)} />
               <Data label="建档编号" value={access.patient.medicalRecordNo} />
             </div>
+            {!access.patient.primaryNurseName ? <section className="border-y border-amber-200 bg-amber-50 p-4">
+              <h3 className="font-semibold text-amber-950">绑定主管护士</h3>
+              <p className="mt-1 text-xs leading-5 text-amber-800">向负责你的护士获取一次性归属码。绑定后，只有这名主管护士能在护士端看到本档案。</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Input value={inviteCode} maxLength={9} placeholder="例如 ABCD-23EF" className="tabular uppercase" onChange={(event) => setInviteCode(event.target.value.toUpperCase())} />
+                <Button disabled={busy || inviteCode.length < 8} onClick={() => submit({ action: "ACCEPT_INVITE", confirmed: true, code: inviteCode }, "主管护士已绑定。")}>确认绑定</Button>
+              </div>
+            </section> : <p className="flex items-center gap-2 text-sm font-medium text-emerald-800"><ShieldCheck className="size-4" />本档案由 {access.patient.primaryNurseName} 负责，其他护士无法查看。</p>}
             <div className="flex flex-col justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
-              <p className="max-w-2xl text-xs leading-5 text-slate-500">解除后，这个账号将立即失去患者数据访问权；历史训练和患者档案不会被删除，可由护士重新授权。</p>
-              <Dialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
+              <p className="max-w-2xl text-xs leading-5 text-slate-500">{access.patient.primaryNurseName ? "患者与主管护士已形成强归属；需要更换护士时，请由当前主管护士发起移交。" : "尚未绑定主管护士时，可以解除当前账号与患者档案的关联。"}</p>
+              {!access.patient.primaryNurseName ? <Dialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
                 <DialogTrigger asChild><Button variant="outline" className="text-red-700"><Link2Off className="size-4" />解除关联</Button></DialogTrigger>
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
@@ -138,7 +149,7 @@ function FamilyPatientAccess() {
                     }}>确认解除</Button>
                   </div>
                 </DialogContent>
-              </Dialog>
+              </Dialog> : null}
             </div>
           </>
         ) : (
@@ -203,8 +214,8 @@ function NursePatientAccess() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!patientId) return;
-    const response = await fetch(`/api/patient-access?patientId=${encodeURIComponent(patientId)}`, { cache: "no-store" });
+    const query = patientId ? `?patientId=${encodeURIComponent(patientId)}` : "";
+    const response = await fetch(`/api/patient-access${query}`, { cache: "no-store" });
     const data = await response.json() as NurseAccess & { error?: string };
     if (!response.ok) throw new Error(data.error ?? "无法读取授权状态。");
     if (data.role !== "nurse") throw new Error("账号角色已变化，请刷新页面后重试。");
@@ -216,10 +227,10 @@ function NursePatientAccess() {
   async function generateCode() {
     setBusy(true); setError(null); setMessage(null); setNewCode(null);
     try {
-      const data = await requestPatientAccess({ action: "CREATE_INVITE", confirmed, patientId });
+      const data = await requestPatientAccess({ action: "CREATE_INVITE", confirmed });
       setNewCode(String(data.code));
       setConfirmed(false);
-      setMessage("一次性关联码已生成，请通过可信渠道交给对应家属。");
+      setMessage("一次性主管护士归属码已生成，请通过可信渠道交给对应患者。");
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "关联码生成失败。");
@@ -240,7 +251,7 @@ function NursePatientAccess() {
   async function revokeInvitation(invitationId: string) {
     setBusy(true); setError(null); setMessage(null);
     try {
-      await requestPatientAccess({ action: "REVOKE_INVITE", confirmed: true, patientId, invitationId });
+      await requestPatientAccess({ action: "REVOKE_INVITE", confirmed: true, ...(patientId ? { patientId } : {}), invitationId });
       setMessage("未使用的关联码已撤销。");
       setNewCode(null);
       await load();
@@ -249,28 +260,45 @@ function NursePatientAccess() {
     } finally { setBusy(false); }
   }
 
+  async function releasePatient() {
+    if (!patientId) return;
+    setBusy(true); setError(null); setMessage(null);
+    try {
+      await requestPatientAccess({ action: "NURSE_RELEASE", confirmed: true, patientId });
+      setPatients((current) => current.filter((patient) => patient.id !== patientId));
+      setPatientId(""); setAccess(null);
+      setMessage("患者已解除主管护士归属，可使用另一名护士的新归属码完成移交。");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "移交失败。"); }
+    finally { setBusy(false); }
+  }
+
   return (
     <Card className="bg-white/95">
       <CardHeader className="gap-2">
-        <Badge variant="success" className="w-fit gap-2"><ShieldCheck className="size-4" />护士授权管理</Badge>
-        <CardTitle className="flex items-center gap-2"><UserPlus className="size-6 text-emerald-700" />患者与家属账号关联</CardTitle>
-        <p className="text-sm leading-6 text-slate-600">为指定患者生成一次性关联码，或撤销已有家属权限。系统不会按姓名、邮箱或默认患者自动关联。</p>
+        <Badge variant="success" className="w-fit gap-2"><ShieldCheck className="size-4" />主管护士归属管理</Badge>
+        <CardTitle className="flex items-center gap-2"><UserPlus className="size-6 text-emerald-700" />我的患者与一次性归属码</CardTitle>
+        <p className="text-sm leading-6 text-slate-600">患者输入你生成的归属码后会进入你的患者列表。一名患者只能有一名主管护士，你也只能查看自己负责的患者。</p>
       </CardHeader>
       <CardContent className="space-y-5">
-        <Field label="选择患者"><select className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm" value={patientId} onChange={(event) => { setPatientId(event.target.value); setNewCode(null); setMessage(null); }}><option value="">请选择患者</option>{patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.medicalRecordNo}</option>)}</select></Field>
+        <section className="border-b border-slate-200 pb-5">
+          <h3 className="font-semibold text-slate-900">生成主管护士归属码</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">有效期 48 小时，仅能由一名已经建档的患者使用。</p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Confirm checked={confirmed} onChange={setConfirmed}>我确认由本人负责接收并管理使用此码绑定的患者。</Confirm>
+            <Button disabled={!confirmed || busy} onClick={generateCode}><TicketCheck className="size-4" />生成归属码</Button>
+          </div>
+          {newCode ? <div className="mt-3 flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><strong className="tabular text-xl tracking-widest text-emerald-800">{newCode}</strong><Button variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(newCode); setMessage("归属码已复制。"); }}><Clipboard className="size-4" />复制</Button></div> : null}
+        </section>
+        <Field label="选择我负责的患者"><select className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm" value={patientId} onChange={(event) => { setPatientId(event.target.value); setMessage(null); }}><option value="">请选择患者</option>{patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name} · {patient.medicalRecordNo}</option>)}</select></Field>
         {message ? <Notice tone="success">{message}</Notice> : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
 
         {patientId ? (
           <div className="grid gap-5 lg:grid-cols-2">
             <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-              <h3 className="font-semibold text-slate-900">生成一次性关联码</h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">有效期 48 小时，仅能被一个未关联家属账号确认使用。</p>
-              <div className="mt-4 space-y-3">
-                <Confirm checked={confirmed} onChange={setConfirmed}>我已核对患者身份，并确认授权该患者的康复数据访问。</Confirm>
-                <Button disabled={!confirmed || busy} onClick={generateCode}><TicketCheck className="size-4" />生成关联码</Button>
-                {newCode ? <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-white p-3"><strong className="tabular text-xl tracking-widest text-emerald-800">{newCode}</strong><Button variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(newCode); setMessage("关联码已复制。"); }}><Clipboard className="size-4" />复制</Button></div> : null}
-              </div>
+              <h3 className="font-semibold text-slate-900">患者归属</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">当前患者由你负责。需要换护士时，必须先明确解除，再由新护士生成归属码。</p>
+              <Button className="mt-4 text-red-700" variant="outline" disabled={busy} onClick={releasePatient}><Link2Off className="size-4" />解除并准备移交</Button>
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-4">
