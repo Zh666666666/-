@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { canAccessPatient } from "@/lib/access-control";
+import { accessiblePatientIds, canAccessPatient } from "@/lib/access-control";
 import { addDemoDeviceBinding, getDemoDeviceBindings } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
@@ -38,14 +38,14 @@ export async function GET(request: Request) {
   if (patientId && access && !canAccessPatient(access, patientId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const scopedPatientId = gatewayOrUserCanAccessRequestedPatient
-    ? patientId
-    : access?.unrestricted ? patientId : access?.patientId ?? "__none__";
+  const scopedPatientIds = gatewayOrUserCanAccessRequestedPatient
+    ? patientId ? [patientId] : []
+    : access ? (patientId ? [patientId] : accessiblePatientIds(access)) : [];
 
   const bindings = await prisma.deviceBinding.findMany({
     where: {
       active: true,
-      patientId: scopedPatientId,
+      patientId: { in: scopedPatientIds ?? [] },
     },
     include: { device: true },
     orderBy: { boundAt: "desc" },

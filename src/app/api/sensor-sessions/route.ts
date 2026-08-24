@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { canAccessPatient } from "@/lib/access-control";
+import { accessiblePatientIds, canAccessPatient } from "@/lib/access-control";
 import { addDemoSensorSession } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
@@ -30,11 +30,11 @@ export async function GET(request: Request) {
   if (requestedPatientId && !canAccessPatient(access, requestedPatientId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const patientId = access.unrestricted ? requestedPatientId : access.patientId ?? "__none__";
+  const patientIds = requestedPatientId ? [requestedPatientId] : accessiblePatientIds(access);
   scheduleSensorDataPurge();
   const sessions = await prisma.sensorSession.findMany({
     where: {
-      ...(patientId ? { patientId } : {}),
+      ...(patientIds ? { patientId: { in: patientIds } } : {}),
       status: { in: ["COMPLETED", "ABORTED"] },
       startedAt: { gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1_000) },
     },

@@ -7,6 +7,7 @@ import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { getDataAccessContext } from "@/lib/server-access";
+import { accessiblePatientIds } from "@/lib/access-control";
 
 const appointmentUpdateSchema = z.object({
   status: z.enum(["PENDING", "CONFIRMED", "REJECTED"]),
@@ -41,6 +42,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json(appointment);
   }
+
+  const visible = await prisma.appointment.findFirst({
+    where: { id, ...(access.unrestricted ? {} : { patientId: { in: accessiblePatientIds(access) ?? [] } }) },
+    select: { id: true },
+  });
+  if (!visible) return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
 
   const appointment = await updateOrNull(prisma.appointment.update({
     where: { id },

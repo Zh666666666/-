@@ -18,7 +18,7 @@ export const patientAccessActionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("CREATE_INVITE"),
     confirmed,
-    patientId: z.string().trim().min(1).max(100),
+    patientId: z.string().trim().min(1).max(100).optional(),
   }),
   z.object({
     action: z.literal("ACCEPT_INVITE"),
@@ -28,7 +28,7 @@ export const patientAccessActionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("REVOKE_INVITE"),
     confirmed,
-    patientId: z.string().trim().min(1).max(100),
+    patientId: z.string().trim().min(1).max(100).optional(),
     invitationId: z.string().trim().min(1).max(100),
   }),
   z.object({
@@ -40,6 +40,11 @@ export const patientAccessActionSchema = z.discriminatedUnion("action", [
     confirmed,
     patientId: z.string().trim().min(1).max(100),
     profileId: z.string().trim().min(1).max(100),
+  }),
+  z.object({
+    action: z.literal("NURSE_RELEASE"),
+    confirmed,
+    patientId: z.string().trim().min(1).max(100),
   }),
 ]);
 

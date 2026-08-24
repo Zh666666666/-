@@ -60,12 +60,35 @@ export type PatientSummary = {
   medicalRecordNo: string;
   name: string;
   age: number;
+  gender: Gender | null;
+  dateOfBirth: string | null;
+  ethnicity: string | null;
+  nativePlace: string | null;
+  nationality: string | null;
+  maritalStatus: string | null;
+  occupation: string | null;
+  bloodType: string | null;
   roomNumber: string | null;
+  phone: string | null;
+  homeAddress: string | null;
+  emergencyContactName: string | null;
+  emergencyContactRelation: string | null;
+  emergencyContactPhone: string | null;
+  allergyStatus: "UNKNOWN" | "NONE" | "PRESENT";
+  allergyHistory: string | null;
+  pastMedicalHistory: string | null;
+  surgicalHistory: string | null;
+  familyMedicalHistory: string | null;
+  medicationHistory: string | null;
+  diagnosis: string;
   surgeryDate: string;
   surgicalSide: "LEFT" | "RIGHT" | "BILATERAL";
   targetFlexion: number;
   status: "ACTIVE" | "OBSERVATION" | "DISCHARGED";
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  primaryNurseUserId: string | null;
+  primaryNurseName: string | null;
+  updatedAt: string;
 };
 
 export type KneeDataPoint = {
@@ -284,36 +307,56 @@ export const seedPatients: PatientSummary[] = [
     medicalRecordNo: "TKA-2026-001",
     name: "王桂兰",
     age: 72,
+    gender: "FEMALE", dateOfBirth: "1954-03-18T00:00:00.000Z", ethnicity: "汉族", nativePlace: "江苏南京",
+    nationality: "中国", maritalStatus: "已婚", occupation: "退休", bloodType: "未知",
     roomNumber: "康复 3 床",
+    phone: "138****2601", homeAddress: "南京市（演示地址）", emergencyContactName: "王女士",
+    emergencyContactRelation: "女儿", emergencyContactPhone: "139****3308", allergyStatus: "NONE",
+    allergyHistory: null, pastMedicalHistory: "高血压，规律服药。", surgicalHistory: "右侧全膝关节置换术。",
+    familyMedicalHistory: "未发现与本次康复相关的特殊家族史。", medicationHistory: "按出院医嘱服药。",
+    diagnosis: "TKA 术后康复",
     surgeryDate: "2026-04-09T00:00:00.000Z",
     surgicalSide: "RIGHT",
     targetFlexion: 110,
     status: "ACTIVE",
     riskLevel: "HIGH",
+    primaryNurseUserId: "demo-nurse", primaryNurseName: "刘护士", updatedAt: "2026-08-24T12:00:00.000Z",
   },
   {
     id: "demo-patient-2",
     medicalRecordNo: "TKA-2026-002",
     name: "李建国",
     age: 68,
+    gender: "MALE", dateOfBirth: null, ethnicity: "汉族", nativePlace: "安徽合肥", nationality: "中国",
+    maritalStatus: "已婚", occupation: "退休", bloodType: "未知",
     roomNumber: "康复 8 床",
+    phone: null, homeAddress: null, emergencyContactName: null, emergencyContactRelation: null,
+    emergencyContactPhone: null, allergyStatus: "UNKNOWN", allergyHistory: null, pastMedicalHistory: null,
+    surgicalHistory: null, familyMedicalHistory: null, medicationHistory: null, diagnosis: "TKA 术后康复",
     surgeryDate: "2026-04-12T00:00:00.000Z",
     surgicalSide: "LEFT",
     targetFlexion: 105,
     status: "OBSERVATION",
     riskLevel: "MEDIUM",
+    primaryNurseUserId: "demo-nurse", primaryNurseName: "刘护士", updatedAt: "2026-08-24T12:00:00.000Z",
   },
   {
     id: "demo-patient-3",
     medicalRecordNo: "TKA-2026-003",
     name: "陈素英",
     age: 75,
+    gender: "FEMALE", dateOfBirth: null, ethnicity: null, nativePlace: null, nationality: "中国",
+    maritalStatus: null, occupation: null, bloodType: "未知",
     roomNumber: "居家随访",
+    phone: null, homeAddress: null, emergencyContactName: null, emergencyContactRelation: null,
+    emergencyContactPhone: null, allergyStatus: "UNKNOWN", allergyHistory: null, pastMedicalHistory: null,
+    surgicalHistory: null, familyMedicalHistory: null, medicationHistory: null, diagnosis: "TKA 术后康复",
     surgeryDate: "2026-04-04T00:00:00.000Z",
     surgicalSide: "RIGHT",
     targetFlexion: 115,
     status: "ACTIVE",
     riskLevel: "LOW",
+    primaryNurseUserId: "demo-nurse", primaryNurseName: "刘护士", updatedAt: "2026-08-24T12:00:00.000Z",
   },
 ];
 

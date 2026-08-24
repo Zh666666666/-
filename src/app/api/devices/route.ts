@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { canAccessPatient } from "@/lib/access-control";
+import { accessiblePatientIds, canAccessPatient } from "@/lib/access-control";
 import { addDemoDevice, getDemoDevices } from "@/lib/demo-store";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
@@ -34,16 +34,16 @@ export async function GET(request: Request) {
   if (patientId && !canAccessPatient(access, patientId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const scopedPatientId = access.unrestricted ? patientId : access.patientId ?? "__none__";
+  const scopedPatientIds = patientId ? [patientId] : accessiblePatientIds(access);
 
-  if (scopedPatientId) {
+  if (scopedPatientIds) {
     const bindings = await prisma.deviceBinding.findMany({
-      where: { patientId: scopedPatientId, active: true },
+      where: { patientId: { in: scopedPatientIds }, active: true },
       include: { device: true },
       orderBy: { boundAt: "desc" },
     });
 
-    return NextResponse.json(bindings.map((binding) => serializeDevice(binding.device)));
+    return NextResponse.json(Array.from(new Map(bindings.map((binding) => [binding.device.id, serializeDevice(binding.device)])).values()));
   }
 
   const devices = await prisma.device.findMany({ orderBy: { updatedAt: "desc" } });

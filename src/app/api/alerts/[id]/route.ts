@@ -6,6 +6,7 @@ import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { getDataAccessContext } from "@/lib/server-access";
+import { accessiblePatientIds } from "@/lib/access-control";
 
 export async function PATCH(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,6 +27,12 @@ export async function PATCH(_: Request, { params }: { params: Promise<{ id: stri
 
     return NextResponse.json(alert);
   }
+
+  const visible = await prisma.alertLog.findFirst({
+    where: { id, ...(access.unrestricted ? {} : { patientId: { in: accessiblePatientIds(access) ?? [] } }) },
+    select: { id: true },
+  });
+  if (!visible) return NextResponse.json({ error: "Alert not found" }, { status: 404 });
 
   const alert = await updateOrNull(prisma.alertLog.update({
     where: { id },

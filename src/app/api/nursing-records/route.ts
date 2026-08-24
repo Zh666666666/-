@@ -7,6 +7,7 @@ import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { encodeNursingNotes, serializeNursingRecord } from "@/lib/rehab";
 import { getDataAccessContext } from "@/lib/server-access";
+import { canAccessPatient } from "@/lib/access-control";
 
 const soapSchema = z.object({
   subjective: z.string().max(2000).optional().default(""),
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
   const access = await getDataAccessContext();
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (access.role !== "nurse") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canAccessPatient(access, body.patientId)) return NextResponse.json({ error: "无权为这名患者创建护理记录。" }, { status: 403 });
 
   if (isDemoMode()) {
     return NextResponse.json(addDemoNursingRecord(body));

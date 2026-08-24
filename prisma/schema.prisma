@@ -117,12 +117,21 @@ enum PatientAccessAction {
   FAMILY_UNLINKED
   NURSE_REVOKED
   MIGRATED
+  PATIENT_UPDATED
+  NURSE_ASSIGNED
+  NURSE_RELEASED
 }
 
 enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+enum AllergyStatus {
+  UNKNOWN
+  NONE
+  PRESENT
 }
 
 enum AppointmentStatus {
@@ -232,15 +241,34 @@ model Patient {
   medicalRecordNo  String           @unique @map("medical_record_no")
   name             String
   age              Int
+  gender           Gender?
+  dateOfBirth      DateTime?        @map("date_of_birth")
+  ethnicity        String?
+  nativePlace      String?          @map("native_place")
+  nationality      String?
+  maritalStatus    String?          @map("marital_status")
+  occupation       String?
+  bloodType        String?          @map("blood_type")
   roomNumber       String?          @map("room_number")
   phone            String?
   emergencyContact String?          @map("emergency_contact")
+  homeAddress      String?          @map("home_address")
+  emergencyContactName String?      @map("emergency_contact_name")
+  emergencyContactRelation String?  @map("emergency_contact_relation")
+  emergencyContactPhone String?     @map("emergency_contact_phone")
+  allergyStatus    AllergyStatus    @default(UNKNOWN) @map("allergy_status")
+  allergyHistory   String?          @map("allergy_history")
+  pastMedicalHistory String?        @map("past_medical_history")
+  surgicalHistory String?           @map("surgical_history")
+  familyMedicalHistory String?      @map("family_medical_history")
+  medicationHistory String?         @map("medication_history")
   surgeryDate      DateTime         @map("surgery_date")
   surgicalSide     SurgicalSide     @default(RIGHT) @map("surgical_side")
   diagnosis        String           @default("TKA 术后康复")
   targetFlexion    Float            @default(110) @map("target_flexion")
   status           PatientStatus    @default(ACTIVE)
   riskLevel        RiskLevel        @default(MEDIUM) @map("risk_level")
+  primaryNurseUserId String?         @map("primary_nurse_user_id")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
   kneeDataRecords  KneeDataRecord[]
@@ -256,12 +284,13 @@ model Patient {
   accessAudits     PatientAccessAudit[]
 
   @@index([status, riskLevel])
+  @@index([primaryNurseUserId, status])
   @@map("patients")
 }
 
 model PatientInvitation {
   id              String                  @id @default(cuid())
-  patientId       String                  @map("patient_id")
+  patientId       String?                 @map("patient_id")
   codeHash        String                  @unique @map("code_hash")
   status          PatientInvitationStatus @default(PENDING)
   createdByUserId String                  @map("created_by_user_id")
@@ -271,7 +300,7 @@ model PatientInvitation {
   expiresAt       DateTime                @map("expires_at")
   createdAt       DateTime                @default(now()) @map("created_at")
   updatedAt       DateTime                @updatedAt @map("updated_at")
-  patient         Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient         Patient?                @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, status, createdAt])
   @@index([expiresAt, status])
