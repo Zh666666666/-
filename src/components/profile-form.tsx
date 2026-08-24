@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PatientAccessManager } from "@/components/patient-access-manager";
 import type { ProfileItem, UserRole } from "@/lib/rehab";
 
 type ProfileFormProps = { role: UserRole; title: string; backHref: string };
@@ -160,6 +161,8 @@ export function ProfileForm({ role, title, backHref }: ProfileFormProps) {
             </Card>
           </div>
         </div>
+
+        <PatientAccessManager role={role} />
       </section>
     </main>
   );

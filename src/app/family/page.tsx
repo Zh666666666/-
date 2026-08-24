@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, BatteryCharging, BookOpenCheck, CalendarClock, CheckCircle2, ChevronRight, FileText, HeartHandshake, HeartPulse, Home, Radio, Smartphone, Sparkles } from "lucide-react";
+import { Activity, AlertTriangle, BatteryCharging, BookOpenCheck, CalendarClock, CheckCircle2, ChevronRight, FileText, HeartHandshake, HeartPulse, Home, Radio, Smartphone, Sparkles, UserPlus } from "lucide-react";
 
 import { MetricEducationDialog, type MetricEducationKey } from "@/components/metric-education-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +102,7 @@ export default function FamilyPage() {
   const [dailyCheckIn, setDailyCheckIn] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<FamilyWorkspace>("today");
   const [error, setError] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,10 +112,16 @@ export default function FamilyPage() {
         const dashboard = await fetchDashboard();
         const firstPatient = dashboard.patients[0];
 
-        if (cancelled || !firstPatient) {
+        if (cancelled) {
           return;
         }
 
+        if (!firstPatient) {
+          setNeedsSetup(true);
+          return;
+        }
+
+        setNeedsSetup(false);
         setPatient(firstPatient);
         setRecentRecords(dashboard.records.filter((record) => record.patientId === firstPatient.id).slice(-5).reverse());
         setAiAnalyses(dashboard.aiAnalyses.filter((analysis) => analysis.patientId === firstPatient.id));
@@ -324,6 +331,16 @@ export default function FamilyPage() {
             </div>
           </div>
         </header>
+
+        {needsSetup ? (
+          <section className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-e2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 font-semibold text-amber-900"><UserPlus className="size-5" />还差一步即可开始使用</p>
+              <p className="mt-1 text-sm leading-6 text-amber-800">创建家人的康复档案，或输入护士提供的一次性关联码。系统不会自动关联陌生患者。</p>
+            </div>
+            <Button asChild className="shrink-0"><Link href="/family/profile?setup=1">建立康复档案<ChevronRight className="size-4" /></Link></Button>
+          </section>
+        ) : null}
 
         {/* ---------- 工作区切换：分段控件，轻量贴顶 ---------- */}
         <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
