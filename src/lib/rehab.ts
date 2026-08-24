@@ -37,6 +37,7 @@ export type AppointmentItem = {
 export type ProfileItem = {
   id: string;
   userId: string;
+  patientId?: string | null;
   role: UserRole;
   name: string;
   age: number | null;

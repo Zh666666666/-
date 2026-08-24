@@ -102,6 +102,23 @@ enum VerificationPurpose {
   RESET_PASSWORD
 }
 
+enum PatientInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum PatientAccessAction {
+  SELF_CREATED
+  INVITE_CREATED
+  INVITE_ACCEPTED
+  INVITE_REVOKED
+  FAMILY_UNLINKED
+  NURSE_REVOKED
+  MIGRATED
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -235,9 +252,46 @@ model Patient {
   calibrationRecords CalibrationRecord[]
   profiles         Profile[]
   appointments     Appointment[]
+  invitations      PatientInvitation[]
+  accessAudits     PatientAccessAudit[]
 
   @@index([status, riskLevel])
   @@map("patients")
+}
+
+model PatientInvitation {
+  id              String                  @id @default(cuid())
+  patientId       String                  @map("patient_id")
+  codeHash        String                  @unique @map("code_hash")
+  status          PatientInvitationStatus @default(PENDING)
+  createdByUserId String                  @map("created_by_user_id")
+  acceptedByUserId String?                @map("accepted_by_user_id")
+  acceptedAt      DateTime?               @map("accepted_at")
+  revokedAt       DateTime?               @map("revoked_at")
+  expiresAt       DateTime                @map("expires_at")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+  patient         Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, status, createdAt])
+  @@index([expiresAt, status])
+  @@map("patient_invitations")
+}
+
+model PatientAccessAudit {
+  id          String              @id @default(cuid())
+  patientId   String              @map("patient_id")
+  userId      String              @map("user_id")
+  action      PatientAccessAction
+  actorUserId String              @map("actor_user_id")
+  actorRole   UserRole            @map("actor_role")
+  details     Json?
+  createdAt   DateTime            @default(now()) @map("created_at")
+  patient     Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, createdAt])
+  @@index([userId, createdAt])
+  @@map("patient_access_audits")
 }
 
 model Device {

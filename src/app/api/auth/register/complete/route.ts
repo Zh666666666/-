@@ -91,5 +91,5 @@ export async function POST(request: Request) {
   cookieStore.set(authRoleCookie, "family", options);
   completionsByEmail.reset(parsed.data.email);
 
-  return NextResponse.json({ ok: true, role: "family", redirectTo: "/family" }, { status: 201 });
+  return NextResponse.json({ ok: true, role: "family", redirectTo: "/family/profile?setup=1" }, { status: 201 });
 }

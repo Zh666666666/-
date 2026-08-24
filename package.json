@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:status": "node scripts/check-project-status.mjs",
-    "test:runtime": "node --import tsx --test src/lib/access-control.test.ts src/lib/ai-evidence.test.ts src/lib/api-errors.test.ts src/lib/auth.test.ts src/lib/env.test.ts src/lib/evidence-package.test.ts src/lib/gateway-auth.test.ts src/lib/local-auth.test.ts src/lib/rate-limit.test.ts src/lib/registration-auth.test.ts src/lib/rehab-metrics.test.ts src/lib/request-limits.test.ts src/lib/request-security.test.ts src/lib/sensor-ingestion.test.ts src/lib/sensor-ingestion.integration.test.ts",
+    "test:runtime": "node --import tsx --test src/lib/access-control.test.ts src/lib/ai-evidence.test.ts src/lib/api-errors.test.ts src/lib/auth.test.ts src/lib/env.test.ts src/lib/evidence-package.test.ts src/lib/gateway-auth.test.ts src/lib/local-auth.test.ts src/lib/patient-access.test.ts src/lib/rate-limit.test.ts src/lib/registration-auth.test.ts src/lib/rehab-metrics.test.ts src/lib/request-limits.test.ts src/lib/request-security.test.ts src/lib/sensor-ingestion.test.ts src/lib/sensor-ingestion.integration.test.ts",
     "gateway:test": "node --import tsx --test hardware-gateway/protocol/wit-standard.test.ts hardware-gateway/offline-queue.test.ts hardware-gateway/ble-sdk-adapter.test.ts hardware-gateway/gateway.test.ts hardware-gateway/sample-provenance.test.ts",
     "api:test": "node --import tsx --test src/app/api/gateway/ready/route.test.ts src/app/api/hardware-simulator/route.test.ts src/app/api/knee-records/route.test.ts src/app/api/sensor-samples/route.test.ts src/app/api/sensor-samples/batch/route.test.ts",
     "test": "npm run test:runtime && npm run gateway:test && npm run api:test",

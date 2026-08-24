@@ -24,6 +24,7 @@ DATABASE_URL=postgresql://tka_app:<same-password>@db:5432/tka_rehab
 DIRECT_URL=postgresql://tka_app:<same-password>@db:5432/tka_rehab
 GATEWAY_API_TOKEN=<random-32-byte-token>
 LOCAL_AUTH_SESSION_SECRET=<random-48-byte-secret>
+PATIENT_INVITE_SECRET=<separate-random-48-byte-secret>
 LOCAL_FAMILY_EMAIL=<family-login-email>
 LOCAL_FAMILY_PASSWORD=<random-password-at-least-12-characters>
 LOCAL_NURSE_EMAIL=<nurse-login-email>
@@ -47,6 +48,12 @@ then rebuild the app so `NEXT_PUBLIC_REGISTRATION_ENABLED=true` is included in
 the client bundle. Any verified email may create a family account; nurse
 accounts remain administrator-provisioned. Public registration is protected by
 IP and email rate limits.
+
+Patient invitation codes are one-time, expire after 48 hours, and are stored as
+HMAC digests rather than plaintext. Set `PATIENT_INVITE_SECRET` to a dedicated
+random secret in production. The app can fall back to
+`LOCAL_AUTH_SESSION_SECRET` for compatibility, but a separate secret makes
+rotation and incident response safer.
 
 AI analysis is manual and fail-closed. `POST /api/ai-analyses` first recomputes
 the latest hardware session's synchronization, calibration, ROM, repetition,

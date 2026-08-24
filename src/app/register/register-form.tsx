@@ -68,8 +68,8 @@ export function RegisterForm() {
       });
       const data = (await response.json()) as { error?: string; redirectTo?: string };
       if (!response.ok) throw new Error(data.error ?? "注册失败");
-      setMessage("注册成功，正在进入家属端。");
-      router.replace(data.redirectTo ?? "/family");
+      setMessage("注册成功，正在建立康复档案。");
+      router.replace(data.redirectTo ?? "/family/profile?setup=1");
       router.refresh();
     } catch (registerError) {
       setError(registerError instanceof Error ? registerError.message : "注册失败");
