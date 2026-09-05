@@ -672,11 +672,11 @@ export default function NursePage() {
 
       <section className="relative mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 md:gap-5 md:px-8 md:py-5">
         {/* ---------- 指挥台头部：标题 + 同步状态 + 动作组，一行收纳 ---------- */}
-        <header className="console-header family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
+        <header className="console-header dashboard-heading family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
-              <p className="eyebrow text-brass-700">Nurse Console</p>
-              <h1 className="display-md mt-2.5 flex flex-wrap items-baseline gap-x-3 text-[1.5rem] md:text-[1.75rem]">
+              <p className="eyebrow text-brass-700 tracking-[0.14em]">Nurse Console</p>
+              <h1 className="display-md mt-2.5 flex flex-wrap items-baseline gap-x-3 text-[1.625rem] md:text-[2rem]">
                 病区护理工作台
                 <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-normal tracking-normal text-[var(--muted-foreground)]">
                   <span className={cn("sync-dot size-1.5 rounded-full", syncState === "realtime" ? "bg-[#2f7d5c]" : "bg-brass-500")} />
@@ -714,7 +714,7 @@ export default function NursePage() {
 
         {/* ---------- 工作区切换：分段控件，滚动时贴顶 ---------- */}
         <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
-          <div className="workspace-tabs flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white/95 p-1 shadow-e1 md:inline-flex">
+          <div className="workspace-tabs flex gap-1 overflow-x-auto rounded-xl border border-[var(--hairline)] bg-white/95 p-1.5 shadow-e1 md:inline-flex">
             {nurseWorkspaces.map((item) => {
               const Icon = item.icon;
               const active = activeWorkspace === item.value;
@@ -725,7 +725,7 @@ export default function NursePage() {
                   type="button"
                   aria-pressed={active}
                   className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-[0.8125rem] font-medium transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex-none md:px-4",
+                    "flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-[0.8125rem] font-medium transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex-none md:px-4",
                     active
                       ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
                       : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
@@ -816,7 +816,7 @@ export default function NursePage() {
         ) : null}
 
         {activeWorkspace === "overview" ? (
-          <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-3 2xl:grid-cols-5">
             <StatCard icon={UsersRound} metric="rom" label="监测患者" value={`${patients.length}`} helper="术后康复中" />
             <StatCard icon={Activity} metric="flexion" label="平均屈曲" value={averageFlexion === null ? "--" : `${averageFlexion.toFixed(0)}°`} helper={`${latestByPatient.length} 位患者的最新有效样本`} />
             <StatCard icon={Stethoscope} metric="extension" label="平均伸直" value={averageExtension === null ? "--" : `${averageExtension.toFixed(0)}°`} helper={averageExtension === null ? "等待有效样本" : "越接近 0° 越理想"} />
@@ -1159,10 +1159,10 @@ function DetailList({ title, empty, children }: { title: string; empty: string; 
 function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; helper: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-lg border p-3 text-left shadow-e1 transition-colors hover:bg-[#fdfbf7] md:p-4", danger ? "border-red-200 bg-red-50 text-red-800 ring-2 ring-red-200" : "border-[var(--hairline-strong)] bg-white text-[#12211c]")}>
+      <button className={cn("nurse-stat interactive-surface min-w-0 rounded-xl border p-4 text-left shadow-e1 transition-colors hover:bg-sand-50 md:p-5", danger ? "border-red-200 bg-red-50 text-red-800 ring-1 ring-red-200" : "border-[var(--hairline)] bg-white text-[#12211c]")}>
         <div className={cn("flex items-center justify-between", danger ? "text-red-700" : "text-[#576860]")}>
           <span className="text-xs md:text-sm">{label}</span>
-          <Icon className={cn("size-4 md:size-5", danger ? "text-red-600" : "text-[#497a62]")} />
+          <Icon className={cn("size-8 rounded-lg p-1.5 md:size-9 md:p-2", danger ? "bg-red-100 text-red-600" : "bg-sage-50 text-sage-700")} />
         </div>
         <p className="tabular mt-2 text-2xl font-semibold tracking-tight md:mt-4 md:text-4xl">{value}</p>
         <p className={cn("mt-1 text-xs md:mt-2 md:text-sm", danger ? "text-red-700" : "text-[#576860]")}>{helper} · 点击科普</p>
@@ -1174,7 +1174,7 @@ function StatCard({ icon: Icon, metric, label, value, helper, danger = false }: 
 function PatientMetric({ icon: Icon, metric, label, value, danger = false }: { icon: typeof Activity; metric: MetricEducationKey; label: string; value: string; danger?: boolean }) {
   return (
     <MetricEducationDialog metric={metric}>
-      <button className={cn("rounded-lg border p-4 text-left transition-colors hover:border-[#a8c6b4] hover:bg-[#fdfbf7]", danger ? "border-red-200 bg-red-50 text-red-700" : "border-[var(--hairline-strong)] bg-white text-[#12211c]")}>
+      <button className={cn("rounded-lg border p-4 text-left transition-colors hover:border-[#a8c6b4] hover:bg-[#fdfbf7]", danger ? "border-red-200 bg-red-50 text-red-700" : "border-[var(--hairline)] bg-white text-[#12211c]")}>
         <div className="flex items-center justify-between text-sm">
           <span>{label}</span>
           <Icon className="size-5" />

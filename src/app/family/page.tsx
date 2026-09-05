@@ -287,11 +287,11 @@ export default function FamilyPage() {
 
       <section className="relative mx-auto flex max-w-6xl flex-col gap-3 md:gap-5">
         {/* ---------- 指挥台头部：一行读数据，两个动作，不再占半屏 ---------- */}
-        <header className="console-header family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
+        <header className="console-header dashboard-heading family-view-enter flex flex-col gap-4 border-b border-[var(--hairline)] pb-5 md:pb-6">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
-              <p className="eyebrow text-brass-700">Family Console</p>
-              <h1 className="display-md mt-2.5 flex flex-wrap items-baseline gap-x-3 text-[1.5rem] md:text-[1.75rem]">
+              <p className="eyebrow text-brass-700 tracking-[0.14em]">Family Console</p>
+              <h1 className="display-md mt-2.5 flex flex-wrap items-baseline gap-x-3 text-[1.625rem] md:text-[2rem]">
                 {patient ? patient.name : "家庭照护台"}
                 <span className="text-[0.875rem] font-normal tracking-normal text-[var(--muted-foreground)]">
                   {patient ? `${patient.age} 岁 · TKA 术后康复` : "正在读取家人信息"}
@@ -313,21 +313,21 @@ export default function FamilyPage() {
           </div>
 
           {/* 关键读数条：屈曲角 · 阶段目标 · 同步状态，扫一眼即得 */}
-          <div className="metric-strip grid grid-cols-3 divide-x divide-[var(--hairline)] rounded-xl">
-            <div className="px-4 py-3.5 md:px-6 md:py-4">
+          <div className="metric-strip family-metrics grid grid-cols-3 gap-3 rounded-2xl">
+            <div className="metric-cell px-3 py-4 md:px-5 md:py-5">
               <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">{flexionLabel}</p>
               <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-normal text-[#3c6552] md:text-[2rem]">{flexionDisplay}</p>
               {!hardwareOnline && measurementAt ? (
                 <p className="mt-1.5 truncate text-[0.6875rem] text-[var(--subtle-foreground)]">测于 {formatTime(measurementAt)}</p>
               ) : null}
             </div>
-            <div className="px-4 py-3.5 md:px-6 md:py-4">
+            <div className="metric-cell px-3 py-4 md:px-5 md:py-5">
               <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">阶段目标（因人而异）</p>
               <p className="tabular mt-1.5 text-[1.625rem] font-semibold leading-none tracking-normal md:text-[2rem]">{patient?.targetFlexion ?? 110}°</p>
             </div>
-            <div className="px-4 py-3.5 md:px-6 md:py-4">
+            <div className="metric-cell px-3 py-4 md:px-5 md:py-5">
               <p className="text-[0.6875rem] font-medium tracking-[0.04em] text-[var(--subtle-foreground)]">数据状态</p>
-              <p className="mt-1.5 truncate text-[0.9375rem] font-semibold leading-none md:mt-2.5 md:text-[1.0625rem]">{stateLabel}</p>
+              <p className="mt-1.5 break-words text-[0.9375rem] font-semibold leading-none md:mt-2.5 md:text-[1.0625rem]">{stateLabel}</p>
             </div>
           </div>
         </header>
@@ -344,7 +344,7 @@ export default function FamilyPage() {
 
         {/* ---------- 工作区切换：分段控件，轻量贴顶 ---------- */}
         <nav className="family-view-enter sticky top-0 z-30 -mx-3 bg-[var(--canvas)]/92 px-3 py-2 backdrop-blur-md md:-mx-1 md:px-1">
-          <div className="workspace-tabs flex gap-1 overflow-x-auto rounded-full border border-[var(--hairline)] bg-white/95 p-1 shadow-e1 md:inline-flex">
+          <div className="workspace-tabs flex gap-1 overflow-x-auto rounded-xl border border-[var(--hairline)] bg-white/95 p-1.5 shadow-e1 md:inline-flex">
             {familyWorkspaces.map((item) => {
               const Icon = item.icon;
               const active = activeWorkspace === item.value;
@@ -355,7 +355,7 @@ export default function FamilyPage() {
                   type="button"
                   aria-pressed={active}
                   className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-[0.8125rem] font-medium transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex-none md:px-4",
+                    "flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-[0.8125rem] font-medium transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex-none md:px-4",
                     active
                       ? "bg-ink-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
                       : "text-[#576860] hover:bg-[#f0f6f2] hover:text-ink-900",
@@ -371,8 +371,8 @@ export default function FamilyPage() {
         </nav>
 
         {activeWorkspace === "today" ? (
-          <div className="family-view-enter grid gap-5 lg:grid-cols-[1.18fr_0.82fr]">
-            <Card className={cn(panelClass, "overflow-hidden") }>
+          <div className="family-view-enter grid items-start gap-5 xl:grid-cols-[1.35fr_0.85fr]">
+            <Card className={cn(panelClass, "care-rhythm overflow-hidden") }>
               <CardHeader className="pb-1 md:pb-2">
                 <p className="section-kicker">今天先做这些</p>
                 <CardTitle className="display-md mt-1 text-xl md:mt-2 md:text-2xl">今日照护节奏</CardTitle>
@@ -414,10 +414,10 @@ export default function FamilyPage() {
                       {dailyCheckIn ? "今日已陪伴" : "完成陪伴"}
                     </Button>
                   </div>
-                  <div className="mt-3 grid gap-2 md:mt-5 md:grid-cols-3">
+                  <div className="care-timeline mt-4 grid gap-0 md:mt-5">
                     {companionPlan.map((item, index) => (
-                      <p key={item} className="rounded-lg bg-[#e2ede6] px-3 py-2 text-xs font-medium leading-5 text-[#3c6552] md:rounded-xl md:px-4 md:py-3 md:text-sm md:leading-6">
-                        <span className="mr-2 text-[#8f6427]">{index + 1}</span>{item}
+                      <p key={item} className="flex items-center gap-3 py-3 text-sm leading-6 text-ink-700">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-full border border-sage-300 bg-white text-xs font-semibold text-sage-700">{index + 1}</span>{item}
                       </p>
                     ))}
                   </div>
@@ -436,7 +436,7 @@ export default function FamilyPage() {
               </CardContent>
             </Card>
 
-            <Card className={cn(panelClass, "bg-[#fcf4e4]") }>
+            <Card className={cn(panelClass, "care-next-step bg-sand-50") }>
               <CardHeader>
                 <p className="section-kicker">家属行动提示</p>
                 <CardTitle className="display-md mt-2 text-xl md:text-2xl">下一步提醒</CardTitle>
