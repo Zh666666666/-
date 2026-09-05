@@ -105,7 +105,7 @@ export function RoleNavigation() {
         aria-label="主导航"
         className="panel-ink grain fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-white/8 md:flex"
       >
-        <div className="relative z-10 flex h-full flex-col px-4 pb-5 pt-5">
+        <div className="relative z-10 flex h-full flex-col overflow-y-auto px-4 pb-5 pt-7">
           <Link href={role === "family" ? "/family" : "/nurse"} className="block px-2">
             <BrandLockup tone="light" subtitle={role === "family" ? "家庭照护工作台" : "病区护理工作台"} />
           </Link>
@@ -119,11 +119,11 @@ export function RoleNavigation() {
           </div>
 
           <div className="mb-2 mt-6 flex items-center justify-between px-3">
-            <p className="text-[0.625rem] font-semibold text-white/35">主要工作区</p>
-            <span className="text-[0.625rem] text-white/25">{links.length} 项</span>
+            <p className="text-[0.625rem] font-semibold text-white/65">主要工作区</p>
+            <span className="text-[0.625rem] text-white/60">{links.length} 项</span>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             {links.map((item) => {
               const Icon = item.icon;
               const active = isActive(pathname, item.href);
@@ -134,10 +134,10 @@ export function RoleNavigation() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-[0.875rem] font-medium transition-all duration-200",
+                    "rail-link group relative flex items-center gap-3 rounded-xl px-3 py-3 text-[0.875rem] font-medium transition-all duration-200",
                     active
-                      ? "bg-white/[0.10] text-[#f7f3ea] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_22px_-16px_rgba(0,0,0,0.8)]"
-                      : "text-white/55 hover:bg-white/[0.055] hover:text-white/90",
+                      ? "bg-sand-50 text-ink-900 shadow-e2"
+                      : "text-white/75 hover:bg-white/[0.055] hover:text-white/90",
                   )}
                 >
                   <span
@@ -147,14 +147,14 @@ export function RoleNavigation() {
                       active ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-md border transition-colors", active ? "border-white/10 bg-white/[0.07]" : "border-transparent bg-white/[0.025]")}>
-                    <Icon className={cn("size-4 transition-colors", active ? "text-brass-300" : "text-white/40 group-hover:text-white/70")} />
+                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-md border transition-colors", active ? "border-sage-300/40 bg-sage-100" : "border-transparent bg-white/[0.025]")}>
+                    <Icon className={cn("size-4 transition-colors", active ? "text-sage-700" : "text-white/65 group-hover:text-white/70")} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block leading-4">{item.label}</span>
-                    <span className={cn("mt-0.5 block truncate text-[0.625rem] font-normal leading-4", active ? "text-white/50" : "text-white/30")}>{item.helper}</span>
+                    <span className={cn("mt-0.5 block truncate text-[0.625rem] font-normal leading-4", active ? "text-muted-foreground" : "text-white/60")}>{item.helper}</span>
                   </span>
-                  <ChevronRight className={cn("size-3.5 transition-all", active ? "translate-x-0 text-brass-300/80 opacity-100" : "-translate-x-1 text-white/30 opacity-0 group-hover:translate-x-0 group-hover:opacity-100")} />
+                  <ChevronRight className={cn("size-3.5 transition-all", active ? "translate-x-0 text-sage-700 opacity-100" : "-translate-x-1 text-white/60 opacity-0 group-hover:translate-x-0 group-hover:opacity-100")} />
                 </Link>
               );
             })}
@@ -167,7 +167,7 @@ export function RoleNavigation() {
               </span>
               <span className="min-w-0">
                 <span className="block text-xs font-medium text-white/75">{role === "family" ? "家属账号" : "护士账号"}</span>
-                <span className="mt-0.5 block text-[0.625rem] text-white/35">数据仅对授权用户可见</span>
+                <span className="mt-0.5 block text-[0.625rem] text-white/65">数据仅对授权用户可见</span>
               </span>
             </div>
             {role === "nurse" && !isLocalAuthConfigured ? (
@@ -175,18 +175,18 @@ export function RoleNavigation() {
                 type="button"
                 onClick={() => switchRole(oppositeRole)}
                 disabled={switching}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[0.875rem] font-medium text-white/55 transition-colors duration-200 hover:bg-white/[0.05] hover:text-white/85 disabled:opacity-50"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[0.875rem] font-medium text-white/75 transition-colors duration-200 hover:bg-white/[0.05] hover:text-white/85 disabled:opacity-50"
               >
-                <HeartPulse className="size-4 text-white/40" />
+                <HeartPulse className="size-4 text-white/65" />
                 {switching ? "切换中…" : `切换到${oppositeLabel}`}
               </button>
             ) : null}
             <button
               type="button"
               onClick={logout}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[0.875rem] font-medium text-white/55 transition-colors duration-200 hover:bg-white/[0.05] hover:text-white/85"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[0.875rem] font-medium text-white/75 transition-colors duration-200 hover:bg-white/[0.05] hover:text-white/85"
             >
-              <LogOut className="size-4 text-white/40" />
+              <LogOut className="size-4 text-white/65" />
               退出登录
             </button>
           </div>
@@ -197,7 +197,7 @@ export function RoleNavigation() {
       <nav
         aria-label="主导航"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 border-t border-[var(--hairline)] bg-[rgba(253,251,247,0.86)] px-2 pb-[calc(env(safe-area-inset-bottom)+0.4rem)] pt-1.5 backdrop-blur-xl md:hidden",
+          "mobile-dock fixed inset-x-0 bottom-0 z-50 border-t border-[var(--hairline)] bg-[rgba(253,251,247,0.86)] px-2 pb-[calc(env(safe-area-inset-bottom)+0.4rem)] pt-1.5 backdrop-blur-xl md:hidden",
           "shadow-[0_-1px_0_rgba(255,255,255,0.7)_inset,0_-8px_24px_-12px_rgba(20,35,30,0.18)]",
         )}
       >
