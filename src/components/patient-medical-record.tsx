@@ -34,6 +34,7 @@ export function PatientMedicalRecord({ role, patientId, backHref, standalone = f
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     let id = patientId;
@@ -43,11 +44,13 @@ export function PatientMedicalRecord({ role, patientId, backHref, standalone = f
       if (!response.ok) throw new Error("无法读取患者档案。");
       id = patients[0]?.id;
     }
-    if (!id) { setPatient(null); setDraft(null); return; }
+    if (!id) { setPatient(null); setDraft(null); setLoaded(true); setError(null); return; }
     const response = await fetch(`/api/patients/${encodeURIComponent(id)}`, { cache: "no-store" });
     const data = await response.json() as PatientSummary & { error?: string };
     if (!response.ok) throw new Error(data.error ?? "无法读取患者档案。");
     setPatient(data);
+    setLoaded(true);
+    setError(null);
     if (!editing) setDraft(toDraft(data));
   }, [editing, patientId]);
 
@@ -83,7 +86,7 @@ export function PatientMedicalRecord({ role, patientId, backHref, standalone = f
 
   if (!patient || !draft) {
     return <section className="rounded-lg border border-[var(--hairline)] bg-white p-5 shadow-e1">
-      <div className="flex items-center gap-3 text-sm text-[var(--muted-foreground)]">{error ? <AlertTriangle className="size-5 text-amber-600" /> : <RefreshCw className="size-5 animate-spin" />}{error ?? "正在读取患者档案"}</div>
+      <div className="flex items-center gap-3 text-sm text-[var(--muted-foreground)]">{error ? <AlertTriangle className="size-5 text-amber-600" /> : loaded ? <ClipboardList className="size-5" /> : <RefreshCw className="size-5 animate-spin" />}{error ?? (loaded ? "尚未关联患者档案，请在下方创建或关联。" : "正在读取患者档案")}</div>
       {!error ? null : <p className="mt-2 text-xs leading-5 text-slate-500">尚未建档时，请先在下方创建患者档案；建档后此处会自动出现。</p>}
     </section>;
   }
