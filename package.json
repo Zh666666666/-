@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "overrides": {
+    "fast-uri": "3.1.7",
+    "mysql2": "3.24.3",
     "deepmerge-ts": "8.0.2",
     "js-yaml": "4.3.1",
     "nanoid": "3.3.18",
@@ -17,7 +19,8 @@
     "check:status": "node scripts/check-project-status.mjs",
     "test:runtime": "node --import tsx --test src/lib/access-control.test.ts src/lib/patient-record.test.ts src/lib/ai-evidence.test.ts src/lib/api-errors.test.ts src/lib/auth.test.ts src/lib/env.test.ts src/lib/evidence-package.test.ts src/lib/gateway-auth.test.ts src/lib/local-auth.test.ts src/lib/patient-access.test.ts src/lib/rate-limit.test.ts src/lib/registration-auth.test.ts src/lib/rehab-metrics.test.ts src/lib/request-limits.test.ts src/lib/request-security.test.ts src/lib/sensor-ingestion.test.ts src/lib/sensor-ingestion.integration.test.ts",
     "gateway:test": "node --import tsx --test hardware-gateway/protocol/wit-standard.test.ts hardware-gateway/offline-queue.test.ts hardware-gateway/ble-sdk-adapter.test.ts hardware-gateway/gateway.test.ts hardware-gateway/sample-provenance.test.ts",
-    "api:test": "node --import tsx --test src/app/api/gateway/ready/route.test.ts src/app/api/hardware-simulator/route.test.ts src/app/api/knee-records/route.test.ts src/app/api/sensor-samples/route.test.ts src/app/api/sensor-samples/batch/route.test.ts",
+    "api:test": "node --import tsx --test src/app/api/gateway/ready/route.test.ts src/app/api/gateway/scoped-auth.test.ts src/app/api/patient-access/route.test.ts src/app/api/hardware-simulator/route.test.ts src/app/api/knee-records/route.test.ts src/app/api/sensor-samples/route.test.ts src/app/api/sensor-samples/batch/route.test.ts",
+    "test:ops": "node --test deploy/tests/health-monitor.test.mjs supabase/security.test.mjs",
     "test": "npm run test:runtime && npm run gateway:test && npm run api:test",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",

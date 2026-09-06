@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Patient } from "@prisma/client";
+import type { Patient, Prisma } from "@prisma/client";
 
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
@@ -36,6 +36,20 @@ function invalidAction() {
   return NextResponse.json({ error: "请求内容不完整，请确认后重试。" }, { status: 400 });
 }
 
+function accessTransaction<T>(work: (transaction: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(work, { isolationLevel: "Serializable" });
+}
+
+async function requireOwner(transaction: Prisma.TransactionClient, patientId: string, userId: string) {
+  const patient = await transaction.patient.findUnique({ where: { id: patientId } });
+  if (!patient || patient.primaryNurseUserId !== userId) throw new Error("ACCESS_CHANGED");
+}
+
+function invitationStatus<T extends { status: string; expiresAt: Date }>(invitation: T): T {
+  return invitation.status === "PENDING" && inviteIsExpired(invitation.expiresAt)
+    ? { ...invitation, status: "EXPIRED" } : invitation;
+}
+
 export async function GET(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
@@ -50,11 +64,6 @@ export async function GET(request: Request) {
     const patient = seedPatients.find((item) => item.id === patientId) ?? seedPatients[0];
     return NextResponse.json({ role: "nurse", patient, linkedProfiles: [], invitations: [], recentAudits: [] });
   }
-
-  await prisma.patientInvitation.updateMany({
-    where: { status: "PENDING", expiresAt: { lte: new Date() } },
-    data: { status: "EXPIRED" },
-  });
 
   if (access.role === "family") {
     const profile = await prisma.profile.findUnique({
@@ -89,11 +98,11 @@ export async function GET(request: Request) {
       take: 12,
     });
     return NextResponse.json({ role: "nurse", patient: null, linkedProfiles: [], invitations: invitations.map((item) => ({
-      ...item, expiresAt: item.expiresAt.toISOString(), createdAt: item.createdAt.toISOString(), acceptedAt: item.acceptedAt?.toISOString() ?? null,
+      ...invitationStatus(item), expiresAt: item.expiresAt.toISOString(), createdAt: item.createdAt.toISOString(), acceptedAt: item.acceptedAt?.toISOString() ?? null,
     })), recentAudits: [] });
   }
   if (!canAccessPatient(access, patientId)) return NextResponse.json({ error: "无权管理这名患者。" }, { status: 403 });
-  const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+  const patient = await prisma.patient.findFirst({ where: { id: patientId, primaryNurseUserId: access.userId } });
   if (!patient) return NextResponse.json({ error: "患者档案不存在。" }, { status: 404 });
 
   const [linkedProfiles, invitations, recentAudits] = await Promise.all([
@@ -120,7 +129,7 @@ export async function GET(request: Request) {
     patient: serializePatient(patient),
     linkedProfiles: linkedProfiles.map((item) => ({ ...item, updatedAt: item.updatedAt.toISOString() })),
     invitations: invitations.map((item) => ({
-      ...item,
+      ...invitationStatus(item),
       expiresAt: item.expiresAt.toISOString(),
       createdAt: item.createdAt.toISOString(),
       acceptedAt: item.acceptedAt?.toISOString() ?? null,
@@ -135,6 +144,18 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try {
+    return await handlePost(request);
+  } catch (error) {
+    if ((error instanceof Error && error.message === "ACCESS_CHANGED")
+      || (typeof error === "object" && error !== null && "code" in error && error.code === "P2034")) {
+      return NextResponse.json({ error: "档案关联刚刚发生变化，请刷新后重试。" }, { status: 409 });
+    }
+    throw error;
+  }
+}
+
+async function handlePost(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
   const access = await getDataAccessContext();
@@ -156,7 +177,7 @@ export async function POST(request: Request) {
     if (surgeryDate.getTime() > Date.now()) return NextResponse.json({ error: "手术日期不能晚于今天。" }, { status: 400 });
 
     try {
-      const patient = await prisma.$transaction(async (transaction) => {
+      const patient = await accessTransaction(async (transaction) => {
         const profile = await transaction.profile.findUnique({ where: { userId: access.userId } });
         if (!profile || profile.role !== "patient") throw new Error("PROFILE_REQUIRED");
         if (profile.patientId) throw new Error("ALREADY_LINKED");
@@ -201,7 +222,8 @@ export async function POST(request: Request) {
     const code = generatePatientInviteCode();
     const codeHash = await hashPatientInviteCode(code, invitationSecret());
     const expiresAt = new Date(Date.now() + 48 * 60 * 60_000);
-    const invitation = await prisma.$transaction(async (transaction) => {
+    const invitation = await accessTransaction(async (transaction) => {
+      if (input.patientId) await requireOwner(transaction, input.patientId, access.userId);
       const created = await transaction.patientInvitation.create({
         data: { patientId: input.patientId ?? null, codeHash, createdByUserId: access.userId, expiresAt },
       });
@@ -227,12 +249,12 @@ export async function POST(request: Request) {
     const invitation = await prisma.patientInvitation.findUnique({ where: { codeHash } });
     if (!invitation || invitation.status !== "PENDING") return NextResponse.json({ error: "关联码无效或已经使用。" }, { status: 400 });
     if (inviteIsExpired(invitation.expiresAt)) {
-      await prisma.patientInvitation.update({ where: { id: invitation.id }, data: { status: "EXPIRED" } });
+      await prisma.patientInvitation.updateMany({ where: { id: invitation.id, status: "PENDING", expiresAt: { lte: new Date() } }, data: { status: "EXPIRED" } });
       return NextResponse.json({ error: "关联码已过期，请让护士重新生成。" }, { status: 410 });
     }
 
     try {
-      const patient = await prisma.$transaction(async (transaction) => {
+      const patient = await accessTransaction(async (transaction) => {
         const profile = await transaction.profile.findUnique({ where: { userId: access.userId } });
         if (!profile || profile.role !== "patient") throw new Error("PROFILE_REQUIRED");
         const patientId = profile.patientId ?? invitation.patientId;
@@ -280,7 +302,7 @@ export async function POST(request: Request) {
 
   if (input.action === "REVOKE_INVITE") {
     if (access.role !== "nurse") return NextResponse.json({ error: "只有护士可以撤销关联码。" }, { status: 403 });
-    const revoked = await prisma.$transaction(async (transaction) => {
+    const revoked = await accessTransaction(async (transaction) => {
       const result = await transaction.patientInvitation.updateMany({
         where: { id: input.invitationId, ...(input.patientId ? { patientId: input.patientId } : {}), createdByUserId: access.userId, status: "PENDING" },
         data: { status: "REVOKED", revokedAt: new Date() },
@@ -307,15 +329,16 @@ export async function POST(request: Request) {
     if (access.role !== "family") return NextResponse.json({ error: "只有家属账号可以解除自己的关联。" }, { status: 403 });
     const profile = await prisma.profile.findUnique({ where: { userId: access.userId } });
     if (!profile?.patientId) return NextResponse.json({ error: "当前账号尚未关联康复档案。" }, { status: 409 });
-    const ownedPatient = await prisma.patient.findUnique({ where: { id: profile.patientId }, select: { primaryNurseUserId: true } });
-    if (ownedPatient?.primaryNurseUserId) return NextResponse.json({ error: "患者已绑定主管护士，请先由主管护士发起移交。" }, { status: 409 });
     try {
-      await prisma.$transaction(async (transaction) => {
+      await accessTransaction(async (transaction) => {
+        const ownedPatient = await transaction.patient.findUnique({ where: { id: profile.patientId! }, select: { primaryNurseUserId: true } });
+        if (!ownedPatient || ownedPatient.primaryNurseUserId) throw new Error("ACCESS_CHANGED");
         const unlinked = await transaction.profile.updateMany({
           where: { id: profile.id, patientId: profile.patientId },
           data: { patientId: null },
         });
         if (unlinked.count !== 1) throw new Error("LINK_CHANGED");
+        await transaction.gatewayCredential.updateMany({ where: { patientId: profile.patientId!, createdBy: access.userId, revokedAt: null }, data: { revokedAt: new Date() } });
         await transaction.patientInvitation.updateMany({
           where: { patientId: profile.patientId!, acceptedByUserId: access.userId, status: "ACCEPTED" },
           data: { status: "REVOKED", revokedAt: new Date() },
@@ -342,12 +365,13 @@ export async function POST(request: Request) {
     if (access.role !== "nurse" || !canAccessPatient(access, input.patientId)) {
       return NextResponse.json({ error: "只有当前主管护士可以发起移交。" }, { status: 403 });
     }
-    const released = await prisma.$transaction(async (transaction) => {
+    const released = await accessTransaction(async (transaction) => {
       const result = await transaction.patient.updateMany({
         where: { id: input.patientId, primaryNurseUserId: access.userId },
         data: { primaryNurseUserId: null },
       });
       if (result.count !== 1) return false;
+      await transaction.gatewayCredential.updateMany({ where: { patientId: input.patientId, createdBy: access.userId, revokedAt: null }, data: { revokedAt: new Date() } });
       await transaction.patientInvitation.updateMany({
         where: { patientId: input.patientId, status: "PENDING" },
         data: { status: "REVOKED", revokedAt: new Date() },
@@ -374,12 +398,14 @@ export async function POST(request: Request) {
   });
   if (!profile) return NextResponse.json({ error: "未找到有效关联。" }, { status: 404 });
   try {
-    await prisma.$transaction(async (transaction) => {
+    await accessTransaction(async (transaction) => {
+      await requireOwner(transaction, input.patientId, access.userId);
       const unlinked = await transaction.profile.updateMany({
         where: { id: profile.id, patientId: input.patientId },
         data: { patientId: null },
       });
       if (unlinked.count !== 1) throw new Error("LINK_CHANGED");
+      await transaction.gatewayCredential.updateMany({ where: { patientId: input.patientId, createdBy: profile.userId, revokedAt: null }, data: { revokedAt: new Date() } });
       await transaction.patientInvitation.updateMany({
         where: { patientId: input.patientId, acceptedByUserId: profile.userId, status: "ACCEPTED" },
         data: { status: "REVOKED", revokedAt: new Date() },

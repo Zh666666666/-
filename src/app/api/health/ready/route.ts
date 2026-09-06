@@ -25,6 +25,7 @@ export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
     await prisma.patient.count();
+    await prisma.gatewayCredential.count();
 
     return NextResponse.json({
       status: "ready",

@@ -87,7 +87,15 @@ export function serializeDevice(device: {
   updatedAt: Date | string;
 }): DeviceItem {
   return {
-    ...device,
+    id: device.id,
+    serialNo: device.serialNo,
+    name: device.name,
+    model: device.model,
+    manufacturer: device.manufacturer,
+    status: device.status,
+    firmwareVersion: device.firmwareVersion,
+    batteryLevel: device.batteryLevel,
+    signalStrength: device.signalStrength,
     lastSeenAt: device.lastSeenAt ? new Date(device.lastSeenAt).toISOString() : null,
     createdAt: new Date(device.createdAt).toISOString(),
     updatedAt: new Date(device.updatedAt).toISOString(),
