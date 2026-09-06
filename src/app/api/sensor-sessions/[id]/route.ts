@@ -27,13 +27,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
 
-  const unauthorized = gatewayUnauthorizedResponse(request);
+  const unauthorized = await gatewayUnauthorizedResponse(request);
   if (unauthorized) return unauthorized;
 
   if (isDemoMode()) {
     const session = finishDemoSensorSession(id, status);
     return session ? NextResponse.json(session) : NextResponse.json({ error: "Sensor session not found" }, { status: 404 });
   }
+
+  const existing = await prisma.sensorSession.findUnique({ where: { id }, select: { patientId: true } });
+  if (!existing) return NextResponse.json({ error: "Sensor session not found" }, { status: 404 });
+  const forbidden = await gatewayUnauthorizedResponse(request, existing.patientId);
+  if (forbidden) return forbidden;
 
   const session = await updateOrNull(prisma.sensorSession.update({
     where: { id },

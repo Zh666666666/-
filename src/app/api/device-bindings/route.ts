@@ -6,6 +6,7 @@ import { addDemoDeviceBinding, getDemoDeviceBindings } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
+import { gatewayDeviceUnauthorizedResponse } from "@/lib/gateway-auth";
 import { serializeDeviceBinding } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 import { getDataAccessContext, requestCanAccessPatient } from "@/lib/server-access";
@@ -74,6 +75,10 @@ export async function POST(request: Request) {
   if (!await requestCanAccessPatient(request, body.patientId, true)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  if (request.headers.has("authorization")) {
+    const forbidden = await gatewayDeviceUnauthorizedResponse(request, body.deviceId, body.patientId);
+    if (forbidden) return forbidden;
+  }
 
   await ensureDemoPatients();
 
@@ -81,20 +86,15 @@ export async function POST(request: Request) {
     const now = new Date();
     await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'patient:' + body.patientId}))`;
     await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'device:' + body.deviceId}))`;
+    const device = await transaction.device.findUnique({ where: { id: body.deviceId }, select: { ownerPatientId: true } });
+    if (!device || device.ownerPatientId !== body.patientId) return null;
     const conflictingBindings = await transaction.deviceBinding.findMany({
       where: { deviceId: body.deviceId, active: true, patientId: { not: body.patientId } },
       select: { patientId: true },
     });
     const conflictingPatientIds = [...new Set(conflictingBindings.map((binding) => binding.patientId))];
     if (conflictingPatientIds.length > 0) {
-      await transaction.sensorSession.updateMany({
-        where: { patientId: { in: conflictingPatientIds }, status: "ACTIVE" },
-        data: { status: "ABORTED", endedAt: now },
-      });
-      await transaction.deviceBinding.updateMany({
-        where: { deviceId: body.deviceId, active: true, patientId: { not: body.patientId } },
-        data: { active: false, unboundAt: now },
-      });
+      return null;
     }
     await transaction.sensorSession.updateMany({
       where: {
@@ -144,5 +144,6 @@ export async function POST(request: Request) {
     return result;
   });
 
+  if (!binding) return NextResponse.json({ error: "Device belongs to another patient or is not registered", code: "DEVICE_OWNERSHIP_CONFLICT" }, { status: 409 });
   return NextResponse.json(serializeDeviceBinding(binding));
 }

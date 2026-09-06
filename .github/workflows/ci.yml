@@ -12,6 +12,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: isolated-ci-test-only
+          POSTGRES_DB: tka_patient_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d tka_patient_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
 
     steps:
       - name: Check out repository
@@ -42,6 +54,21 @@ jobs:
 
       - name: Lint application
         run: npm run lint
+
+      - name: Operational and security regression checks
+        run: |
+          npm run test:ops
+          sh deploy/tests/operations-shell.test.sh
+
+      - name: Migrate isolated integration database
+        env:
+          DATABASE_URL: postgresql://test:isolated-ci-test-only@127.0.0.1:5432/tka_patient_test
+        run: npm run db:deploy
+
+      - name: Verify multi-account ownership against PostgreSQL
+        env:
+          PATIENT_TEST_DATABASE_URL: postgresql://test:isolated-ci-test-only@127.0.0.1:5432/tka_patient_test
+        run: node --import tsx --test src/app/api/patient-access/route.integration.test.ts
 
       - name: Build application
         run: npm run build
