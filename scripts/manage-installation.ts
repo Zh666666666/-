@@ -57,4 +57,4 @@ async function main() {
   }
   throw new Error("Actions: inventory, nurses, create-nurse, disable-nurse, enable-nurse, release-device");
 }
-main().catch(() => { console.error("Installation operation failed. Verify action, confirmation, ownership and private configuration; no secret details printed."); process.exitCode = 1; }).finally(() => prisma.$disconnect());
+main().catch(() => { console.error("Installation operation failed. Verify action, confirmation, ownership and private configuration; no secret details printed."); process.exitCode = 1; }).finally(async () => { try { await prisma.$disconnect(); } catch { /* No database client exists when configuration was rejected. */ } });

@@ -4,7 +4,7 @@ import type { PrismaClient } from "@prisma/client";
 import { actionRequest, asUser, configureTestEnvironment, recordInput } from "./test-support";
 
 configureTestEnvironment();
-const unexpected = async (..._args: unknown[]): Promise<unknown> => { throw new Error("Unexpected database call"); };
+const unexpected = async (): Promise<unknown> => { throw new Error("Unexpected database call"); };
 const db = {
   gatewayCredential: { updateMany: async () => ({ count: 0 }) },
   authAccount: { findUnique: unexpected },

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { actionRequest, asUser, configureTestEnvironment, recordInput } from "./test-support";
 
 // Requires a migrated, disposable local database. Never fall back to DATABASE_URL.
@@ -22,6 +23,7 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
   const prefix = `patient-test-${randomUUID()}`;
   const patientIds: string[] = [];
   const userIds: string[] = [];
+  const deviceIds: string[] = [];
   async function user(role: "nurse" | "patient", patientId: string | null = null) {
     const id = `${prefix}-${userIds.length}`;
     userIds.push(id);
@@ -76,6 +78,68 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
       assert.equal((await (await getRecord("nurse", nurseA, patientA)).json()).name, recordInput.name);
       const audit = await prisma.patientAccessAudit.findFirstOrThrow({ where: { patientId: patientA, action: "PATIENT_UPDATED" } });
       assert.deepEqual(audit.details, { changedFields: Object.keys(recordInput) });
+    });
+
+    await t.test("gateway issuance, hashed storage, device ownership and revocation work in PostgreSQL", async () => {
+      const deviceRoute = await import("../devices/route");
+      const bindingRoute = await import("../device-bindings/route");
+      const credentials = await import("../gateway/credentials/route");
+      const ready = await import("../gateway/ready/route");
+      const json = (body: unknown, method = "POST") => new Request("http://localhost/api/test", { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const serialNo = `${prefix}-sensor`;
+      const registered = await asUser("family", familyA, () => deviceRoute.POST(json({ patientId: patientA, serialNo, name: "Test Sensor" })));
+      assert.equal(registered.status, 200);
+      const device = await registered.json();
+      deviceIds.push(device.id);
+      assert.equal("deviceToken" in device, false);
+      const assigned = await asUser("family", familyA, () => bindingRoute.POST(json({ patientId: patientA, deviceId: device.id, placement: "THIGH" })));
+      assert.equal(assigned.status, 200);
+      const stolen = await asUser("family", familyB, () => bindingRoute.POST(json({ patientId: patientB, deviceId: device.id, placement: "THIGH" })));
+      assert.equal(stolen.status, 409);
+      assert.equal((await prisma.device.findUniqueOrThrow({ where: { id: device.id } })).ownerPatientId, patientA);
+      assert.equal((await asUser("family", familyB, () => deviceRoute.POST(json({ patientId: patientB, serialNo, name: "stolen" })))).status, 409);
+      const issued = await asUser("family", familyA, () => credentials.POST(json({ patientId: patientA, label: "Test phone" })));
+      assert.equal(issued.status, 201);
+      const credential = await issued.json();
+      assert.match(credential.token, /^tka_gw_/);
+      const stored = await prisma.gatewayCredential.findUniqueOrThrow({ where: { id: credential.id } });
+      assert.notEqual(stored.tokenHash, credential.token);
+      const preflight = (patientId: string) => new Request(`http://localhost/api/gateway/ready?patientId=${patientId}`, { headers: { authorization: `Bearer ${credential.token}` } });
+      assert.equal((await ready.GET(preflight(patientA))).status, 200);
+      assert.equal((await ready.GET(preflight(patientB))).status, 403);
+      const listed = await asUser("nurse", nurseA, () => credentials.GET(new Request(`http://localhost/api/gateway/credentials?patientId=${patientA}`)));
+      const list = await listed.json();
+      assert.equal("tokenHash" in list[0], false);
+      assert.equal("token" in list[0], false);
+      assert.equal((await asUser("family", familyB, () => credentials.DELETE(json({ id: credential.id, patientId: patientA }, "DELETE")))).status, 403);
+      assert.equal((await asUser("family", familyA, () => credentials.DELETE(json({ id: credential.id, patientId: patientA }, "DELETE")))).status, 200);
+      assert.equal((await ready.GET(preflight(patientA))).status, 401);
+    });
+
+    await t.test("operator lifecycle provisions accounts and releases only the explicitly named device", async () => {
+      const email = `${prefix}-operator@example.test`;
+      const run = (args: string[]) => execFileSync(process.execPath, ["--import", "tsx", "scripts/manage-installation.ts", ...args], {
+        encoding: "utf8", timeout: 30_000,
+        env: { ...process.env, TKA_NURSE_NAME: "Test Nurse", TKA_NURSE_PASSWORD: "Synthetic-test-password-2026" },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      const created = JSON.parse(run(["create-nurse", email, `confirm:${email}`]));
+      userIds.push(created.id);
+      const nurse = await prisma.authAccount.findUniqueOrThrow({ where: { id: created.id } });
+      assert.equal(nurse.role, "nurse");
+      assert.match(nurse.passwordHash, /^pbkdf2_sha256\$/);
+      run(["disable-nurse", nurse.id, `confirm:${nurse.id}`]);
+      assert.equal((await prisma.authAccount.findUniqueOrThrow({ where: { id: nurse.id } })).status, "DISABLED");
+      run(["enable-nurse", nurse.id, `confirm:${nurse.id}`]);
+      assert.equal((await prisma.authAccount.findUniqueOrThrow({ where: { id: nurse.id } })).status, "ACTIVE");
+      assert.throws(() => run(["disable-nurse", nurseA, `confirm:${nurseA}`]));
+      assert.equal((await prisma.authAccount.findUniqueOrThrow({ where: { id: nurseA } })).status, "ACTIVE");
+      const deviceId = deviceIds[0];
+      assert.throws(() => run(["release-device", deviceId, "confirm:wrong"]));
+      assert.equal((await prisma.device.findUniqueOrThrow({ where: { id: deviceId } })).ownerPatientId, patientA);
+      run(["release-device", deviceId, `confirm:${deviceId}`]);
+      assert.equal((await prisma.device.findUniqueOrThrow({ where: { id: deviceId } })).ownerPatientId, null);
+      assert.equal(await prisma.deviceBinding.count({ where: { deviceId, active: true } }), 0);
     });
 
     await t.test("only the current nurse may release, then the new nurse takes over", async () => {
@@ -145,6 +209,7 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
       }
     });
   } finally {
+    await prisma.device.deleteMany({ where: { id: { in: deviceIds } } });
     await prisma.patientAccessAudit.deleteMany({ where: { OR: [{ actorUserId: { in: userIds } }, { patientId: { in: patientIds } }] } });
     await prisma.patientInvitation.deleteMany({ where: { createdByUserId: { in: userIds } } });
     await prisma.profile.deleteMany({ where: { userId: { in: userIds } } });

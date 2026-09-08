@@ -1,6 +1,6 @@
 # Software Hardening Handoff
 
-Status: implementation present, final verification in progress; NOT deployed.
+Status (2026-09-08): implementation present, final verification in progress; NOT deployed.
 User deferred physical long-run streaming and reference-angle algorithm validation.
 No claim of medical accuracy, clinical readiness or batch hardware certification.
 
@@ -30,6 +30,12 @@ Run npm test, npm run lint, npm run build, npm run check:status, deploy tests,
 Supabase static tests, and the CI PostgreSQL integration job. Local Docker daemon
 was unavailable during initial work; no production data may be used as a substitute.
 Record real DB test results here before declaring database validation complete.
+
+Checkpoint 089fc58: GitHub run 34017905423 passed build, migrations and eight
+PostgreSQL ownership/concurrency tests with zero skipped tests. Additional gateway,
+operator lifecycle, cross-connection notification and isolated restore tests are
+being added. User confirmed no offsite storage/notification destination is available;
+no service was purchased. Those operational acceptance gates remain unfulfilled.
 
 Runbooks: OPERATIONS_READINESS.md, SUPABASE_SECURITY.md, INSTALLATION_ADMIN.md.
 External prerequisites: encrypted remote backup repository and escrowed password,
