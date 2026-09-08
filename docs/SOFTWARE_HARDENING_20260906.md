@@ -1,6 +1,6 @@
 # Software Hardening Handoff
 
-Status (2026-09-08): implementation present, final verification in progress; NOT deployed.
+Status (2026-09-08): core CI verification passed; release acceptance remains open; NOT deployed.
 User deferred physical long-run streaming and reference-angle algorithm validation.
 No claim of medical accuracy, clinical readiness or batch hardware certification.
 
@@ -31,10 +31,13 @@ Supabase static tests, and the CI PostgreSQL integration job. Local Docker daemo
 was unavailable during initial work; no production data may be used as a substitute.
 Record real DB test results here before declaring database validation complete.
 
-Checkpoint 089fc58: GitHub run 34017905423 passed build, migrations and eight
-PostgreSQL ownership/concurrency tests with zero skipped tests. Additional gateway,
-operator lifecycle, cross-connection notification and isolated restore tests are
-being added. User confirmed no offsite storage/notification destination is available;
+Checkpoint e59413b: GitHub run 34203633203 passed 99 regular tests, 11 real
+PostgreSQL tests, 13 operations/static checks, 17 mocked shell scenarios, lint,
+dependency audit, migrations and production build. Gateway scope/revocation,
+operator lifecycle and cross-connection notifications were tested against PostgreSQL.
+A synthetic database dump was restored into an isolated Docker container and
+application tables queried successfully. This is not an offsite or production restore.
+User confirmed no offsite storage/notification destination is available;
 no service was purchased. Those operational acceptance gates remain unfulfilled.
 
 Runbooks: OPERATIONS_READINESS.md, SUPABASE_SECURITY.md, INSTALLATION_ADMIN.md.
@@ -43,5 +46,7 @@ alert receiver/webhook, controlled Linux host restore drill. Multi-instance rate
 limiting and measured concurrency capacity remain open; do not arbitrarily scale
 app replicas because notification support alone does not prove capacity or security.
 
-No remote deployment, real hardware test, real offsite snapshot or alert delivery
+No production deployment, real hardware test, real offsite snapshot or alert delivery
 has been performed in this change. Keep these distinct from mocked regression tests.
+
+Final task matrix and release order: TASK_CLOSEOUT_20260908.md.
