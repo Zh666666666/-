@@ -19,6 +19,18 @@ Verified CI: https://github.com/Zh666666666/-/actions/runs/34203633203
 
 ## Evidence and Boundaries
 
+### Follow-up: 2026-09-09
+
+- Exact code head d9b124c passed CI run 34245695018.
+- Production still runs 2237311; no merge, application deployment or production
+  migration was performed in this follow-up.
+- Created a private real production dump (1,374,947 bytes) and successfully restored
+  it using the hardened isolated restore-drill script. Application table queries
+  passed and the disposable container was removed. Public readiness remained healthy.
+- This closes the local production-backup restoration check only. An offsite
+  repository, external alert delivery, new-release migration rehearsal and App
+  credential cutover are still outstanding. No patient data was exported to GitHub.
+
 - CI at e59413b: 99 regular tests, 11 real PostgreSQL tests, 13 operations/static
   checks and 17 mocked shell scenarios pass. Lint, audit, migrations and build pass.
 - The real restore test uses synthetic CI data, not patient data or an offsite copy.
