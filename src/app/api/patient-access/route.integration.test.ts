@@ -24,6 +24,7 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
   const patientIds: string[] = [];
   const userIds: string[] = [];
   const deviceIds: string[] = [];
+  const registrationEmails: string[] = [];
   async function user(role: "nurse" | "patient", patientId: string | null = null) {
     const id = `${prefix}-${userIds.length}`;
     userIds.push(id);
@@ -55,6 +56,53 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
     const patientB = await patient(nurseB);
     const familyA = await user("patient", patientA);
     const familyB = await user("patient", patientB);
+
+    await t.test("email verification creates only a family account and the invitation binds it to one nurse", async (context) => {
+      const send = await import("../auth/register/send-code/route");
+      const complete = await import("../auth/register/complete/route");
+      const email = `${prefix}-registration@example.test`;
+      registrationEmails.push(email);
+      const priorKey = process.env.RESEND_API_KEY;
+      const priorFrom = process.env.EMAIL_FROM;
+      process.env.RESEND_API_KEY = "re_synthetic-test-only";
+      process.env.EMAIL_FROM = "test@example.test";
+      let code = "";
+      const delivery = context.mock.method(globalThis, "fetch", async (url: string | URL | Request, init?: RequestInit) => {
+        assert.equal(String(url), "https://api.resend.com/emails");
+        const message = JSON.parse(String(init?.body));
+        assert.deepEqual(message.to, [email]);
+        code = String(message.text).match(/\b\d{6}\b/)?.[0] ?? "";
+        return Response.json({ id: "synthetic-mail" });
+      });
+      try {
+        const sent = await asUser("family", familyB, () => send.POST(actionRequest("unused", { email })));
+        assert.equal(sent.status, 200);
+        assert.match(code, /^\d{6}$/);
+        const input = { email, code, name: "Synthetic Family", password: "Synthetic-password-123", role: "nurse" };
+        const created = await asUser("family", familyB, () => complete.POST(actionRequest("unused", input)));
+        assert.equal(created.status, 201);
+        const account = await prisma.authAccount.findUniqueOrThrow({ where: { email } });
+        userIds.push(account.id);
+        assert.equal(account.role, "patient");
+        assert.equal((await prisma.profile.findUniqueOrThrow({ where: { userId: account.id } })).patientId, null);
+        assert.equal((await asUser("family", familyB, () => complete.POST(actionRequest("unused", input)))).status, 400);
+        assert.equal((await post("family", account.id, "SELF_CREATE", {
+          patientName: "Synthetic Patient", age: 60, surgeryDate: "2026-01-01", surgicalSide: "LEFT", relationToPatient: "self",
+        })).status, 201);
+        const onboardingNurse = await user("nurse");
+        const codeFromNurse = await invite(onboardingNurse);
+        assert.equal((await post("family", account.id, "ACCEPT_INVITE", { code: codeFromNurse.code })).status, 200);
+        const profile = await prisma.profile.findUniqueOrThrow({ where: { userId: account.id } });
+        assert.ok(profile.patientId);
+        patientIds.push(profile.patientId);
+        assert.equal((await getRecord("nurse", onboardingNurse, profile.patientId)).status, 200);
+        assert.equal((await getRecord("nurse", nurseB, profile.patientId)).status, 403);
+      } finally {
+        delivery.mock.restore();
+        if (priorKey === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = priorKey;
+        if (priorFrom === undefined) delete process.env.EMAIL_FROM; else process.env.EMAIL_FROM = priorFrom;
+      }
+    });
 
     await t.test("lists and records isolate two nurses and two families", async () => {
       for (const [role, id, own, other] of [
@@ -142,6 +190,65 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
       assert.equal(await prisma.deviceBinding.count({ where: { deviceId, active: true } }), 0);
     });
 
+    await t.test("history, guidance, family acknowledgement, appointments and alerts close the care loop", async () => {
+      const nursing = await import("../nursing-records/route");
+      const read = await import("../nursing-records/[id]/route");
+      const appointments = await import("../appointments/route");
+      const respond = await import("../appointments/[id]/route");
+      const resolve = await import("../alerts/[id]/route");
+      const dashboard = await import("../dashboard/route");
+      const history = await import("../sensor-sessions/route");
+      const params = (id: string) => ({ params: Promise.resolve({ id }) });
+      const guidance = { patientId: patientA, nurseName: "Forged author", guidance: "Synthetic follow-up guidance", soap: { plan: "Synthetic plan" } };
+      assert.equal((await asUser("family", familyA, () => nursing.POST(actionRequest("unused", guidance)))).status, 403);
+      assert.equal((await asUser("nurse", nurseB, () => nursing.POST(actionRequest("unused", guidance)))).status, 403);
+      const created = await asUser("nurse", nurseA, () => nursing.POST(actionRequest("unused", guidance)));
+      assert.equal(created.status, 200);
+      const note = await created.json();
+      assert.equal(note.nurseName, nurseA);
+      assert.equal(note.readAt, null);
+      const snapshot = async (role: "family" | "nurse", id: string) => (await asUser(role, id, () => dashboard.GET())).json();
+      assert.ok((await snapshot("family", familyA)).nursingRecords.some((item: { id: string }) => item.id === note.id));
+      assert.ok(!(await snapshot("family", familyB)).nursingRecords.some((item: { id: string }) => item.id === note.id));
+      const markRead = (role: "family" | "nurse", userId: string) => asUser(role, userId, () => read.PATCH(new Request("http://localhost"), params(note.id)));
+      assert.equal((await markRead("nurse", nurseA)).status, 403);
+      assert.equal((await markRead("family", familyB)).status, 404);
+      const firstRead = await (await markRead("family", familyA)).json();
+      assert.ok(firstRead.readAt);
+      assert.equal((await (await markRead("family", familyA)).json()).readAt, firstRead.readAt);
+      assert.equal((await snapshot("nurse", nurseA)).nursingRecords.find((item: { id: string }) => item.id === note.id).readAt, firstRead.readAt);
+
+      const appointment = await (await asUser("family", familyA, () => appointments.POST(actionRequest("unused", {
+        patientId: patientA, patientName: "Synthetic Patient", expectedTime: new Date(Date.now() + 86400_000).toISOString(), description: "Synthetic appointment",
+      })))).json();
+      const reply = { status: "CONFIRMED", nurseName: "Forged author", responseNote: "Synthetic confirmation" };
+      const answer = (role: "family" | "nurse", id: string) => asUser(role, id, () => respond.PATCH(actionRequest("unused", reply), params(appointment.id)));
+      assert.equal((await answer("family", familyA)).status, 403);
+      assert.equal((await answer("nurse", nurseB)).status, 404);
+      assert.equal((await answer("nurse", nurseA)).status, 200);
+      const familyAppointments = await (await asUser("family", familyA, () => appointments.GET())).json();
+      assert.equal(familyAppointments.find((item: { id: string }) => item.id === appointment.id).nurseName, nurseA);
+      assert.equal(familyAppointments.find((item: { id: string }) => item.id === appointment.id).status, "CONFIRMED");
+      assert.equal((await (await asUser("family", familyB, () => appointments.GET())).json()).length, 0);
+
+      const alert = await prisma.alertLog.create({ data: { patientId: patientA, type: "ROM_LOW", title: "Synthetic alert", message: "Not a clinical assessment" } });
+      const resolveAlert = (role: "family" | "nurse", id: string) => asUser(role, id, () => resolve.PATCH(new Request("http://localhost"), params(alert.id)));
+      assert.equal((await resolveAlert("family", familyA)).status, 403);
+      assert.equal((await resolveAlert("nurse", nurseB)).status, 404);
+      assert.equal((await resolveAlert("nurse", nurseA)).status, 200);
+      assert.equal((await snapshot("family", familyA)).alerts.find((item: { id: string }) => item.id === alert.id).status, "RESOLVED");
+
+      const session = await prisma.sensorSession.create({ data: { patientId: patientA, status: "COMPLETED", endedAt: new Date(), summary: { synthetic: true } } });
+      const listHistory = (role: "family" | "nurse", id: string, patientId: string) => asUser(role, id, () => history.GET(new Request(`http://localhost/api/sensor-sessions?patientId=${patientId}`)));
+      for (const [role, id] of [["family", familyA], ["nurse", nurseA]] as const) {
+        const response = await listHistory(role, id, patientA);
+        assert.equal(response.status, 200);
+        assert.ok((await response.json()).some((item: { id: string }) => item.id === session.id));
+      }
+      assert.equal((await listHistory("family", familyB, patientA)).status, 403);
+      assert.equal((await listHistory("nurse", nurseB, patientA)).status, 403);
+    });
+
     await t.test("only the current nurse may release, then the new nurse takes over", async () => {
       const pending = await invite(nurseA, patientA);
       assert.equal((await post("nurse", nurseB, "NURSE_RELEASE", { patientId: patientA })).status, 403);
@@ -209,6 +316,7 @@ test("PostgreSQL patient ownership, records, isolation and concurrent actions", 
       }
     });
   } finally {
+    await prisma.emailVerification.deleteMany({ where: { email: { in: registrationEmails } } });
     await prisma.device.deleteMany({ where: { id: { in: deviceIds } } });
     await prisma.patientAccessAudit.deleteMany({ where: { OR: [{ actorUserId: { in: userIds } }, { patientId: { in: patientIds } }] } });
     await prisma.patientInvitation.deleteMany({ where: { createdByUserId: { in: userIds } } });

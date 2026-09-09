@@ -49,11 +49,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
   if (!visible) return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
 
+  const author = await prisma.profile.findUnique({ where: { userId: access.userId }, select: { name: true } });
+  if (!author) return NextResponse.json({ error: "Nurse profile not found" }, { status: 403 });
   const appointment = await updateOrNull(prisma.appointment.update({
     where: { id },
     data: {
       status: body.status,
-      nurseName: body.nurseName ?? null,
+      nurseName: author.name,
       scheduledTime: body.scheduledTime ? new Date(body.scheduledTime) : null,
       responseNote: body.responseNote ?? null,
     },
