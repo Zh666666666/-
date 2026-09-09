@@ -23,6 +23,12 @@ No performance threshold is asserted on shared CI hardware.
 
 ## Before expanding rollout
 
+Verified baseline: code `4c3f284`, GitHub run
+https://github.com/Zh666666666/-/actions/runs/34321806568 passed on 2026-09-09.
+The 320 unique samples plus 320 replays completed in 2942ms; batch p50 was
+1027ms and p95 was 2078ms. All correctness assertions passed. This is one short
+synthetic CI run, not a sustained-load or two-second end-to-end acceptance result.
+
 Use an isolated, production-sized deployment with synthetic accounts and devices.
 Do not run load tests on the live patient server. Agree on expected active patients,
 actual per-sensor sample rate, batch cadence and duration first. Include calibrated
