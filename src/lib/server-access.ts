@@ -79,7 +79,9 @@ export async function getDataAccessContext(): Promise<DataAccessContext | null> 
 }
 
 export async function requestCanAccessPatient(request: Request, patientId: string, allowGateway = false) {
-  if (allowGateway && !gatewayUnauthorizedResponse(request)) return true;
+  if (allowGateway && request.headers.has("authorization")) {
+    return !await gatewayUnauthorizedResponse(request, patientId);
+  }
   const access = await getDataAccessContext();
   return access ? canAccessPatient(access, patientId) : false;
 }

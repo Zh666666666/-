@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, BatteryMedium, CheckCircle2, ClipboardCopy, Gauge, LinkIcon, Loader2, Radio, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 
 import { StatusNotice } from "@/components/status-notice";
+import { GatewayCredentials } from "@/components/gateway-credentials";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -156,6 +157,7 @@ export default function FamilyDevicesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          patientId,
           serialNo: form.serialNo.trim(),
           name: form.name.trim() || "WT9011DCL-BT50",
           model: "WT9011DCL-BT50",
@@ -428,6 +430,7 @@ export default function FamilyDevicesPage() {
           </Card>
         </div>
       </section>
+      {patientId && <GatewayCredentials key={patientId} patientId={patientId} />}
     </main>
   );
 }

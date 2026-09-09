@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
 
-  const unauthorized = gatewayUnauthorizedResponse(request);
+  const unauthorized = await gatewayUnauthorizedResponse(request, body.patientId);
   if (unauthorized) return unauthorized;
 
   if (isDemoMode()) {

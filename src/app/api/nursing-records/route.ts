@@ -47,10 +47,12 @@ export async function POST(request: Request) {
     return NextResponse.json(addDemoNursingRecord(body));
   }
 
+  const author = await prisma.profile.findUnique({ where: { userId: access.userId }, select: { name: true } });
+  if (!author) return NextResponse.json({ error: "Nurse profile not found" }, { status: 403 });
   const record = await prisma.nursingRecord.create({
     data: {
       patientId: body.patientId,
-      nurseName: body.nurseName ?? "康复护士",
+      nurseName: author.name,
       actionType: body.actionType ?? "REMOTE_GUIDANCE",
       guidance: body.guidance,
       notes: encodeNursingNotes(body.notes, body.soap ?? null),

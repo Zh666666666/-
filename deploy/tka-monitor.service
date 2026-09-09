@@ -1,0 +1,16 @@
+[Unit]
+Description=TKA readiness and backup freshness monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/tka/operations.env
+ExecStart=/usr/bin/node /opt/tka-rehab/deploy/health-monitor.mjs
+User=root
+Group=root
+TimeoutStartSec=4min
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

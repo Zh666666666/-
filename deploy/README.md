@@ -84,15 +84,16 @@ Back up the database:
 sh deploy/backup.sh
 ```
 
-The script writes a validated custom-format PostgreSQL dump under `backups/`
-and removes dumps older than 14 days. Schedule it daily on the host; database
-backups must also be copied to a separate machine or object store before this is
-treated as a disaster-recovery solution.
+The script validates the custom-format archive listing and keeps local dumps for
+14 days by default. Optional restic offsite mode requires a successful encrypted
+remote upload before advancing backup success or pruning local dumps. Archive
+listing is not restore verification. Follow [Operations Readiness](../docs/OPERATIONS_READINESS.md)
+for private configuration, isolated restore drills, monitoring and release gates.
 
-Install the included systemd timer on a Linux host:
+Create `/etc/tka/operations.env` following that runbook before installing the
+included systemd timer on a Linux host:
 
 ```bash
-install -m 0755 deploy/backup.sh /opt/tka-rehab/deploy/backup.sh
 install -m 0644 deploy/tka-backup.service /etc/systemd/system/tka-backup.service
 install -m 0644 deploy/tka-backup.timer /etc/systemd/system/tka-backup.timer
 systemctl daemon-reload

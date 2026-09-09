@@ -5,7 +5,7 @@ import { z } from "zod";
 import { addDemoSensorSample, getDemoSensorLiveSnapshot } from "@/lib/demo-store";
 import { ensureDemoPatients } from "@/lib/data";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
-import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
+import { gatewayUnauthorizedResponse, gatewayDeviceUnauthorizedResponse } from "@/lib/gateway-auth";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { calculateRehabMetrics } from "@/lib/rehab-metrics";
@@ -285,7 +285,7 @@ export async function POST(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
 
-  const unauthorized = gatewayUnauthorizedResponse(request);
+  const unauthorized = await gatewayUnauthorizedResponse(request, body.patientId);
   if (unauthorized) return unauthorized;
 
   if (isDemoMode()) {
@@ -328,6 +328,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...result, receipt });
   }
 
+  if (!body.deviceId || !body.sessionId) {
+    return NextResponse.json({ error: "Device and session are required", code: "DEVICE_SESSION_REQUIRED" }, { status: 400 });
+  }
+  const forbidden = await gatewayDeviceUnauthorizedResponse(request, body.deviceId, body.patientId);
+  if (forbidden) return forbidden;
   await ensureDemoPatients();
 
   const session = body.sessionId

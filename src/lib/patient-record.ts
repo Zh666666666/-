@@ -33,6 +33,9 @@ export const patientRecordSchema = z.object({
   if (new Date(`${record.surgeryDate}T00:00:00.000Z`).getTime() > Date.now()) {
     context.addIssue({ code: "custom", path: ["surgeryDate"], message: "手术日期不能晚于今天。" });
   }
+  if (record.dateOfBirth && record.surgeryDate < record.dateOfBirth) {
+    context.addIssue({ code: "custom", path: ["surgeryDate"], message: "手术日期不能早于出生日期。" });
+  }
   if (record.allergyStatus === "PRESENT" && !record.allergyHistory?.trim()) {
     context.addIssue({ code: "custom", path: ["allergyHistory"], message: "已选择有过敏史，请填写具体内容。" });
   }

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { authRoleCookie, resolveAuthRole, type UserRole } from "@/lib/auth";
 import { resolveAuthMode } from "@/lib/env";
-import { localSessionCookie, secretsEqual, verifyLocalSession } from "@/lib/local-auth";
+import { localSessionCookie, verifyLocalSession } from "@/lib/local-auth";
 import {
   gatewayCanAccess,
   hasSameOrigin,
@@ -43,8 +43,8 @@ async function hasValidGatewayToken(request: NextRequest, pathname: string) {
   if (!gatewayCanAccess(pathname, request.method)) return false;
   const authorization = request.headers.get("authorization") ?? "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-  const expected = process.env["GATEWAY_API_TOKEN"] ?? "";
-  return expected.length >= 24 && secretsEqual(token, expected);
+  // Node handlers verify database credentials, revocation and resource scope.
+  return /^tka_gw_[A-Za-z0-9_-]{43}$/.test(token);
 }
 
 function authorizeCookieApi(request: NextRequest, role: UserRole | null, response = NextResponse.next()) {

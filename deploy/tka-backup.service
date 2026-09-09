@@ -5,7 +5,9 @@ After=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/tka-rehab/deploy/backup.sh
+EnvironmentFile=/etc/tka/operations.env
+ExecStart=/bin/sh /opt/tka-rehab/deploy/backup.sh
+TimeoutStartSec=65min
 User=root
 Group=root
 

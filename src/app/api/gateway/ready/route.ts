@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
 
-  const unauthorized = gatewayUnauthorizedResponse(request);
+  const unauthorized = await gatewayUnauthorizedResponse(request, patientId);
   if (unauthorized) return unauthorized;
 
   const patient = isDemoMode()

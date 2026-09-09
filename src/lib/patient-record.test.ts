@@ -25,3 +25,7 @@ test("requires allergy details when allergy is present", () => {
 test("derives age from date of birth", () => {
   assert.equal(ageFromDateOfBirth("1960-08-25", new Date("2026-08-24T00:00:00.000Z")), 65);
 });
+
+test("rejects surgery before birth", () => {
+  assert.equal(patientRecordSchema.safeParse({ ...valid, surgeryDate: "1959-01-01" }).success, false);
+});

@@ -5,12 +5,13 @@ import { accessiblePatientIds, canAccessPatient } from "@/lib/access-control";
 import { addDemoDevice, getDemoDevices } from "@/lib/demo-store";
 import { runtimeUnavailableResponse } from "@/lib/api-runtime";
 import { isDemoMode } from "@/lib/env";
-import { gatewayUnauthorizedResponse } from "@/lib/gateway-auth";
+import { gatewayUnauthorizedResponse, getGatewayGrant } from "@/lib/gateway-auth";
 import { normalizeDeviceStatus, serializeDevice } from "@/lib/hardware";
 import { prisma } from "@/lib/prisma";
 import { getDataAccessContext } from "@/lib/server-access";
 
 const deviceSchema = z.object({
+  patientId: z.string().min(1).max(100).optional(),
   serialNo: z.string().min(1).max(128),
   name: z.string().min(1).max(120),
   model: z.string().max(80).optional().default("WT9011DCL-BT50"),
@@ -66,20 +67,34 @@ export async function POST(request: Request) {
     return NextResponse.json(addDemoDevice(body));
   }
 
-  if (gatewayUnauthorizedResponse(request)) {
+  let ownerPatientId = body.patientId;
+  if (request.headers.has("authorization")) {
+    const forbidden = await gatewayUnauthorizedResponse(request, body.patientId, body.serialNo);
+    if (forbidden) return forbidden;
+    ownerPatientId = (await getGatewayGrant(request))?.patientId;
+  } else {
     const access = await getDataAccessContext();
     if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ownerPatientId || !canAccessPatient(access, ownerPatientId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  if (!ownerPatientId) return NextResponse.json({ error: "Patient is required" }, { status: 400 });
 
-  const device = await prisma.device.upsert({
+  const device = await prisma.$transaction(async (transaction) => {
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'serial:' + body.serialNo}))`;
+    const existing = await transaction.device.findUnique({ where: { serialNo: body.serialNo }, include: { bindings: { where: { active: true } } } });
+    if (existing && ((existing.ownerPatientId && existing.ownerPatientId !== ownerPatientId)
+      || existing.bindings.some((binding) => binding.patientId !== ownerPatientId))) return null;
+    return transaction.device.upsert({
     where: { serialNo: body.serialNo },
     update: {
+      ownerPatientId,
       name: body.name,
       model: body.model,
       manufacturer: body.manufacturer,
       firmwareVersion: body.firmwareVersion ?? null,
     },
     create: {
+      ownerPatientId,
       serialNo: body.serialNo,
       name: body.name,
       model: body.model,
@@ -88,7 +103,9 @@ export async function POST(request: Request) {
       deviceToken: crypto.randomUUID(),
       status: normalizeDeviceStatus({ lastSeenAt: null }),
     },
+    });
   });
+  if (!device) return NextResponse.json({ error: "Device belongs to another patient", code: "DEVICE_OWNERSHIP_CONFLICT" }, { status: 409 });
 
   return NextResponse.json(serializeDevice(device));
 }

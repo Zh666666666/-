@@ -87,13 +87,21 @@ export async function POST(request: Request) {
   const activeThigh = activeBindings.find((binding) => binding.placement === "THIGH")?.deviceId ?? null;
   const activeShank = activeBindings.find((binding) => binding.placement === "SHANK")?.deviceId ?? null;
   if (
-    body.quality === "GOOD"
+    (body.quality ?? "GOOD") === "GOOD"
     && (!activeThigh || !activeShank || body.thighDeviceId !== activeThigh || body.shankDeviceId !== activeShank)
   ) {
     return NextResponse.json(
       { error: "Calibration devices do not match the active placement revision", code: "CALIBRATION_BINDING_MISMATCH" },
       { status: 409 },
     );
+  }
+
+  if (body.sessionId && !await prisma.sensorSession.findFirst({ where: { id: body.sessionId, patientId: body.patientId } })) {
+    return NextResponse.json({ error: "Session does not belong to patient" }, { status: 403 });
+  }
+  const requestedDevices = [body.thighDeviceId, body.shankDeviceId].filter((id): id is string => Boolean(id));
+  if (requestedDevices.length && await prisma.device.count({ where: { id: { in: requestedDevices }, ownerPatientId: body.patientId } }) !== new Set(requestedDevices).size) {
+    return NextResponse.json({ error: "Device does not belong to patient" }, { status: 403 });
   }
 
   const record = await prisma.calibrationRecord.create({

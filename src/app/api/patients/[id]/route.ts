@@ -43,12 +43,31 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await context.params;
   if (!canAccessPatient(access, id)) return NextResponse.json({ error: "无权查看这份患者档案。" }, { status: 403 });
-  if (isDemoMode()) return NextResponse.json(seedPatients.find((patient) => patient.id === id) ?? seedPatients[0]);
-  const patient = await prisma.patient.findUnique({ where: { id } });
+  if (isDemoMode()) {
+    const patient = seedPatients.find((patient) => patient.id === id);
+    return patient ? NextResponse.json(patient) : NextResponse.json({ error: "患者档案不存在。" }, { status: 404 });
+  }
+  const patient = await prisma.patient.findFirst({ where: {
+    id,
+    ...(access.role === "nurse" ? { primaryNurseUserId: access.userId }
+      : { profiles: { some: { userId: access.userId, role: "patient" } } }),
+  } });
   return patient ? NextResponse.json(await serializePatient(patient)) : NextResponse.json({ error: "患者档案不存在。" }, { status: 404 });
 }
 
 export async function PUT(request: Request, context: RouteContext) {
+  try {
+    return await updatePatient(request, context);
+  } catch (error) {
+    if ((error instanceof Error && error.message === "ACCESS_CHANGED")
+      || (typeof error === "object" && error !== null && "code" in error && error.code === "P2034")) {
+      return NextResponse.json({ error: "档案关联刚刚发生变化，请刷新后重试。" }, { status: 409 });
+    }
+    throw error;
+  }
+}
+
+async function updatePatient(request: Request, context: RouteContext) {
   const unavailable = runtimeUnavailableResponse();
   if (unavailable) return unavailable;
   const access = await getDataAccessContext();
@@ -57,17 +76,28 @@ export async function PUT(request: Request, context: RouteContext) {
   if (!canAccessPatient(access, id)) return NextResponse.json({ error: "无权修改这份患者档案。" }, { status: 403 });
   const parsed = patientRecordSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "患者资料格式不正确。" }, { status: 400 });
-  if (isDemoMode()) return NextResponse.json({ ...seedPatients.find((patient) => patient.id === id), ...parsed.data, updatedAt: new Date().toISOString() });
+  if (isDemoMode()) {
+    const patient = seedPatients.find((patient) => patient.id === id);
+    return patient ? NextResponse.json({ ...patient, ...parsed.data, updatedAt: new Date().toISOString() })
+      : NextResponse.json({ error: "患者档案不存在。" }, { status: 404 });
+  }
 
   const input = parsed.data;
   const changedFields = Object.keys(input);
   const patient = await prisma.$transaction(async (transaction) => {
+    const current = await transaction.patient.findFirst({ where: {
+      id,
+      ...(access.role === "nurse" ? { primaryNurseUserId: access.userId }
+        : { profiles: { some: { userId: access.userId, role: "patient" } } }),
+    } });
+    if (!current) throw new Error("ACCESS_CHANGED");
     const updated = await transaction.patient.update({
       where: { id },
       data: {
         ...input,
         age: input.dateOfBirth ? ageFromDateOfBirth(input.dateOfBirth) : undefined,
-        dateOfBirth: input.dateOfBirth ? new Date(`${input.dateOfBirth}T00:00:00.000Z`) : null,
+        dateOfBirth: input.dateOfBirth === undefined ? undefined
+          : input.dateOfBirth ? new Date(`${input.dateOfBirth}T00:00:00.000Z`) : null,
         surgeryDate: new Date(`${input.surgeryDate}T00:00:00.000Z`),
         allergyHistory: input.allergyStatus === "PRESENT" ? input.allergyHistory ?? null : null,
       },
@@ -83,6 +113,6 @@ export async function PUT(request: Request, context: RouteContext) {
       },
     });
     return updated;
-  });
+  }, { isolationLevel: "Serializable" });
   return NextResponse.json(await serializePatient(patient));
 }
