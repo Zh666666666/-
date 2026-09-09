@@ -38,7 +38,7 @@ test("concurrent synthetic dual-device batches preserve receipts, ownership and 
         surgeryDate: new Date("2026-01-01"),
       } });
       patientIds.push(patient.id);
-      const devices = [];
+      const devices: Array<{ id: string; serialNo: string }> = [];
       for (const placement of ["THIGH", "SHANK"] as const) {
         const device = await prisma.device.create({ data: {
           serialNo: `${prefix}-${index}-${placement}`, name: "Synthetic sensor", ownerPatientId: patient.id,
