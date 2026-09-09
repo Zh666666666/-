@@ -41,10 +41,19 @@ const readingCareCards = [
 export default function FamilyGuidancePage() {
   const [records, setRecords] = useState<NursingRecordItem[]>([]);
   const [filter, setFilter] = useState("ALL");
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const [readingId, setReadingId] = useState<string | null>(null);
   const [syncMode, setSyncMode] = useState<"realtime" | "polling" | "connecting">("connecting");
 
   async function refreshRecords() {
-    setRecords(await fetchGuidanceRecords());
+    try {
+      setRecords(await fetchGuidanceRecords());
+      setLoaded(true);
+      setError("");
+    } catch {
+      setError("暂时无法获取最新指导，已显示的内容可能不是最新。请检查网络后重试。");
+    }
   }
 
   useEffect(() => {
@@ -85,11 +94,17 @@ export default function FamilyGuidancePage() {
   const unreadCount = records.filter((record) => !record.readAt).length;
 
   async function markRead(id: string) {
-    const response = await fetch(`/api/nursing-records/${id}`, { method: "PATCH" });
-
-    if (response.ok) {
+    setReadingId(id);
+    try {
+      const response = await fetch(`/api/nursing-records/${id}`, { method: "PATCH" });
+      if (!response.ok) throw new Error("Read confirmation failed");
       const record = (await response.json()) as NursingRecordItem;
       setRecords((current) => current.map((item) => (item.id === id ? record : item)));
+      setError("");
+    } catch {
+      setError("阅读确认未保存，请重试；护士端暂时仍会显示未读。");
+    } finally {
+      setReadingId(null);
     }
   }
 
@@ -100,7 +115,7 @@ export default function FamilyGuidancePage() {
           <div>
             <Badge variant={syncMode === "realtime" ? "success" : "warning"} className="gap-2 px-3 py-1 text-sm">
               <Radio className="size-4" />
-              {syncMode === "realtime" ? "指导建议实时同步" : syncMode === "polling" ? "Demo 轮询同步" : "正在连接同步通道"}
+              {syncMode === "realtime" ? "指导建议实时同步" : syncMode === "polling" ? "指导建议定时同步" : "正在连接同步通道"}
             </Badge>
             <h1 className="display-md mt-4 text-2xl md:text-[2rem]">远程指导建议</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg md:leading-8">护士端发送康复建议后会立即同步到这里。家属可以把它当成一张“安心照护单”：知道今天怎么练、什么时候停、哪些担心需要再问护士。</p>
@@ -109,6 +124,10 @@ export default function FamilyGuidancePage() {
             <Link href="/family">返回家属端</Link>
           </Button>
         </header>
+
+        {error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <p>{error}</p><Button variant="outline" onClick={refreshRecords}>重新获取指导</Button>
+        </div> : null}
 
         <Card className="border-[var(--hairline)] bg-gradient-to-br from-brass-100 via-white to-sage-50">
           <CardContent className="grid gap-4 p-5 md:grid-cols-[auto_1fr] md:p-6">
@@ -146,7 +165,7 @@ export default function FamilyGuidancePage() {
         </Card>
 
         <div className="grid gap-4">
-          {filteredRecords.length === 0 ? (
+          {!loaded ? <p role="status">{error ? "指导尚未加载成功。" : "正在获取护士指导…"}</p> : filteredRecords.length === 0 ? (
             <Card className="bg-white/90">
               <CardContent className="p-8 text-center text-slate-500">暂无远程指导建议。当前可以先按日常训练节奏陪伴家人，若疼痛、肿胀或情绪焦虑明显，请提交预约护理让护士一起评估。</CardContent>
             </Card>
@@ -183,9 +202,9 @@ export default function FamilyGuidancePage() {
                   {record.notes ? <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 whitespace-pre-line text-slate-600">护理备注：{record.notes}</p> : null}
                   <Separator />
                   <div className="flex justify-end">
-                    <Button variant={record.readAt ? "secondary" : "elder"} disabled={Boolean(record.readAt)} onClick={() => markRead(record.id)}>
+                    <Button variant={record.readAt ? "secondary" : "elder"} disabled={Boolean(record.readAt) || readingId !== null} onClick={() => markRead(record.id)}>
                       <CheckCheck className="size-5" />
-                      {record.readAt ? "已确认阅读" : "标记为已读"}
+                      {record.readAt ? "已确认阅读" : readingId === record.id ? "正在确认…" : "标记为已读"}
                     </Button>
                   </div>
                 </CardContent>
